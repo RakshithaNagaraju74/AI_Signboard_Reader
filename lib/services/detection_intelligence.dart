@@ -100,7 +100,7 @@ class DetectionIntelligence {
       final ocrBoost = detection.ocrText.trim().isNotEmpty ? 0.15 : 0.0;
       final focusBoost = key == _focusedKey ? 0.20 : 0.0;
       final priority = detection.confidence * 0.50 +
-          area.clamp(0.0, 0.75) * 0.25 +
+          area.clamp(0.0, 0.75).toDouble() * 0.25 +
           _safetyBoost(detection.className) +
           ocrBoost +
           focusBoost;
