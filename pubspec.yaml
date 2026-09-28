@@ -1,6 +1,6 @@
 name: signboard_reader
-description: AI Signboard Reader for visually impaired users - Complete Version
-version: 1.0.0+1
+description: AI Signboard Reader for visually impaired users
+version: 2.0.0+2
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -8,30 +8,20 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
-  # UI & State Management
   provider: ^6.1.1
-  
-  # Camera & Image
   camera: ^0.10.5
   image_picker: ^1.0.7
   image: ^3.3.0
-  
-  # Machine Learning - Compatible Versions
   flutter_litert: ^3.8.0
-
   google_mlkit_text_recognition: ^0.16.0
-  
-  # Text-to-Speech
   flutter_tts: ^4.2.5
-
-  
-  # Permissions & Storage
+  speech_to_text: ^7.0.0
+  geolocator: ^14.0.2
+  shared_preferences: ^2.5.3
   permission_handler: ^13.0.1
   path_provider: ^2.1.6
   path: ^1.9.1
-  
-  # Additional Utilities
+  url_launcher: ^6.3.2
   flutter_svg: ^2.0.9
   shimmer: ^3.0.0
 
@@ -39,12 +29,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
-
   flutter_launcher_icons: ^0.11.0
 
 flutter:
   uses-material-design: true
-  
   assets:
     - assets/models/best.tflite
     - assets/models/labels.txt
