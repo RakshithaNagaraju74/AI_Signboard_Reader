@@ -171,7 +171,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         return;
       }
 
-      final context = intel.select(enriched);
+      final context = _chooseContext(contexts);
       if (!intel.shouldAnnounce(
         context,
         cooldown: focusMode
@@ -202,6 +202,18 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
     } finally {
       processing = false;
     }
+  }
+
+  DetectionContext _chooseContext(List<DetectionContext> contexts) {
+    if (intel.focusedKey != null) {
+      for (final context in contexts) {
+        final key = context.detection.className +
+            '|' +
+            context.position.name;
+        if (key == intel.focusedKey) return context;
+      }
+    }
+    return contexts.first;
   }
 
   String buildSpeech(DetectionContext context) {
