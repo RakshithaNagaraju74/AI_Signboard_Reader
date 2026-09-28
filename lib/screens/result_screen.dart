@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:signboard_reader/models/sign_model.dart';
-import 'package:signboard_reader/services/tts_service.dart';
-import 'package:signboard_reader/widgets/sign_card.dart';
+import '../models/sign_model.dart';
+import '../services/tts_service.dart';
+import '../widgets/sign_card.dart';
 
 class ResultScreen extends StatelessWidget {
   const ResultScreen({super.key});
@@ -39,11 +39,10 @@ class ResultScreen extends StatelessWidget {
               margin: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
+                boxShadow: const [BoxShadow(
                     color: Colors.black26,
                     blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    offset: Offset(0, 2),
                   ),
                 ],
               ),

@@ -15,9 +15,6 @@ class VoiceCommandService {
     if (!await initialize()) return null;
     final c = Completer<String?>();
     await _speech.listen(
-      localeId: localeId,
-      listenFor: timeout,
-      pauseFor: const Duration(seconds:2),
       onResult: (r) { if (r.finalResult && !c.isCompleted) c.complete(r.recognizedWords); },
     );
     final result = await c.future.timeout(timeout + const Duration(seconds:1), onTimeout:()=>null);

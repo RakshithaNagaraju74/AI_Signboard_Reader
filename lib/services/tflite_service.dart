@@ -75,7 +75,7 @@ class TFLiteService {
       final options = InterpreterOptions()
         ..threads = 4;
 
-      _interpreter = await Interpreter.fromFile(
+      _interpreter = Interpreter.fromFile(
         modelFile,
         options: options,
       );
