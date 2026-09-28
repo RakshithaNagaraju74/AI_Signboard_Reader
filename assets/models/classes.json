@@ -1,0 +1,23 @@
+{
+  "0": "warning_sign",
+  "1": "construction_sign",
+  "2": "turn_left_sign",
+  "3": "turn_right_sign",
+  "4": "junction_or_merge_sign",
+  "5": "school_zone_sign",
+  "6": "speed_limit_sign",
+  "7": "bus_stop_sign",
+  "8": "shop_sign",
+  "9": "public_info_sign",
+  "10": "mrt_sign",
+  "11": "tra_sign",
+  "12": "bicycle_sign",
+  "13": "stop_request_bell_sign",
+  "14": "wet_floor_sign",
+  "15": "pedestrian_crossing_sign",
+  "16": "accessibility_sign",
+  "17": "restroom_sign_ladies",
+  "18": "restroom_sign_men",
+  "19": "pedestrian_dont_walk_sign",
+  "20": "tactile_paving"
+}
