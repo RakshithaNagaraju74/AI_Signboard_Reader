@@ -1,56 +1,42 @@
-
 import 'package:flutter_tts/flutter_tts.dart';
 
 class TTSService {
-  static final TTSService _instance =
-      TTSService._internal();
-
+  static final TTSService _instance = TTSService._internal();
   factory TTSService() => _instance;
-
   TTSService._internal();
 
-  final FlutterTts _flutterTts =
-      FlutterTts();
-
+  final FlutterTts _flutterTts = FlutterTts();
   bool _isInitialized = false;
-  bool _isSpeaking = false;
+  String _languageCode = 'en-US';
 
   Future<void> initialize() async {
     if (_isInitialized) return;
-
-    await _flutterTts.setLanguage('en-US');
-    await _flutterTts.setSpeechRate(0.5);
+    await _flutterTts.setSpeechRate(0.48);
     await _flutterTts.setPitch(1.0);
     await _flutterTts.setVolume(1.0);
-
+    await setLanguage(_languageCode);
     _isInitialized = true;
   }
 
-  Future<void> speak(String text) async {
-    if (text.trim().isEmpty) {
-      return;
-    }
-
-    if (!_isInitialized) {
-      await initialize();
-    }
-
-    // Stop anything currently speaking.
-    await _flutterTts.stop();
-
-    _isSpeaking = true;
-
+  Future<void> setLanguage(String languageCode) async {
+    _languageCode = languageCode;
     try {
-      await _flutterTts.speak(text);
-    } finally {
-      _isSpeaking = false;
-    }
+      await _flutterTts.setLanguage(languageCode);
+    } catch (_) {}
   }
 
-  Future<void> stop() async {
-    await _flutterTts.stop();
-    _isSpeaking = false;
+  String get languageCode => _languageCode;
+
+  Future<void> speak(String text, {bool interrupt = true}) async {
+    final message = text.trim();
+    if (message.isEmpty) return;
+    if (!_isInitialized) await initialize();
+    if (interrupt) await _flutterTts.stop();
+    await _flutterTts.speak(message);
   }
 
-  bool get isSpeaking => _isSpeaking;
+  Future<void> stop() async => _flutterTts.stop();
+  Future<void> pause() async {
+    try { await _flutterTts.pause(); } catch (_) {}
+  }
 }
