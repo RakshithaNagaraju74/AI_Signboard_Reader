@@ -14,15 +14,13 @@ class TTSService {
     await _flutterTts.setSpeechRate(0.48);
     await _flutterTts.setPitch(1.0);
     await _flutterTts.setVolume(1.0);
-    await setLanguage(_languageCode);
+    try { await _flutterTts.setLanguage(_languageCode); } catch (_) {}
     _isInitialized = true;
   }
 
   Future<void> setLanguage(String languageCode) async {
     _languageCode = languageCode;
-    try {
-      await _flutterTts.setLanguage(languageCode);
-    } catch (_) {}
+    try { await _flutterTts.setLanguage(languageCode); } catch (_) {}
   }
 
   String get languageCode => _languageCode;
@@ -36,7 +34,5 @@ class TTSService {
   }
 
   Future<void> stop() async => _flutterTts.stop();
-  Future<void> pause() async {
-    try { await _flutterTts.pause(); } catch (_) {}
-  }
+  Future<void> pause() async { try { await _flutterTts.pause(); } catch (_) {} }
 }
