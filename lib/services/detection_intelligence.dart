@@ -201,7 +201,9 @@ class DetectionIntelligence {
   }
 
   String _key(DetectionResult detection) {
-    return detection.className + '|' + detection.ocrText.trim().toLowerCase();
+    final centerX = (detection.bbox[0] + detection.bbox[2]) / 2;
+    final position = _position(centerX / _frameWidth);
+    return detection.className + '|' + position.name;
   }
 
   void _pruneOldTracks() {
