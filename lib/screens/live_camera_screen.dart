@@ -172,7 +172,14 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       }
 
       final context = intel.select(enriched);
-      if (!intel.shouldAnnounce(context) && !focusMode) return;
+      if (!intel.shouldAnnounce(
+        context,
+        cooldown: focusMode
+            ? const Duration(seconds: 2)
+            : const Duration(seconds: 8),
+      )) {
+        return;
+      }
 
       final currentLocation = await location.current();
       await speak(buildSpeech(context));
@@ -201,6 +208,10 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
     final detection = context.detection;
     final label = detection.className.replaceAll('_', ' ');
     var speech = label + ' ' + context.position.label;
+
+    if (focusMode && context.position == SignPosition.front) {
+      speech = label + ' directly ahead. Hold steady.';
+    }
 
     if (detection.ocrText.isNotEmpty) {
       speech += '. Text: ' + detection.ocrText;
