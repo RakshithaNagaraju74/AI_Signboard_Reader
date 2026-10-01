@@ -13,10 +13,9 @@ class VoiceCommandService {
 
     _available = await _speech.initialize(
       onError: (_) {
-        final completer = _activeCompleter;
-        if (completer != null && !completer.isCompleted) {
-          completer.complete(null);
-        }
+        // Let the active listen finish through its timeout so that any
+        // partial recognition captured just before the error can still
+        // be returned to the caller.
       },
       onStatus: (_) {},
     );
