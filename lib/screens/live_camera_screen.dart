@@ -1512,24 +1512,20 @@ class _LiveCameraScreenState
               var detail =
                   '${localizedClass(d.className)}'
                   ' • '
-                  '${localizedPosition(context.position)}\n'
-                  '${copy('class')}: '
-                  '${d.classId} • '
-                  '${copy('confidence')}: '
-                  '${(d.confidence * 100).toStringAsFixed(0)}%';
+                  '${localizedPosition(context.position)}';
 
-              if (d.ocrText
-                  .trim()
-                  .isNotEmpty) {
+              if (d.ocrText.trim().isNotEmpty) {
                 detail +=
                     '\n${copy('text')}: '
                     '${d.ocrText.trim()}';
               }
 
-              if (context.movement
-                  .isNotEmpty) {
+              if (context.movement.isNotEmpty) {
                 detail +=
                     '\n${localizedMovement(context.movement)}';
+              } else {
+                detail +=
+                    '\n${localizedProximity(context.proximity)}';
               }
 
               return Container(
@@ -1565,15 +1561,9 @@ class _LiveCameraScreenState
           ),
           Text(
             currentLocation == null
-                ? copy(
-                    'locationUnavailable',
-                  )
-                : '${currentLocation!.displayPlace}\n'
-                  '${currentLocation!.latitude.toStringAsFixed(5)}, '
-                  '${currentLocation!.longitude.toStringAsFixed(5)} '
-                  '• ±${currentLocation!.accuracy.toStringAsFixed(0)}m',
-            style:
-                const TextStyle(
+                ? copy('locationUnavailable')
+                : '${currentLocation!.displayPlace}',
+            style: const TextStyle(
               fontSize: 12.5,
             ),
           ),
