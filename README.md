@@ -87,4 +87,4 @@ Optional overrides:
 flutter run --dart-define=GROQ_API_KEY=YOUR_KEY --dart-define=GROQ_MODEL=openai/gpt-oss-20b
 ```
 
-Do not put a Groq key directly in Dart source or commit it to GitHub. For production deployment, route the request through a trusted backend/proxy instead of embedding a secret in the APK.
+Create a local `.env` file once from `.env.example` and add your Groq key there. The app loads it automatically, so normal `flutter run` does not need `--dart-define`. `.env` is gitignored and must never be committed. For production deployment, route the request through a trusted backend/proxy instead of embedding a secret in the APK.
