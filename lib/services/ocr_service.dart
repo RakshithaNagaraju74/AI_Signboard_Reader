@@ -15,8 +15,11 @@ class OCRService {
       _recognizers.putIfAbsent(script, () => TextRecognizer(script: script));
 
   Future<String> extractText(File imageFile, List<double> bbox, {
-    TextRecognitionScript script = TextRecognitionScript.latin,
+    String languageCode = 'en',
   }) async {
+    final script = languageCode.toLowerCase() == 'hi'
+        ? TextRecognitionScript.devanagiri
+        : TextRecognitionScript.latin;
     if (bbox.length < 4) return '';
     try {
       final image = img.decodeImage(await imageFile.readAsBytes());
