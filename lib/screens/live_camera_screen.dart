@@ -71,90 +71,29 @@ class _LiveCameraScreenState
 
   Future<void> start() async {
     try {
+      status = 'Starting AI Signboard Reader';
+      if (mounted) setState(() {});
       final saved = await lang.load();
-
-      if (saved == null) {
-        await speakRaw(
-          'Welcome to AI Signboard Reader. '
-          'I am your voice-first assistant.',
-        );
-
-        await chooseLanguage();
-      } else {
-        language = saved;
-
-        await tts.setLanguage(
-          language.speechLocale,
-        );
-      }
-
-      final cameras =
-          await availableCameras();
-
-      if (cameras.isEmpty) {
-        throw StateError(
-          'No camera found',
-        );
-      }
-
-      final backCamera =
-          cameras.firstWhere(
-        (item) =>
-            item.lensDirection ==
-            CameraLensDirection.back,
-        orElse: () => cameras.first,
-      );
-
-      camera = CameraController(
-        backCamera,
-        ResolutionPreset.medium,
-        enableAudio: false,
-      );
-
+      if (saved == null) { await chooseLanguage(); } else { language = saved; await tts.setLanguage(language.speechLocale); }
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) throw StateError('No camera found');
+      final backCamera = cameras.firstWhere((item) => item.lensDirection == CameraLensDirection.back, orElse: () => cameras.first);
+      camera = CameraController(backCamera, ResolutionPreset.low, enableAudio: false);
       await camera!.initialize();
-
-      currentLocation =
-          await location.current(
-        localeIdentifier:
-            _locationLocale(),
-        refreshPlace: true,
-      );
-
-      if (mounted) {
-        setState(() {
-          ready = true;
-          onboarding = false;
-        });
-      }
-
-      await speak(
-        copy('scanning'),
-      );
-
-      timer = Timer.periodic(
-        const Duration(
-          milliseconds: 1300,
-        ),
-        (_) => scan(),
-      );
+      if (mounted) setState(() { ready = true; onboarding = false; status = copy('scanning'); });
+      location.current(localeIdentifier: _locationLocale(), refreshPlace: true).then((value) {
+        if (!mounted || value == null) return; setState(() => currentLocation = value);
+      }).catchError((_) {});
+      TFLiteService().initialize().then((_) {}, onError: (Object error, StackTrace stack) { debugPrint('Background model warm-up failed: $error'); });
+      await speak(copy('scanning'));
+      timer?.cancel();
+      timer = Timer.periodic(const Duration(milliseconds: 1800), (_) => scan());
     } catch (e) {
-      debugPrint(
-        'Camera start error: $e',
-      );
-
-      if (mounted) {
-        setState(() {
-          onboarding = false;
-          status = copy('cameraError');
-        });
-      }
-
-      await speak(
-        copy('cameraError'),
-      );
+      debugPrint('Camera start error: $e');
+      if (mounted) setState(() { onboarding = false; status = copy('cameraError'); });
+      await speak(copy('cameraError'));
     }
   }
-
   String _locationLocale() {
     if (language.code == 'hi') {
       return 'hi_IN';
@@ -168,74 +107,17 @@ class _LiveCameraScreenState
   }
 
   Future<void> chooseLanguage() async {
+    await lang.save(LanguageService.fromCode('en')!);
     await tts.setLanguage('hi-IN');
-
-    await speakRaw(
-      'हिंदी में जारी रखने के लिए हाँ कहें। '
-      'अगर जवाब नहीं मिलता है, मैं कन्नड़ पूछूँगा।',
-    );
-
-    final hindi = await voice.listen(
-      localeId: 'hi-IN',
-      timeout:
-          const Duration(seconds: 4),
-    );
-
-    if (_affirmative(hindi, 'hi') ||
-        LanguageService.detectCommand(
-              hindi ?? '',
-            ) ==
-            'hi') {
-      await setLanguage('hi');
-      return;
-    }
-
+    await speakRaw('हिंदी में जारी रखने के लिए हाँ कहें। चार सेकंड में जवाब न मिलने पर मैं कन्नड़ पूछूँगा।');
+    final hindi = await voice.listen(localeId: 'hi-IN', timeout: const Duration(seconds: 4));
+    if (_affirmative(hindi, 'hi') || LanguageService.detectCommand(hindi ?? '') == 'hi') { await setLanguage('hi'); return; }
     await tts.setLanguage('kn-IN');
-
-    await speakRaw(
-      'ಕನ್ನಡದಲ್ಲಿ ಮುಂದುವರಿಸಲು ಹೌದು ಎಂದು ಹೇಳಿ. '
-      'ಕೆಲವು ಸೆಕೆಂಡುಗಳಲ್ಲಿ ಉತ್ತರಿಸದಿದ್ದರೆ '
-      'ಇಂಗ್ಲಿಷ್ ಕೇಳುತ್ತೇನೆ.',
-    );
-
-    final kannada = await voice.listen(
-      localeId: 'kn-IN',
-      timeout:
-          const Duration(seconds: 4),
-    );
-
-    if (_affirmative(kannada, 'kn') ||
-        LanguageService.detectCommand(
-              kannada ?? '',
-            ) ==
-            'kn') {
-      await setLanguage('kn');
-      return;
-    }
-
-    await tts.setLanguage('en-US');
-
-    await speakRaw(
-      'Say yes for English to continue.',
-    );
-
-    final english = await voice.listen(
-      localeId: 'en-US',
-      timeout:
-          const Duration(seconds: 4),
-    );
-
-    await setLanguage(
-      (_affirmative(english, 'en') ||
-              LanguageService.detectCommand(
-                    english ?? '',
-                  ) ==
-                  'en')
-          ? 'en'
-          : 'en',
-    );
+    await speakRaw('ಕನ್ನಡದಲ್ಲಿ ಮುಂದುವರಿಸಲು ಹೌದು ಎಂದು ಹೇಳಿ.');
+    final kannada = await voice.listen(localeId: 'kn-IN', timeout: const Duration(seconds: 4));
+    if (_affirmative(kannada, 'kn') || LanguageService.detectCommand(kannada ?? '') == 'kn') { await setLanguage('kn'); return; }
+    await setLanguage('en');
   }
-
   bool _affirmative(
     String? value,
     String code,
@@ -285,170 +167,51 @@ class _LiveCameraScreenState
     );
   }
 
-  Future<void> scan() async {
-    if (!ready ||
-        processing ||
-        stopped ||
-        listening ||
-        camera == null ||
-        !camera!.value.isInitialized) {
-      return;
+  Future<List<DetectionContext>> _analyzeFile(File file, {required bool demo}) async {
+    var raw = await TFLiteService().predictImage(file);
+    if (raw.isEmpty) { lastDetections = []; return []; }
+    raw = raw.take(demo ? 4 : 3).toList();
+    final decoded = img.decodeImage(await file.readAsBytes());
+    if (decoded != null) intel.setFrameSize(decoded.width, decoded.height);
+    final preliminary = intel.analyze(raw);
+    final ocrLimit = demo ? 2 : 1;
+    final ocrKeys = preliminary.take(ocrLimit)
+        .where((context) => context.detection.confidence >= 0.50)
+        .map((context) => intel.detectionKey(context.detection)).toSet();
+    final enriched = <DetectionResult>[];
+    for (final detection in raw) {
+      var text = '';
+      if (ocrKeys.contains(intel.detectionKey(detection))) {
+        try { text = await ocr.extractText(file, detection.bbox, languageCode: language.code); }
+        catch (e) { debugPrint('OCR error: $e'); }
+      }
+      final item = DetectionResult(className: detection.className, confidence: detection.confidence, bbox: detection.bbox, ocrText: text, classId: detection.classId);
+      if (text.trim().isNotEmpty) intel.markOcrRead(item);
+      enriched.add(item);
     }
-
-    processing = true;
-
-    try {
-      final shot =
-          await camera!.takePicture();
-
-      final file = File(shot.path);
-
-      var raw =
-          await TFLiteService()
-              .predictImage(file);
-
-      if (raw.isEmpty) {
-        if (focusMode) {
-          await maybeSpeak(
-            'I lost the focused sign. '
-            'Move the camera slowly.',
-          );
-        }
-
-        return;
-      }
-
-      final previewSize =
-          camera!.value.previewSize;
-
-      intel.setFrameSize(
-        previewSize?.width.toInt() ?? 416,
-        previewSize?.height.toInt() ?? 416,
-      );
-
-      raw = raw.take(5).toList();
-
-      final enriched =
-          <DetectionResult>[];
-
-      for (final detection in raw) {
-        var text = '';
-
-        if (detection.confidence >=
-                0.45 &&
-            (focusMode ||
-                intel.shouldReadText(
-                  detection,
-                ))) {
-          try {
-            text = await ocr.extractText(
-              file,
-              detection.bbox,
-            );
-          } catch (e) {
-            debugPrint(
-              'OCR error: $e',
-            );
-          }
-        }
-
-        final enrichedDetection =
-            DetectionResult(
-          className:
-              detection.className,
-          confidence:
-              detection.confidence,
-          bbox: detection.bbox,
-          ocrText: text,
-          classId:
-              detection.classId,
-        );
-
-        if (text.trim().isNotEmpty) {
-          intel.markOcrRead(
-            enrichedDetection,
-          );
-        }
-
-        enriched.add(
-          enrichedDetection,
-        );
-      }
-
-      lastDetections = enriched;
-
-      final contexts =
-          intel.analyze(enriched);
-
-      visibleContexts = contexts;
-
-      currentLocation =
-          await location.current(
-        localeIdentifier:
-            _locationLocale(),
-      );
-
-      if (mounted) {
-        setState(() {});
-      }
-
-      if (contexts.isEmpty) {
-        return;
-      }
-
-      if (sceneScanMode) {
-        await speakScene(contexts);
-        sceneScanMode = false;
-        return;
-      }
-
-      final context =
-          _chooseContext(contexts);
-
-      if (!intel.shouldAnnounce(
-        context,
-        cooldown: focusMode
-            ? const Duration(seconds: 2)
-            : const Duration(seconds: 8),
-      )) {
-        return;
-      }
-
-      final speech =
-          buildSpeech(context);
-
-      await speak(speech);
-
-      intel.markAnnounced(context);
-
-      await HapticFeedback.mediumImpact();
-
-      await history.add(
-        DetectionHistoryEntry(
-          label:
-              context.detection.className,
-          text:
-              context.detection.ocrText,
-          position:
-              context.position.label,
-          confidence:
-              context.detection.confidence,
-          latitude:
-              currentLocation?.latitude,
-          longitude:
-              currentLocation?.longitude,
-          timestamp: DateTime.now(),
-        ),
-      );
-    } catch (e) {
-      debugPrint(
-        'scan error: $e',
-      );
-    } finally {
-      processing = false;
-    }
+    lastDetections = enriched;
+    return intel.analyze(enriched);
   }
 
+  Future<void> scan() async {
+    if (!ready || processing || stopped || listening || demoMode || camera == null || !camera!.value.isInitialized) return;
+    processing = true;
+    try {
+      final shot = await camera!.takePicture();
+      final contexts = await _analyzeFile(File(shot.path), demo: false);
+      visibleContexts = contexts;
+      if (mounted) setState(() {});
+      if (contexts.isEmpty) return;
+      if (sceneScanMode) { await speakScene(contexts); sceneScanMode = false; return; }
+      final context = _chooseContext(contexts);
+      if (!intel.shouldAnnounce(context, cooldown: focusMode ? const Duration(seconds: 2) : const Duration(seconds: 8))) return;
+      await speak(buildSpeech(context));
+      intel.markAnnounced(context);
+      await HapticFeedback.mediumImpact();
+      history.add(DetectionHistoryEntry(label: context.detection.className, text: context.detection.ocrText, position: context.position.label, confidence: context.detection.confidence, latitude: currentLocation?.latitude, longitude: currentLocation?.longitude, timestamp: DateTime.now())).catchError((_) {});
+    } catch (e) { debugPrint('scan error: $e'); }
+    finally { processing = false; if (mounted) setState(() {}); }
+  }
   DetectionContext _chooseContext(
     List<DetectionContext> contexts,
   ) {
@@ -588,168 +351,35 @@ class _LiveCameraScreenState
   }
 
   Future<void> pickDemoImage() async {
+    if (processing) return;
     try {
-      final picked =
-          await picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 95,
-      );
-
-      if (picked == null) {
-        return;
-      }
-
-      final file =
-          File(picked.path);
-
-      final bytes =
-          await file.readAsBytes();
-
-      final image =
-          img.decodeImage(bytes);
-
-      if (image == null) {
-        await speak(
-          copy('analysisFailed'),
-        );
-        return;
-      }
-
-      processing = true;
-      demoMode = true;
-      demoImage = file;
-      visibleContexts = [];
-
-      if (mounted) {
-        setState(() {});
-      }
-
-      await speak(
-        copy('analyzingImage'),
-      );
-
-      var raw =
-          await TFLiteService()
-              .predictImage(file);
-
-      raw = raw.take(8).toList();
-
-      final enriched =
-          <DetectionResult>[];
-
-      intel.setFrameSize(
-        image.width,
-        image.height,
-      );
-
-      for (final detection in raw) {
-        var text = '';
-
-        if (detection.confidence >=
-            0.40) {
-          try {
-            text = await ocr.extractText(
-              file,
-              detection.bbox,
-            );
-          } catch (_) {}
-        }
-
-        final item =
-            DetectionResult(
-          className:
-              detection.className,
-          confidence:
-              detection.confidence,
-          bbox: detection.bbox,
-          ocrText: text,
-          classId:
-              detection.classId,
-        );
-
-        if (text.trim().isNotEmpty) {
-          intel.markOcrRead(item);
-        }
-
-        enriched.add(item);
-      }
-
-      lastDetections = enriched;
-
-      final contexts =
-          intel.analyze(enriched);
-
+      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 88, maxWidth: 1600, maxHeight: 1600);
+      if (picked == null) return;
+      final file = File(picked.path);
+      processing = true; demoMode = true; demoImage = file; visibleContexts = [];
+      if (mounted) setState(() => status = copy('analyzingImage'));
+      await speak(copy('analyzingImage'));
+      final contexts = await _analyzeFile(file, demo: true);
       visibleContexts = contexts;
-
-      currentLocation =
-          await location.current(
-        localeIdentifier:
-            _locationLocale(),
-        refreshPlace: true,
-      );
-
-      if (mounted) {
-        setState(() {});
-      }
-
-      if (contexts.isEmpty) {
-        await speak(
-          copy('noSigns'),
-        );
-        return;
-      }
-
+      if (mounted) setState(() {});
+      if (contexts.isEmpty) { await speak(copy('noSigns')); return; }
       final parts = <String>[];
-
-      for (final context
-          in contexts.take(6)) {
-        final d =
-            context.detection;
-
-        var part =
-            '${localizedClass(d.className)}, '
-            '${copy('class')} ${d.classId}, '
-            '${copy('confidence')} '
-            '${(d.confidence * 100).toStringAsFixed(0)} '
-            'percent, '
-            '${copy('position')} '
-            '${localizedPosition(context.position)}';
-
-        if (d.ocrText
-            .trim()
-            .isNotEmpty) {
-          part +=
-              '. ${copy('text')} '
-              '${d.ocrText.trim()}';
-        }
-
+      for (final context in contexts.take(4)) {
+        final d = context.detection;
+        var part = localizedClass(d.className) + ', ' + copy('class') + ' ' + d.classId.toString() + ', ' + copy('confidence') + ' ' + (d.confidence * 100).toStringAsFixed(0) + ' percent, ' + copy('position') + ' ' + localizedPosition(context.position);
+        if (d.ocrText.trim().isNotEmpty) part += '. ' + copy('text') + ' ' + d.ocrText.trim();
         parts.add(part);
       }
-
-      await speak(
-        '${copy('demoComplete')}. '
-        '${parts.join('. ')}. '
-        '${localizedLocationSentence()}',
-      );
-
+      await speak(copy('demoComplete') + ' ' + parts.join('. ') + '.');
       await HapticFeedback.mediumImpact();
     } catch (e) {
-      debugPrint(
-        'demo image error: $e',
-      );
-
-      await speak(
-        copy('analysisFailed'),
-      );
+      debugPrint('demo image error: $e');
+      await speak(copy('analysisFailed'));
     } finally {
       processing = false;
-
-      if (mounted) {
-        setState(() {});
-      }
+      if (mounted) setState(() {});
     }
   }
-
   Future<void> closeDemo() async {
     demoMode = false;
     demoImage = null;
