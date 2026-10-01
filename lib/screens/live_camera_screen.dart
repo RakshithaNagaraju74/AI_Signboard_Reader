@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:io';
 
@@ -422,8 +421,7 @@ class _LiveCameraScreenState
 
       intel.markAnnounced(context);
 
-      await HapticFeedback
-          .mediumImpact();
+      await HapticFeedback.mediumImpact();
 
       await history.add(
         DetectionHistoryEntry(
@@ -456,7 +454,8 @@ class _LiveCameraScreenState
   ) {
     if (intel.focusedKey != null) {
       for (final context in contexts) {
-        final key = intel.detectionKey(
+        final key =
+            intel.detectionKey(
           context.detection,
         );
 
@@ -592,8 +591,7 @@ class _LiveCameraScreenState
     try {
       final picked =
           await picker.pickImage(
-        source:
-            ImageSource.gallery,
+        source: ImageSource.gallery,
         imageQuality: 95,
       );
 
@@ -734,8 +732,7 @@ class _LiveCameraScreenState
         '${localizedLocationSentence()}',
       );
 
-      await HapticFeedback
-          .mediumImpact();
+      await HapticFeedback.mediumImpact();
     } catch (e) {
       debugPrint(
         'demo image error: $e',
@@ -979,7 +976,9 @@ class _LiveCameraScreenState
         'metres.';
   }
 
-  String copy(String key) {
+  String copy(
+    String key,
+  ) {
     if (language.code == 'hi') {
       const map =
           <String, String>{
@@ -1041,6 +1040,8 @@ class _LiveCameraScreenState
             'वॉइस कमांड',
         'demoResults':
             'डेमो परिणाम',
+        'lastSeen':
+            'अंतिम बार देखा गया',
       };
 
       return map[key] ?? key;
@@ -1110,6 +1111,8 @@ class _LiveCameraScreenState
             'ವಾಯ್ಸ್ ಕಮಾಂಡ್',
         'demoResults':
             'ಡೆಮೊ ಫಲಿತಾಂಶಗಳು',
+        'lastSeen':
+            'ಕೊನೆಯದಾಗಿ ಕಂಡದ್ದು',
       };
 
       return map[key] ?? key;
@@ -1121,12 +1124,18 @@ class _LiveCameraScreenState
           'Live scanning is on. Hold a signboard in front of the camera.',
       'languageSelected':
           'Language selected. From now on, all app guidance will use this language.',
-      'detected': 'Detected',
-      'position': 'Position',
-      'class': 'class',
-      'confidence': 'confidence',
-      'text': 'Text',
-      'warning': 'Warning.',
+      'detected':
+          'Detected',
+      'position':
+          'Position',
+      'class':
+          'class',
+      'confidence':
+          'confidence',
+      'text':
+          'Text',
+      'warning':
+          'Warning.',
       'aheadHold':
           'directly ahead. Hold the camera steady.',
       'locationUnavailable':
@@ -1165,8 +1174,10 @@ class _LiveCameraScreenState
           'I did not understand. Say help for available commands.',
       'demoComplete':
           'Demo analysis complete.',
-      'items': 'items',
-      'visible': 'I can see',
+      'items':
+          'items',
+      'visible':
+          'I can see',
       'help':
           'Say scan, stop, repeat, find sign, stop focus, scan surroundings, what signs, where, change language, history, or navigate.',
       'upload':
@@ -1177,6 +1188,8 @@ class _LiveCameraScreenState
           'Voice commands',
       'demoResults':
           'Demo results',
+      'lastSeen':
+          'Last seen',
     };
 
     return map[key] ?? key;
@@ -1273,6 +1286,7 @@ class _LiveCameraScreenState
     if (speech.contains('find') ||
         speech.contains('focus') ||
         speech.contains('लक्ष्य') ||
+        speech.contains('फोकस') ||
         speech.contains('ಫೋಕಸ್')) {
       if (lastDetections.isEmpty) {
         await speak(
@@ -1301,7 +1315,7 @@ class _LiveCameraScreenState
         speech.contains('what do you see') ||
         speech.contains('क्या है') ||
         speech.contains('सिर्फ आसपास') ||
-        speech.contains('ಸುತ್ತ')) {
+        speech.contains('सುತ್ತ')) {
       sceneScanMode = true;
 
       await speak(
@@ -1968,13 +1982,9 @@ class _LiveCameraScreenState
   @override
   void dispose() {
     timer?.cancel();
-
     camera?.dispose();
-
     voice.stop();
-
     tts.stop();
-
     super.dispose();
   }
 }
