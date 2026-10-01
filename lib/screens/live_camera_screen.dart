@@ -438,6 +438,17 @@ class _LiveCameraScreenState
         demo: false,
       );
 
+      try {
+        final refreshed = await location.current(
+          localeIdentifier: _locationLocale(),
+          refreshPlace: false,
+        );
+        if (refreshed != null) {
+          currentLocation = refreshed;
+        }
+      } catch (_) {}
+
+      lastVerifiedPlace = null;
       visibleContexts = contexts;
 
       if (mounted) setState(() {});
@@ -1740,11 +1751,34 @@ class _LiveCameraScreenState
           Text(
             currentLocation == null
                 ? copy('locationUnavailable')
-                : '${currentLocation!.displayPlace}',
+                : currentLocation!.displayPlace,
             style: const TextStyle(
-              fontSize: 12.5,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
           ),
+          if (lastVerifiedPlace != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.indigo.withValues(alpha: 0.20),
+              ),
+              child: Text(
+                localizedPlaceContext(lastVerifiedPlace!),
+                style: const TextStyle(fontSize: 12.5),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Text(
+            '© OpenStreetMap contributors',
+            style: TextStyle(
+              fontSize: 10.5,
+              color: Colors.white.withValues(alpha: 0.65),
+            ),
+          )
         ],
       ),
     );
@@ -1847,20 +1881,38 @@ class _LiveCameraScreenState
                 Row(
                   children: [
                     Container(
-                      margin:
-                          const EdgeInsets.all(
-                        12,
+                      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
                       ),
-                      padding:
-                          const EdgeInsets.all(
-                        10,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.78),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.18),
+                        ),
                       ),
-                      color: Colors.black87,
-                      child: Text(
-                        language.name +
-                            (focusMode
-                                ? ' • Focus mode'
-                                : ''),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            stopped
+                                ? Icons.pause_circle_outline
+                                : Icons.visibility_outlined,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            stopped
+                                ? 'Paused'
+                                : 'Live • ' + language.name +
+                                    (focusMode ? ' • Focus' : ''),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const Spacer(),
@@ -1957,47 +2009,36 @@ class _LiveCameraScreenState
                   child: Row(
                     children: [
                       Expanded(
-                        child:
-                            ElevatedButton.icon(
-                          onPressed:
-                              pickDemoImage,
-                          icon:
-                              const Icon(
-                            Icons.image_search,
-                          ),
-                          label:
-                              Text(
-                            copy('upload'),
-                          ),
-                          style:
-                              ElevatedButton.styleFrom(
-                            minimumSize:
-                                const Size(0, 58),
+                        child: FilledButton.icon(
+                          onPressed: pickDemoImage,
+                          icon: const Icon(Icons.image_search),
+                          label: Text(copy('upload')),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 58),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child:
-                            ElevatedButton.icon(
-                          onPressed:
-                              commands,
-                          icon:
-                              const Icon(
-                            Icons.mic,
+                        child: FilledButton.icon(
+                          onPressed: commands,
+                          icon: Icon(
+                            listening
+                                ? Icons.hearing
+                                : Icons.mic_none_rounded,
                           ),
                           label: Text(
-                            copy(
-                              'voiceCommands',
-                            ),
+                            listening
+                                ? 'Listening…'
+                                : copy('voiceCommands'),
                           ),
-                          style:
-                              ElevatedButton
-                                  .styleFrom(
-                            minimumSize:
-                                const Size(
-                              0,
-                              58,
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 58),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
                             ),
                           ),
                         ),
