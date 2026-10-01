@@ -255,67 +255,137 @@ class _LiveCameraScreenState
 
   Future<void> chooseLanguage() async {
     languageChosen = false;
-    await voice.stop();
 
+    // Initialize speech before asking the first question. This prevents the
+    // microphone from missing the first few words on some Android devices.
+    await voice.initialize();
+    await voice.stop();
+    await tts.stop();
+
+    if (mounted) {
+      setState(() {
+        status = 'Listening for language choice';
+      });
+    }
+
+    // Numbered choices are deliberately included because speech recognition
+    // often understands "one/two/three" more reliably than language names.
     await tts.setLanguage('en-US');
     await speakRaw(
-      'Choose your language. Say English, Hindi, or Kannada. '
-      'You can also tap a language button.',
+      'Welcome to Signboard Reader. '
+      'Choose your language. '
+      'Say English, or number one. '
+      'Say Hindi, or number two. '
+      'Say Kannada, or number three.',
     );
 
-    final english = await voice.listen(
+    // Give Android speech recognition a short moment after TTS finishes.
+    await Future<void>.delayed(
+      const Duration(milliseconds: 450),
+    );
+
+    final answer = await voice.listen(
       localeId: 'en-US',
-      timeout: const Duration(seconds: 6),
+      timeout: const Duration(seconds: 7),
     );
 
     final detected =
-        LanguageService.detectCommand(english ?? '');
+        LanguageService.detectCommand(answer ?? '');
 
     if (detected != null) {
       await setLanguage(detected);
       return;
     }
 
-    await tts.setLanguage('hi-IN');
+    // Second attempt: ask for a simple number only.
+    await tts.setLanguage('en-US');
     await speakRaw(
-      'हिंदी के लिए हिंदी या हाँ कहें।',
+      'I did not catch that. '
+      'Say one for English, two for Hindi, or three for Kannada.',
     );
 
-    final hindi = await voice.listen(
-      localeId: 'hi-IN',
+    await Future<void>.delayed(
+      const Duration(milliseconds: 350),
+    );
+
+    final numberAnswer = await voice.listen(
+      localeId: 'en-US',
       timeout: const Duration(seconds: 5),
     );
 
-    if (_affirmative(hindi, 'hi')) {
+    final numberDetected =
+        LanguageService.detectCommand(numberAnswer ?? '');
+
+    if (numberDetected != null) {
+      await setLanguage(numberDetected);
+      return;
+    }
+
+    // Third attempt: recognize the user's native language name directly.
+    await tts.setLanguage('hi-IN');
+    await speakRaw(
+      'भाषा चुनने के लिए हिंदी कहें।',
+    );
+
+    await Future<void>.delayed(
+      const Duration(milliseconds: 350),
+    );
+
+    final hindiAnswer = await voice.listen(
+      localeId: 'hi-IN',
+      timeout: const Duration(seconds: 4),
+    );
+
+    if (_containsLanguageAnswer(hindiAnswer, 'hi')) {
       await setLanguage('hi');
       return;
     }
 
     await tts.setLanguage('kn-IN');
     await speakRaw(
-      'ಕನ್ನಡಕ್ಕಾಗಿ ಕನ್ನಡ ಅಥವಾ ಹೌದು ಎಂದು ಹೇಳಿ.',
+      'ಭಾಷೆಯನ್ನು ಆಯ್ಕೆ ಮಾಡಲು ಕನ್ನಡ ಎಂದು ಹೇಳಿ.',
     );
 
-    final kannada = await voice.listen(
+    await Future<void>.delayed(
+      const Duration(milliseconds: 350),
+    );
+
+    final kannadaAnswer = await voice.listen(
       localeId: 'kn-IN',
-      timeout: const Duration(seconds: 5),
+      timeout: const Duration(seconds: 4),
     );
 
-    if (_affirmative(kannada, 'kn')) {
+    if (_containsLanguageAnswer(kannadaAnswer, 'kn')) {
       await setLanguage('kn');
       return;
     }
 
+    // Never trap a blind user in onboarding.
     await tts.setLanguage('en-US');
     await speakRaw(
-      'I could not hear a language choice. Please tap Hindi, Kannada, or English.',
+      'I could not hear your choice. '
+      'Please tap one of the three large language buttons.',
     );
 
     if (mounted) {
       setState(() {
-        status = 'Choose Hindi, Kannada, or English';
+        status = 'Choose English, Hindi, or Kannada';
       });
     }
+  }
+
+  bool _containsLanguageAnswer(
+    String? text,
+    String expected,
+  ) {
+    if (text == null || text.trim().isEmpty) {
+      return false;
+    }
+
+    final detected =
+        LanguageService.detectCommand(text);
+
+    return detected == expected;
   }
 
   bool _affirmative(String? value, String code) {
