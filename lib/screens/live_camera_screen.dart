@@ -87,6 +87,15 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       );
 
       await camera!.initialize();
+      currentLocation = await location.current(
+        localeIdentifier: language.code == 'hi'
+            ? 'hi_IN'
+            : language.code == 'kn'
+                ? 'kn_IN'
+                : 'en_US',
+        refreshPlace: true,
+      );
+
       if (mounted) {
         setState(() {
           ready = true;
