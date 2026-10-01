@@ -580,6 +580,99 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         ' metres.';
   }
 
+  String copy(String key) {
+    if (language.code == 'hi') {
+      const map = <String, String>{
+        'scanning': 'लाइव स्कैनिंग शुरू है। कैमरे के सामने संकेत लाएँ।',
+        'languageSelected': 'भाषा चुन ली गई है। अब से सभी ऐप निर्देश इसी भाषा में होंगे।',
+        'detected': 'पहचाना गया',
+        'position': 'स्थिति',
+        'text': 'पाठ',
+        'warning': 'चेतावनी।',
+        'aheadHold': 'सीधे सामने है। कैमरा स्थिर रखें।',
+        'locationUnavailable': 'वर्तमान GPS स्थान उपलब्ध नहीं है।',
+        'analyzingImage': 'अपलोड की गई तस्वीर का विश्लेषण किया जा रहा है।',
+        'noSigns': 'कोई स्पष्ट संकेत नहीं मिला।',
+        'analysisFailed': 'तस्वीर का विश्लेषण नहीं हो सका। दूसरी तस्वीर आज़माएँ।',
+        'cameraError': 'कैमरा उपलब्ध नहीं है। कैमरा और माइक्रोफ़ोन की अनुमति दें और ऐप फिर से खोलें।',
+        'voicePrompt': 'आदेश बोलें।',
+        'stopDone': 'स्कैनिंग रोक दी गई है।',
+        'nothingToRepeat': 'दोहराने के लिए कुछ नहीं है।',
+        'noFocus': 'अभी फोकस करने के लिए कोई संकेत नहीं मिला।',
+        'focusOn': 'फोकस किया गया',
+        'focusGuide': 'संकेत को बीच में लाने के लिए कैमरा धीरे से घुमाएँ।',
+        'focusStopped': 'फोकस मोड बंद है।',
+        'scanningSurroundings': 'आसपास के संकेत स्कैन किए जा रहे हैं।',
+        'noHistory': 'हाल के कोई संकेत नहीं हैं।',
+        'historyHas': 'इतिहास में हाल की पहचानें हैं:',
+        'navigationLimit': 'GPS स्थान उपलब्ध है। सटीक दूरी और कम्पास दिशा तभी बताई जाएगी जब विश्वसनीय रूप से अनुमानित हो सके।',
+        'notUnderstood': 'मैं समझ नहीं पाया। मदद के लिए हेल्प बोलें।',
+        'demoComplete': 'डेमो विश्लेषण पूरा हुआ।',
+      };
+      return map[key] ?? key;
+    }
+
+    if (language.code == 'kn') {
+      const map = <String, String>{
+        'scanning': 'ಲೈವ್ ಸ್ಕ್ಯಾನಿಂಗ್ ಪ್ರಾರಂಭವಾಗಿದೆ. ಕ್ಯಾಮೆರಾ ಮುಂದೆ ಫಲಕವನ್ನು ಹಿಡಿಯಿರಿ.',
+        'languageSelected': 'ಭಾಷೆಯನ್ನು ಆಯ್ಕೆ ಮಾಡಲಾಗಿದೆ. ಇನ್ನು ಮುಂದೆ ಎಲ್ಲಾ ಆಪ್ ಸೂಚನೆಗಳು ಇದೇ ಭಾಷೆಯಲ್ಲಿ ಇರುತ್ತವೆ.',
+        'detected': 'ಗುರುತಿಸಲಾಗಿದೆ',
+        'position': 'ಸ್ಥಾನ',
+        'text': 'ಪಠ್ಯ',
+        'warning': 'ಎಚ್ಚರಿಕೆ.',
+        'aheadHold': 'ನೇರವಾಗಿ ಮುಂದೆ ಇದೆ. ಕ್ಯಾಮೆರಾವನ್ನು ಸ್ಥಿರವಾಗಿ ಹಿಡಿಯಿರಿ.',
+        'locationUnavailable': 'ಪ್ರಸ್ತುತ GPS ಸ್ಥಳ ಲಭ್ಯವಿಲ್ಲ.',
+        'analyzingImage': 'ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ಚಿತ್ರವನ್ನು ವಿಶ್ಲೇಷಿಸಲಾಗುತ್ತಿದೆ.',
+        'noSigns': 'ಯಾವುದೇ ಸ್ಪಷ್ಟ ಫಲಕ ಕಂಡುಬಂದಿಲ್ಲ.',
+        'analysisFailed': 'ಚಿತ್ರವನ್ನು ವಿಶ್ಲೇಷಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಮತ್ತೊಂದು ಚಿತ್ರ ಪ್ರಯತ್ನಿಸಿ.',
+        'cameraError': 'ಕ್ಯಾಮೆರಾ ಲಭ್ಯವಿಲ್ಲ. ಕ್ಯಾಮೆರಾ ಮತ್ತು ಮೈಕ್ರೋಫೋನ್ ಅನುಮತಿ ನೀಡಿ ಮತ್ತು ಆಪ್ ಅನ್ನು ಮತ್ತೆ ತೆರೆಯಿರಿ.',
+        'voicePrompt': 'ಆಜ್ಞೆಯನ್ನು ಹೇಳಿ.',
+        'stopDone': 'ಸ್ಕ್ಯಾನಿಂಗ್ ನಿಲ್ಲಿಸಲಾಗಿದೆ.',
+        'nothingToRepeat': 'ಮತ್ತೆ ಹೇಳಲು ಏನೂ ಇಲ್ಲ.',
+        'noFocus': 'ಈಗ ಫೋಕಸ್ ಮಾಡಲು ಯಾವುದೇ ಫಲಕ ಕಂಡುಬಂದಿಲ್ಲ.',
+        'focusOn': 'ಫೋಕಸ್ ಮಾಡಲಾಗಿದೆ',
+        'focusGuide': 'ಫಲಕವನ್ನು ಮಧ್ಯದಲ್ಲಿ ತರಲು ಕ್ಯಾಮೆರಾವನ್ನು ನಿಧಾನವಾಗಿ ಸರಿಸಿ.',
+        'focusStopped': 'ಫೋಕಸ್ ಮೋಡ್ ನಿಲ್ಲಿಸಲಾಗಿದೆ.',
+        'scanningSurroundings': 'ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳನ್ನು ಸ್ಕ್ಯಾನ್ ಮಾಡಲಾಗುತ್ತಿದೆ.',
+        'noHistory': 'ಇತ್ತೀಚಿನ ಫಲಕಗಳಿಲ್ಲ.',
+        'historyHas': 'ಇತಿಹಾಸದಲ್ಲಿ ಇತ್ತೀಚಿನ ಗುರುತಿಸುವಿಕೆಗಳ ಸಂಖ್ಯೆ:',
+        'navigationLimit': 'GPS ಸ್ಥಳ ಲಭ್ಯವಿದೆ. ನಿಖರ ದೂರ ಮತ್ತು ಕಂಪಾಸ್ ದಿಕ್ಕನ್ನು ವಿಶ್ವಾಸಾರ್ಹವಾಗಿ ಅಂದಾಜಿಸಲು ಸಾಧ್ಯವಾದಾಗ ಮಾತ್ರ ಹೇಳಲಾಗುತ್ತದೆ.',
+        'notUnderstood': 'ನನಗೆ ಅರ್ಥವಾಗಲಿಲ್ಲ. ಸಹಾಯಕ್ಕಾಗಿ ಹೆಲ್ಪ್ ಎಂದು ಹೇಳಿ.',
+        'demoComplete': 'ಡೆಮೊ ವಿಶ್ಲೇಷಣೆ ಪೂರ್ಣಗೊಂಡಿದೆ.',
+      };
+      return map[key] ?? key;
+    }
+
+    const map = <String, String>{
+      'scanning': 'Live scanning is on. Hold a signboard in front of the camera.',
+      'languageSelected': 'Language selected. From now on, all app guidance will use this language.',
+      'detected': 'Detected',
+      'position': 'Position',
+      'text': 'Text',
+      'warning': 'Warning.',
+      'aheadHold': 'directly ahead. Hold the camera steady.',
+      'locationUnavailable': 'Current GPS location is unavailable.',
+      'analyzingImage': 'Analyzing the uploaded image.',
+      'noSigns': 'I could not find a clear signboard.',
+      'analysisFailed': 'I could not analyze that image. Please try another image.',
+      'cameraError': 'Camera is unavailable. Allow camera and microphone permissions and reopen the app.',
+      'voicePrompt': 'Say a command.',
+      'stopDone': 'Scanning stopped.',
+      'nothingToRepeat': 'Nothing to repeat.',
+      'noFocus': 'I do not currently see a sign to focus on.',
+      'focusOn': 'Focused on',
+      'focusGuide': 'Move the camera slowly until the sign is centered.',
+      'focusStopped': 'Focus mode stopped.',
+      'scanningSurroundings': 'Scanning the surroundings.',
+      'noHistory': 'No recent signs.',
+      'historyHas': 'There are recent detections in history:',
+      'navigationLimit': 'GPS context is available. Exact distance and compass direction will only be stated when they can be estimated reliably.',
+      'notUnderstood': 'I did not understand. Say help for available commands.',
+      'demoComplete': 'Demo analysis complete.',
+    };
+    return map[key] ?? key;
+  }
+
   Future<void> commands() async {
     if (listening) return;
     listening = true;
@@ -779,15 +872,56 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (onboarding) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.record_voice_over, size: 72),
+                const SizedBox(height: 24),
+                const Text(
+                  'AI Signboard Reader',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(status, textAlign: TextAlign.center),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     if (!ready || camera == null) {
-      return Scaffold(body: Center(child: Text(status)));
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Text(status, textAlign: TextAlign.center),
+        ),
+      );
     }
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          Positioned.fill(child: CameraPreview(camera!)),
+          Positioned.fill(
+            child: demoMode && demoImage != null
+                ? Image.file(demoImage!, fit: BoxFit.contain)
+                : CameraPreview(camera!),
+          ),
+          if (visibleContexts.isNotEmpty)
+            Positioned(
+              left: 10,
+              right: 10,
+              bottom: 96,
+              child: _resultPanel(),
+            ),
           SafeArea(
             child: Column(
               children: [
