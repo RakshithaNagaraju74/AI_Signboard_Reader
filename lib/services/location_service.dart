@@ -44,6 +44,7 @@ class LocationSnapshot {
 class LocationService {
   
   LocationSnapshot? _cached;
+  DateTime? _lastLocationFetch;
   DateTime? _lastGeocoded;
 
   Future<bool> ensurePermission() async {
@@ -62,16 +63,28 @@ class LocationService {
     String localeIdentifier = 'en_US',
     bool refreshPlace = false,
   }) async {
-    if (!await ensurePermission()) return null;
+    if (!await ensurePermission()) return _cached;
+
+    final now = DateTime.now();
+    final locationIsFresh = _cached != null &&
+        _lastLocationFetch != null &&
+        now.difference(_lastLocationFetch!) < const Duration(seconds: 5);
+
+    if (locationIsFresh && !refreshPlace) {
+      return _cached;
+    }
 
     final position = await Geolocator.getCurrentPosition(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: 5,
       ),
+    ).timeout(
+      const Duration(seconds: 6),
+      onTimeout: () => throw TimeoutException('Location request timed out'),
     );
 
-    final now = DateTime.now();
+    _lastLocationFetch = now;
     final shouldGeocode = refreshPlace ||
         _lastGeocoded == null ||
         now.difference(_lastGeocoded!) > const Duration(seconds: 30) ||
