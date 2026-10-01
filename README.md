@@ -69,3 +69,22 @@ GPS records the phone's location when a sign is detected. GPS alone does not pro
 - **Safe claims:** GPS identifies the phone's current location; it does not by itself prove the exact physical location, compass bearing or metric distance of a detected sign. Relative proximity is inferred from consecutive visual observations.
 
 The reverse-geocoding layer uses the Flutter geocoding plugin's native platform services; availability and rate limits depend on the device/platform.
+
+
+## Natural AI narration
+
+The app separates computer-vision output from the user-facing narration layer. YOLO class IDs and confidence values remain internal and are not spoken to the user. Multiple useful detections can be narrated together with relative position, OCR text, movement/proximity context, and optional location context.
+
+Groq narration is optional. Without a Groq key, the app uses an offline deterministic narration fallback. For local testing, provide the key at run time rather than committing it:
+
+```powershell
+flutter run --dart-define=GROQ_API_KEY=YOUR_KEY
+```
+
+Optional overrides:
+
+```powershell
+flutter run --dart-define=GROQ_API_KEY=YOUR_KEY --dart-define=GROQ_MODEL=openai/gpt-oss-20b
+```
+
+Do not put a Groq key directly in Dart source or commit it to GitHub. For production deployment, route the request through a trusted backend/proxy instead of embedding a secret in the APK.
