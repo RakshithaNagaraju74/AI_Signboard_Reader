@@ -446,16 +446,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       final contexts = intel.analyze(enriched);
       visibleContexts = contexts;
 
-      currentLocation = await location.current(
-        localeIdentifier: language.code == 'hi'
-            ? 'hi_IN'
-            : language.code == 'kn'
-                ? 'kn_IN'
-                : 'en_US',
-        refreshPlace: true,
-      );
-
-      if (mounted) setState(() {});
+      await refreshLocation(refreshPlace: true);
 
       if (contexts.isEmpty) {
         await speak(copy('noSigns'));
