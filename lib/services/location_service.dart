@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:geocoding/geocoding.dart';
@@ -46,6 +47,9 @@ class LocationService {
   LocationSnapshot? _cached;
   DateTime? _lastLocationFetch;
   DateTime? _lastGeocoded;
+
+  Geocoding _geocodingFor(String localeIdentifier) =>
+      Geocoding(locale: _toLocale(localeIdentifier));
 
   Future<bool> ensurePermission() async {
     if (!await Geolocator.isLocationServiceEnabled()) return false;
