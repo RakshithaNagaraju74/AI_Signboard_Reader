@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/detection_result.dart';
 import '../services/detection_intelligence.dart';
@@ -31,6 +32,10 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
   bool listening = false;
   bool focusMode = false;
   bool sceneScanMode = false;
+  bool onboarding = true;
+  bool demoMode = false;
+  File? demoImage;
+  LocationSnapshot? currentLocation;
 
   String status = 'Starting camera';
   String last = '';
@@ -44,6 +49,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
   final history = HistoryService();
   final ocr = OCRService();
   final intel = DetectionIntelligence();
+  final picker = ImagePicker();
 
   @override
   void initState() {
@@ -54,7 +60,13 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
   Future<void> start() async {
     try {
       final saved = await lang.load();
-      if (saved != null) {
+
+      if (saved == null) {
+        await speakRaw(
+          'Welcome to AI Signboard Reader. I am your voice-first assistant.',
+        );
+        await chooseLanguage();
+      } else {
         language = saved;
         await tts.setLanguage(language.speechLocale);
       }
@@ -74,13 +86,14 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       );
 
       await camera!.initialize();
-      if (mounted) setState(() => ready = true);
-
-      if (saved == null) {
-        await chooseLanguage();
-      } else {
-        await speak('AI Signboard Reader is ready. Live scanning is on.');
+      if (mounted) {
+        setState(() {
+          ready = true;
+          onboarding = false;
+        });
       }
+
+      await speak(copy('scanning'));
 
       timer = Timer.periodic(
         const Duration(milliseconds: 1300),
@@ -88,29 +101,81 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       );
     } catch (e) {
       debugPrint('Camera start error: $e');
-      if (mounted) setState(() => status = 'Camera unavailable');
-      await speak(
-        'Camera permission is required. Please allow camera access and restart the app.',
-      );
+      if (mounted) {
+        setState(() {
+          onboarding = false;
+          status = copy('cameraError');
+        });
+      }
+      await speak(copy('cameraError'));
     }
   }
 
   Future<void> chooseLanguage() async {
-    await speak('Welcome. Say English, Hindi, or Kannada.');
-    final heard = await voice.listen(
-      localeId: 'en-US',
-      timeout: const Duration(seconds: 6),
+    await speakRaw(
+      'हिंदी में जारी रखने के लिए हाँ कहें। अगर जवाब नहीं मिलता है, मैं कन्नड़ पूछूँगा।',
     );
+    final hindi = await voice.listen(
+      localeId: 'hi-IN',
+      timeout: const Duration(seconds: 4),
+    );
+    if (_affirmative(hindi, 'hi') ||
+        LanguageService.detectCommand(hindi ?? '') == 'hi') {
+      await setLanguage('hi');
+      return;
+    }
 
-    final code = LanguageService.detectCommand(heard ?? '') ?? 'en';
-    language = LanguageService.fromCode(code) ??
-        LanguageService.languages.first;
+    await speakRaw(
+      'ಕನ್ನಡದಲ್ಲಿ ಮುಂದುವರಿಸಲು ಹೌದು ಎಂದು ಹೇಳಿ. ಕೆಲವು ಸೆಕೆಂಡುಗಳಲ್ಲಿ ಉತ್ತರಿಸದಿದ್ದರೆ ಇಂಗ್ಲಿಷ್ ಕೇಳುತ್ತೇನೆ.',
+    );
+    final kannada = await voice.listen(
+      localeId: 'kn-IN',
+      timeout: const Duration(seconds: 4),
+    );
+    if (_affirmative(kannada, 'kn') ||
+        LanguageService.detectCommand(kannada ?? '') == 'kn') {
+      await setLanguage('kn');
+      return;
+    }
 
+    await speakRaw('Say yes for English to continue.');
+    final english = await voice.listen(
+      localeId: 'en-US',
+      timeout: const Duration(seconds: 4),
+    );
+    await setLanguage(
+      (_affirmative(english, 'en') ||
+              LanguageService.detectCommand(english ?? '') == 'en')
+          ? 'en'
+          : 'en',
+    );
+  }
+
+  bool _affirmative(String? value, String code) {
+    final v = LanguageService.normalize(value ?? '');
+    if (code == 'hi') {
+      return v.contains('हाँ') ||
+          v.contains('हां') ||
+          v.contains('haan') ||
+          v.contains('yes') ||
+          v.contains('हिंदी') ||
+          v.contains('hindi');
+    }
+    if (code == 'kn') {
+      return v.contains('ಹೌದು') ||
+          v.contains('ಹೌದ') ||
+          v.contains('yes') ||
+          v.contains('ಕನ್ನಡ') ||
+          v.contains('kannada');
+    }
+    return v.contains('yes') || v.contains('yeah') || v.contains('english');
+  }
+
+  Future<void> setLanguage(String code) async {
+    language = LanguageService.fromCode(code) ?? LanguageService.languages.first;
     await lang.save(language);
     await tts.setLanguage(language.speechLocale);
-    await speak(
-      language.name + ' selected. Live scanning is starting.',
-    );
+    await speak(copy('languageSelected'));
   }
 
   Future<void> scan() async {
