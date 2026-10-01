@@ -75,25 +75,78 @@ class _LiveCameraScreenState
     try {
       status = 'Starting AI Signboard Reader';
       if (mounted) setState(() {});
+
       final saved = await lang.load();
-      if (saved == null) { await chooseLanguage(); } else { language = saved; await tts.setLanguage(language.speechLocale); }
-      final cameras = await availableCameras();
-      if (cameras.isEmpty) throw StateError('No camera found');
-      final backCamera = cameras.firstWhere((item) => item.lensDirection == CameraLensDirection.back, orElse: () => cameras.first);
-      camera = CameraController(backCamera, ResolutionPreset.low, enableAudio: false);
-      await camera!.initialize();
-      if (mounted) setState(() { ready = true; onboarding = false; status = copy('scanning'); });
+      if (saved == null) {
+        await chooseLanguage();
+        final selected = await lang.load();
+        if (selected == null) return;
+        language = selected;
+        await tts.setLanguage(language.speechLocale);
+      } else {
+        language = saved;
+        await tts.setLanguage(language.speechLocale);
+      }
+
+      await _initializeCamera();
+      if (!mounted) return;
+
       unawaited(_refreshLocationInBackground());
-      TFLiteService().initialize().then((_) {}, onError: (Object error, StackTrace stack) { debugPrint('Background model warm-up failed: $error'); });
+
+      TFLiteService().initialize().then(
+        (_) {},
+        onError: (Object error, StackTrace stack) {
+          debugPrint('Background model warm-up failed: $error');
+        },
+      );
+
       await speak(copy('scanning'));
+
       timer?.cancel();
-      timer = Timer.periodic(const Duration(milliseconds: 1800), (_) => scan());
+      timer = Timer.periodic(
+        const Duration(milliseconds: 1800),
+        (_) => scan(),
+      );
     } catch (e) {
       debugPrint('Camera start error: $e');
-      if (mounted) setState(() { onboarding = false; status = copy('cameraError'); });
+      if (mounted) {
+        setState(() {
+          onboarding = false;
+          status = copy('cameraError');
+        });
+      }
       await speak(copy('cameraError'));
     }
   }
+
+  Future<void> _initializeCamera() async {
+    final cameras = await availableCameras();
+    if (cameras.isEmpty) throw StateError('No camera found');
+
+    final backCamera = cameras.firstWhere(
+      (item) => item.lensDirection == CameraLensDirection.back,
+      orElse: () => cameras.first,
+    );
+
+    final controller = CameraController(
+      backCamera,
+      ResolutionPreset.low,
+      enableAudio: false,
+    );
+
+    await controller.initialize();
+
+    if (!mounted) {
+      await controller.dispose();
+      return;
+    }
+
+    camera = controller;
+    ready = true;
+    onboarding = false;
+    setState(() => status = copy('scanning'));
+  }
+
   Future<void> _refreshLocationInBackground() async {
     try {
       final value = await location.current(
@@ -108,45 +161,37 @@ class _LiveCameraScreenState
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
       timer?.cancel();
       timer = null;
       return;
     }
-    if (state == AppLifecycleState.resumed && !onboarding && !demoMode) {
-      unawaited(_reopenCamera());
+
+    if (state == AppLifecycleState.resumed &&
+        !onboarding &&
+        !demoMode &&
+        camera == null) {
+      unawaited(_resumeCameraSafely());
     }
   }
 
-  Future<void> _reopenCamera() async {
-    if (!mounted || onboarding || demoMode) return;
-    processing = false;
-    ready = false;
-    timer?.cancel();
-    timer = null;
-    final oldCamera = camera;
-    camera = null;
+  Future<void> _resumeCameraSafely() async {
+    if (!mounted || onboarding || demoMode || camera != null) return;
+
     try {
-      await oldCamera?.dispose();
-      final cameras = await availableCameras();
-      if (cameras.isEmpty || !mounted) return;
-      final backCamera = cameras.firstWhere(
-        (item) => item.lensDirection == CameraLensDirection.back,
-        orElse: () => cameras.first,
+      await _initializeCamera();
+      timer?.cancel();
+      timer = Timer.periodic(
+        const Duration(milliseconds: 1800),
+        (_) => scan(),
       );
-      final controller = CameraController(backCamera, ResolutionPreset.low, enableAudio: false);
-      await controller.initialize();
-      if (!mounted) { await controller.dispose(); return; }
-      camera = controller;
-      stopped = false;
-      ready = true;
-      setState(() => status = copy('scanning'));
-      timer = Timer.periodic(const Duration(milliseconds: 1800), (_) => scan());
     } catch (e) {
       debugPrint('Camera resume error: $e');
       if (mounted) setState(() => status = copy('cameraError'));
     }
   }
+
   String _locationLocale() {
     if (language.code == 'hi') {
       return 'hi_IN';
@@ -160,46 +205,32 @@ class _LiveCameraScreenState
   }
 
   Future<void> chooseLanguage() async {
-    await lang.save(LanguageService.fromCode('en')!);
     await tts.setLanguage('hi-IN');
-    await speakRaw('हिंदी में जारी रखने के लिए हाँ कहें। चार सेकंड में जवाब न मिलने पर मैं कन्नड़ पूछूँगा।');
+    await speakRaw('हिंदी चुनने के लिए हिंदी या हाँ कहें।');
     final hindi = await voice.listen(localeId: 'hi-IN', timeout: const Duration(seconds: 4));
-    if (_affirmative(hindi, 'hi') || LanguageService.detectCommand(hindi ?? '') == 'hi') { await setLanguage('hi'); return; }
+    if (_affirmative(hindi, 'hi')) { await setLanguage('hi'); return; }
+
     await tts.setLanguage('kn-IN');
-    await speakRaw('ಕನ್ನಡದಲ್ಲಿ ಮುಂದುವರಿಸಲು ಹೌದು ಎಂದು ಹೇಳಿ.');
+    await speakRaw('ಕನ್ನಡ ಆಯ್ಕೆ ಮಾಡಲು ಕನ್ನಡ ಅಥವಾ ಹೌದು ಎಂದು ಹೇಳಿ.');
     final kannada = await voice.listen(localeId: 'kn-IN', timeout: const Duration(seconds: 4));
-    if (_affirmative(kannada, 'kn') || LanguageService.detectCommand(kannada ?? '') == 'kn') { await setLanguage('kn'); return; }
-    await setLanguage('en');
+    if (_affirmative(kannada, 'kn')) { await setLanguage('kn'); return; }
+
+    await tts.setLanguage('en-US');
+    await speakRaw('No language was selected. Please choose Hindi, Kannada, or English.');
+    if (mounted) setState(() => status = 'Choose Hindi, Kannada, or English');
   }
-  bool _affirmative(
-    String? value,
-    String code,
-  ) {
-    final v =
-        LanguageService.normalize(
-      value ?? '',
-    );
 
+  bool _affirmative(String? value, String code) {
+    final v = LanguageService.normalize(value ?? '');
     if (code == 'hi') {
-      return v.contains('हाँ') ||
-          v.contains('हां') ||
-          v.contains('haan') ||
-          v.contains('yes') ||
-          v.contains('हिंदी') ||
-          v.contains('hindi');
+      return v.contains('hindi') || v.contains('हिंदी') ||
+          v.contains('haan') || v.contains('हाँ') || v.contains('हां');
     }
-
     if (code == 'kn') {
-      return v.contains('ಹೌದು') ||
-          v.contains('ಹೌದ') ||
-          v.contains('yes') ||
-          v.contains('ಕನ್ನಡ') ||
-          v.contains('kannada');
+      return v.contains('kannada') || v.contains('ಕನ್ನಡ') ||
+          v.contains('howdu') || v.contains('ಹೌದು') || v.contains('ಹೌದ');
     }
-
-    return v.contains('yes') ||
-        v.contains('yeah') ||
-        v.contains('english');
+    return false;
   }
 
   Future<void> setLanguage(
@@ -405,46 +436,91 @@ class _LiveCameraScreenState
 
   Future<void> pickDemoImage() async {
     if (processing) return;
+
+    processing = true;
+    timer?.cancel();
+    timer = null;
+
+    final oldCamera = camera;
+    camera = null;
+    ready = false;
+
     try {
-      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 88, maxWidth: 1600, maxHeight: 1600);
-      if (picked == null) return;
+      await oldCamera?.dispose();
+
+      if (mounted) setState(() => status = copy('upload'));
+
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 82,
+        maxWidth: 1280,
+        maxHeight: 1280,
+        requestFullMetadata: false,
+      );
+
+      if (picked == null) {
+        processing = false;
+        await _resumeCameraSafely();
+        return;
+      }
+
       final file = File(picked.path);
-      processing = true; demoMode = true; demoImage = file; visibleContexts = [];
+      demoMode = true;
+      demoImage = file;
+      visibleContexts = [];
+
       if (mounted) setState(() => status = copy('analyzingImage'));
       await speak(copy('analyzingImage'));
+
       final contexts = await _analyzeFile(file, demo: true);
       visibleContexts = contexts;
       if (mounted) setState(() {});
-      if (contexts.isEmpty) { await speak(copy('noSigns')); return; }
+
+      if (contexts.isEmpty) {
+        await speak(copy('noSigns'));
+        return;
+      }
+
       final parts = <String>[];
       for (final context in contexts.take(4)) {
         final d = context.detection;
-        var part = localizedClass(d.className) + ', ' + copy('class') + ' ' + d.classId.toString() + ', ' + copy('confidence') + ' ' + (d.confidence * 100).toStringAsFixed(0) + ' percent, ' + copy('position') + ' ' + localizedPosition(context.position);
-        if (d.ocrText.trim().isNotEmpty) part += '. ' + copy('text') + ' ' + d.ocrText.trim();
+        var part =
+            '${localizedClass(d.className)}, '
+            '${copy('class')} ${d.classId}, '
+            '${copy('confidence')} '
+            '${(d.confidence * 100).toStringAsFixed(0)} percent, '
+            '${copy('position')} '
+            '${localizedPosition(context.position)}';
+
+        if (d.ocrText.trim().isNotEmpty) {
+          part += '. ${copy('text')} ${d.ocrText.trim()}';
+        }
         parts.add(part);
       }
-      await speak(copy('demoComplete') + ' ' + parts.join('. ') + '.');
+
+      await speak('${copy('demoComplete')} ${parts.join('. ')}.');
       await HapticFeedback.mediumImpact();
     } catch (e) {
       debugPrint('demo image error: $e');
+      if (mounted) setState(() => status = copy('analysisFailed'));
       await speak(copy('analysisFailed'));
     } finally {
       processing = false;
       if (mounted) setState(() {});
     }
   }
+
   Future<void> closeDemo() async {
     demoMode = false;
     demoImage = null;
     visibleContexts = [];
+    processing = false;
 
-    if (mounted) {
-      setState(() {});
-    }
+    if (mounted) setState(() => status = copy('scanning'));
 
-    await speak(
-      copy('scanning'),
-    );
+    await _resumeCameraSafely();
+
+    if (camera != null) await speak(copy('scanning'));
   }
 
   String localizedClass(
@@ -1403,49 +1479,52 @@ class _LiveCameraScreenState
     );
   }
 
+  Widget _languageButton(String label, String code) {
+    return SizedBox(
+      width: double.infinity,
+      height: 62,
+      child: ElevatedButton(
+        onPressed: () => setLanguage(code),
+        child: Text(label, style: const TextStyle(fontSize: 20)),
+      ),
+    );
+  }
+
   @override
   Widget build(
     BuildContext context,
   ) {
     if (onboarding) {
       return Scaffold(
-        backgroundColor:
-            Colors.black,
-        body: Center(
-          child: Padding(
-            padding:
-                const EdgeInsets.all(28),
-            child: Column(
-              mainAxisAlignment:
-                  MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.record_voice_over,
-                  size: 72,
-                ),
-                const SizedBox(
-                  height: 24,
-                ),
-                const Text(
-                  'AI Signboard Reader',
-                  style:
-                      TextStyle(
-                    fontSize: 28,
-                    fontWeight:
-                        FontWeight.bold,
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.record_voice_over, size: 72),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'AI Signboard Reader',
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign:
-                      TextAlign.center,
-                ),
-                const SizedBox(
-                  height: 12,
-                ),
-                Text(
-                  status,
-                  textAlign:
-                      TextAlign.center,
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  Text(
+                    status,
+                    style: const TextStyle(fontSize: 18),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 28),
+                  _languageButton('Hindi', 'hi'),
+                  const SizedBox(height: 12),
+                  _languageButton('Kannada', 'kn'),
+                  const SizedBox(height: 12),
+                  _languageButton('English', 'en'),
+                ],
+              ),
             ),
           ),
         ),
