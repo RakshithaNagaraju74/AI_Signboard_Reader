@@ -23,6 +23,10 @@ jobs:
       - name: Flutter version
         run: flutter --version
 
+      - name: Create CI env placeholder
+        run: |
+          printf "GROQ_API_KEY=\nGROQ_MODEL=openai/gpt-oss-20b\nGROQ_BASE_URL=https://api.groq.com/openai/v1\n" > .env
+
       - name: Get dependencies
         run: flutter pub get
 
