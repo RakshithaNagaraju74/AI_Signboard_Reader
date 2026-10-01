@@ -22,7 +22,10 @@ class OCRService {
         : TextRecognitionScript.latin;
     if (bbox.length < 4) return '';
     try {
-      final image = img.decodeImage(await imageFile.readAsBytes());
+      final decodedImage = img.decodeImage(await imageFile.readAsBytes());
+      final image = decodedImage == null
+          ? null
+          : img.bakeOrientation(decodedImage);
       if (image == null) return '';
       var x1 = bbox[0], y1 = bbox[1], x2 = bbox[2], y2 = bbox[3];
       if (x2 <= x1 || y2 <= y1) return '';
