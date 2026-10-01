@@ -69,7 +69,42 @@ class _LiveCameraScreenState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(_recoverLostImage());
     start();
+  }
+
+  Future<void> _recoverLostImage() async {
+    try {
+      final response = await picker.retrieveLostData();
+      if (response.isEmpty || response.file == null || !mounted) return;
+      final file = File(response.file!.path);
+      // Store it for the user instead of silently discarding a recovered image.
+      demoImage = file;
+      status = copy('analyzingImage');
+      setState(() {});
+      await _runRecoveredDemo(file);
+    } catch (e) {
+      debugPrint('Lost image recovery failed: $e');
+    }
+  }
+
+  Future<void> _runRecoveredDemo(File file) async {
+    processing = true;
+    demoMode = true;
+    ready = false;
+    try {
+      timer?.cancel();
+      await camera?.dispose();
+      camera = null;
+      final contexts = await _analyzeFile(file, demo: true);
+      visibleContexts = contexts;
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint('Recovered image analysis failed: $e');
+    } finally {
+      processing = false;
+      if (mounted) setState(() {});
+    }
   }
 
   Future<void> start() async {
@@ -105,7 +140,7 @@ class _LiveCameraScreenState
 
       timer?.cancel();
       timer = Timer.periodic(
-        const Duration(milliseconds: 1800),
+        const Duration(milliseconds: 2500),
         (_) => scan(),
       );
     } catch (e) {
@@ -284,6 +319,7 @@ class _LiveCameraScreenState
 
   Future<void> scan() async {
     if (!ready || processing || stopped || listening || demoMode || camera == null || !camera!.value.isInitialized) return;
+    if (!TFLiteService().isInitialized) return;
     processing = true;
     try {
       final shot = await camera!.takePicture();
