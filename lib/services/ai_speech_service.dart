@@ -10,6 +10,8 @@ class SpeechDetectionInput {
   final String text;
   final String movement;
   final String proximity;
+  final String guidance;
+  final String placeContext;
   final bool safety;
 
   const SpeechDetectionInput({
@@ -18,6 +20,8 @@ class SpeechDetectionInput {
     this.text = '',
     this.movement = '',
     this.proximity = '',
+    this.guidance = '',
+    this.placeContext = '',
     this.safety = false,
   });
 
@@ -28,6 +32,8 @@ class SpeechDetectionInput {
       if (text.isNotEmpty) 'visible_text': text,
       if (movement.isNotEmpty) 'movement': movement,
       if (proximity.isNotEmpty) 'proximity': proximity,
+      if (guidance.isNotEmpty) 'guidance': guidance,
+      if (placeContext.isNotEmpty) 'place_context': placeContext,
       'safety': safety,
     };
   }
@@ -154,7 +160,9 @@ class AISpeechService {
                 'Never invent a sign, text, distance, direction, or location. '
                 'Preserve OCR text exactly when you quote it. '
                 'Mention every supplied sign once. '
-                'Use only the relative visual positions supplied. '
+                'Use only the relative visual positions and guidance supplied. '
+                'Do not turn a visual left/right position into a road-turn instruction unless the supplied guidance explicitly says so. '
+                'If place_context says the sign may advertise a place elsewhere, clearly say that the sign does not prove the place is here. '
                 'If a safety sign is present, make it clear and prominent. '
                 'Use simple sentences suitable for speech. '
                 'Return only the narration, with no quotation marks.',
@@ -304,6 +312,14 @@ class AISpeechService {
     var result =
         '${e.label} ${e.position}';
 
+    if (e.guidance.isNotEmpty) {
+      result += '. ${e.guidance}';
+    }
+
+    if (e.placeContext.isNotEmpty) {
+      result += '. ${e.placeContext}';
+    }
+
     if (e.text.isNotEmpty) {
       result +=
           ', with the text "${e.text}"';
@@ -326,6 +342,14 @@ class AISpeechService {
     var result =
         '${e.label} ${_hindiPosition(e.position)}';
 
+    if (e.guidance.isNotEmpty) {
+      result += '। ${e.guidance}';
+    }
+
+    if (e.placeContext.isNotEmpty) {
+      result += '। ${e.placeContext}';
+    }
+
     if (e.text.isNotEmpty) {
       result +=
           ', जिस पर "${e.text}" लिखा है';
@@ -347,6 +371,14 @@ class AISpeechService {
   ) {
     var result =
         '${e.label} ${_kannadaPosition(e.position)}';
+
+    if (e.guidance.isNotEmpty) {
+      result += '. ${e.guidance}';
+    }
+
+    if (e.placeContext.isNotEmpty) {
+      result += '. ${e.placeContext}';
+    }
 
     if (e.text.isNotEmpty) {
       result +=
