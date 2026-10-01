@@ -81,9 +81,7 @@ class _LiveCameraScreenState
       camera = CameraController(backCamera, ResolutionPreset.low, enableAudio: false);
       await camera!.initialize();
       if (mounted) setState(() { ready = true; onboarding = false; status = copy('scanning'); });
-      location.current(localeIdentifier: _locationLocale(), refreshPlace: true).then((value) {
-        if (!mounted || value == null) return; setState(() => currentLocation = value);
-      }).catchError((_) {});
+      unawaited(_refreshLocationInBackground());
       TFLiteService().initialize().then((_) {}, onError: (Object error, StackTrace stack) { debugPrint('Background model warm-up failed: $error'); });
       await speak(copy('scanning'));
       timer?.cancel();
@@ -94,6 +92,18 @@ class _LiveCameraScreenState
       await speak(copy('cameraError'));
     }
   }
+  Future<void> _refreshLocationInBackground() async {
+    try {
+      final value = await location.current(
+        localeIdentifier: _locationLocale(),
+        refreshPlace: true,
+      );
+      if (mounted && value != null) {
+        setState(() => currentLocation = value);
+      }
+    } catch (_) {}
+  }
+
   String _locationLocale() {
     if (language.code == 'hi') {
       return 'hi_IN';
