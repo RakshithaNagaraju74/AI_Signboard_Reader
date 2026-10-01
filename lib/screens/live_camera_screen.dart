@@ -529,6 +529,10 @@ class _LiveCameraScreenState
         }
       }
 
+      if (placeContext.isEmpty && _looksLikeAdvertisement(text)) {
+        placeContext = localizedAdvertisementWarning();
+      }
+
       inputs.add(
         SpeechDetectionInput(
           label: localizedClass(context.detection.className),
@@ -597,6 +601,43 @@ class _LiveCameraScreenState
           'Turn your head and camera gently to the right to face it.',
     };
     return map[position]!;
+  }
+
+  bool _looksLikeAdvertisement(String text) {
+    final value = text.toLowerCase();
+    const markers = [
+      'offer',
+      'offers',
+      'sale',
+      'discount',
+      'opening',
+      'visit us',
+      'available at',
+      'branch',
+      'branches',
+      'call now',
+      'contact',
+      'book now',
+      'near',
+      'opposite',
+      'coming soon',
+      'deal',
+      'limited time',
+    ];
+
+    return markers.any(value.contains);
+  }
+
+  String localizedAdvertisementWarning() {
+    if (language.code == 'hi') {
+      return 'यह पाठ विज्ञापन जैसा लगता है। इसे देखकर यह न मानें कि दुकान या सेवा यहीं स्थित है।';
+    }
+
+    if (language.code == 'kn') {
+      return 'ಈ ಪಠ್ಯ ಜಾಹೀರಾತಿನಂತೆ ಕಾಣುತ್ತದೆ. ಇದನ್ನು ನೋಡಿ ಅಂಗಡಿ ಅಥವಾ ಸೇವೆ ಇಲ್ಲಿಯೇ ಇದೆ ಎಂದು ಊಹಿಸಬೇಡಿ.';
+    }
+
+    return 'This text looks like an advertisement. Do not assume the shop or service is located here just because it appears on the sign.';
   }
 
   String localizedPlaceContext(PlaceVerification value) {
