@@ -26,7 +26,8 @@ class LiveCameraScreen extends StatefulWidget {
 }
 
 class _LiveCameraScreenState
-    extends State<LiveCameraScreen> {
+    extends State<LiveCameraScreen>
+    with WidgetsBindingObserver {
   CameraController? camera;
 
   Timer? timer;
@@ -66,6 +67,7 @@ class _LiveCameraScreenState
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     start();
   }
 
@@ -104,6 +106,47 @@ class _LiveCameraScreenState
     } catch (_) {}
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      timer?.cancel();
+      timer = null;
+      return;
+    }
+    if (state == AppLifecycleState.resumed && !onboarding && !demoMode) {
+      unawaited(_reopenCamera());
+    }
+  }
+
+  Future<void> _reopenCamera() async {
+    if (!mounted || onboarding || demoMode) return;
+    processing = false;
+    ready = false;
+    timer?.cancel();
+    timer = null;
+    final oldCamera = camera;
+    camera = null;
+    try {
+      await oldCamera?.dispose();
+      final cameras = await availableCameras();
+      if (cameras.isEmpty || !mounted) return;
+      final backCamera = cameras.firstWhere(
+        (item) => item.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
+      );
+      final controller = CameraController(backCamera, ResolutionPreset.low, enableAudio: false);
+      await controller.initialize();
+      if (!mounted) { await controller.dispose(); return; }
+      camera = controller;
+      stopped = false;
+      ready = true;
+      setState(() => status = copy('scanning'));
+      timer = Timer.periodic(const Duration(milliseconds: 1800), (_) => scan());
+    } catch (e) {
+      debugPrint('Camera resume error: $e');
+      if (mounted) setState(() => status = copy('cameraError'));
+    }
+  }
   String _locationLocale() {
     if (language.code == 'hi') {
       return 'hi_IN';
@@ -1621,6 +1664,7 @@ class _LiveCameraScreenState
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     timer?.cancel();
     camera?.dispose();
     voice.stop();
