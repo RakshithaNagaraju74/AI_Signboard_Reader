@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class SpeechDetectionInput {
   final String label;
@@ -30,17 +31,19 @@ class SpeechDetectionInput {
 }
 
 class AISpeechService {
-  static const String _endpoint = String.fromEnvironment(
-    'GROQ_BASE_URL',
-    defaultValue: 'https://api.groq.com/openai/v1',
-  );
-  static const String _apiKey = String.fromEnvironment('GROQ_API_KEY');
-  static const String _model = String.fromEnvironment(
-    'GROQ_MODEL',
-    defaultValue: 'openai/gpt-oss-20b',
-  );
+  String get _endpoint =>
+      dotenv.env['GROQ_BASE_URL']?.trim().isNotEmpty == true
+          ? dotenv.env['GROQ_BASE_URL']!.trim()
+          : 'https://api.groq.com/openai/v1';
 
-  bool get groqEnabled => _apiKey.trim().isNotEmpty;
+  String get _apiKey => dotenv.env['GROQ_API_KEY']?.trim() ?? '';
+
+  String get _model =>
+      dotenv.env['GROQ_MODEL']?.trim().isNotEmpty == true
+          ? dotenv.env['GROQ_MODEL']!.trim()
+          : 'openai/gpt-oss-20b';
+
+  bool get groqEnabled => _apiKey.isNotEmpty;
 
   Future<String> compose({
     required List<SpeechDetectionInput> detections,
