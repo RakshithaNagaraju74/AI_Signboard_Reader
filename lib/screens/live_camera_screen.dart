@@ -456,7 +456,7 @@ class _LiveCameraScreenState
   ) {
     if (intel.focusedKey != null) {
       for (final context in contexts) {
-        final key = intel.key0(
+        final key = intel.detectionKey(
           context.detection,
         );
 
