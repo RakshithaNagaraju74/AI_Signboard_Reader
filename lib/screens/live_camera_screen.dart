@@ -213,10 +213,17 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         return;
       }
 
-      intel.setFrameSize(
-        camera!.value.previewSize?.width.toInt() ?? 416,
-        camera!.value.previewSize?.height.toInt() ?? 416,
+      final decodedFrame = img.decodeImage(
+        await file.readAsBytes(),
       );
+      if (decodedFrame != null) {
+        intel.setFrameSize(decodedFrame.width, decodedFrame.height);
+      } else {
+        intel.setFrameSize(
+          camera!.value.previewSize?.width.toInt() ?? 416,
+          camera!.value.previewSize?.height.toInt() ?? 416,
+        );
+      }
 
       raw = raw.take(5).toList();
       final enriched = <DetectionResult>[];
