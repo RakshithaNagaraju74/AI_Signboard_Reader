@@ -40,6 +40,7 @@ class _LiveCameraScreenState
   bool sceneScanMode = false;
   bool onboarding = true;
   bool demoMode = false;
+  bool languageChosen = false;
 
   File? demoImage;
 
@@ -208,11 +209,13 @@ class _LiveCameraScreenState
     await tts.setLanguage('hi-IN');
     await speakRaw('हिंदी चुनने के लिए हिंदी या हाँ कहें।');
     final hindi = await voice.listen(localeId: 'hi-IN', timeout: const Duration(seconds: 4));
+    if (languageChosen) return;
     if (_affirmative(hindi, 'hi')) { await setLanguage('hi'); return; }
 
     await tts.setLanguage('kn-IN');
     await speakRaw('ಕನ್ನಡ ಆಯ್ಕೆ ಮಾಡಲು ಕನ್ನಡ ಅಥವಾ ಹೌದು ಎಂದು ಹೇಳಿ.');
     final kannada = await voice.listen(localeId: 'kn-IN', timeout: const Duration(seconds: 4));
+    if (languageChosen) return;
     if (_affirmative(kannada, 'kn')) { await setLanguage('kn'); return; }
 
     await tts.setLanguage('en-US');
@@ -233,22 +236,24 @@ class _LiveCameraScreenState
     return false;
   }
 
-  Future<void> setLanguage(
-    String code,
-  ) async {
-    language =
-        LanguageService.fromCode(code) ??
-            LanguageService.languages.first;
+  Future<void> setLanguage(String code) async {
+    final selected = LanguageService.fromCode(code);
+    if (selected == null) return;
 
+    languageChosen = true;
+    await voice.stop();
+
+    language = selected;
     await lang.save(language);
+    await tts.setLanguage(language.speechLocale);
 
-    await tts.setLanguage(
-      language.speechLocale,
-    );
+    if (mounted) {
+      setState(() {
+        status = copy('languageSelected');
+      });
+    }
 
-    await speak(
-      copy('languageSelected'),
-    );
+    await speak(copy('languageSelected'));
   }
 
   Future<List<DetectionContext>> _analyzeFile(File file, {required bool demo}) async {
@@ -1685,6 +1690,27 @@ class _LiveCameraScreenState
                   ),
                   child: Row(
                     children: [
+                      Expanded(
+                        child:
+                            ElevatedButton.icon(
+                          onPressed:
+                              pickDemoImage,
+                          icon:
+                              const Icon(
+                            Icons.image_search,
+                          ),
+                          label:
+                              Text(
+                            copy('upload'),
+                          ),
+                          style:
+                              ElevatedButton.styleFrom(
+                            minimumSize:
+                                const Size(0, 58),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
                       Expanded(
                         child:
                             ElevatedButton.icon(
