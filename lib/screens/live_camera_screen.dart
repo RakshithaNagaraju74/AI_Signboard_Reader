@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 
@@ -17,6 +18,7 @@ import '../services/tts_service.dart';
 import '../services/voice_command_service.dart';
 import '../services/tflite_service.dart';
 import '../services/ai_speech_service.dart';
+import '../services/place_verification_service.dart';
 
 class LiveCameraScreen extends StatefulWidget {
   const LiveCameraScreen({super.key});
@@ -67,6 +69,9 @@ class _LiveCameraScreenState
   final intel = DetectionIntelligence();
   final picker = ImagePicker();
   final aiSpeech = AISpeechService();
+  final placeVerifier = PlaceVerificationService();
+
+  PlaceVerification? lastVerifiedPlace;
 
   @override
   void initState() {
@@ -249,21 +254,68 @@ class _LiveCameraScreenState
   }
 
   Future<void> chooseLanguage() async {
-    await tts.setLanguage('hi-IN');
-    await speakRaw('हिंदी चुनने के लिए हिंदी या हाँ कहें।');
-    final hindi = await voice.listen(localeId: 'hi-IN', timeout: const Duration(seconds: 4));
-    if (languageChosen) return;
-    if (_affirmative(hindi, 'hi')) { await setLanguage('hi'); return; }
-
-    await tts.setLanguage('kn-IN');
-    await speakRaw('ಕನ್ನಡ ಆಯ್ಕೆ ಮಾಡಲು ಕನ್ನಡ ಅಥವಾ ಹೌದು ಎಂದು ಹೇಳಿ.');
-    final kannada = await voice.listen(localeId: 'kn-IN', timeout: const Duration(seconds: 4));
-    if (languageChosen) return;
-    if (_affirmative(kannada, 'kn')) { await setLanguage('kn'); return; }
+    languageChosen = false;
+    await voice.stop();
 
     await tts.setLanguage('en-US');
-    await speakRaw('No language was selected. Please choose Hindi, Kannada, or English.');
-    if (mounted) setState(() => status = 'Choose Hindi, Kannada, or English');
+    await speakRaw(
+      'Choose your language. Say English, Hindi, or Kannada. '
+      'You can also tap a language button.',
+    );
+
+    final english = await voice.listen(
+      localeId: 'en-US',
+      timeout: const Duration(seconds: 6),
+    );
+
+    final detected =
+        LanguageService.detectCommand(english ?? '');
+
+    if (detected != null) {
+      await setLanguage(detected);
+      return;
+    }
+
+    await tts.setLanguage('hi-IN');
+    await speakRaw(
+      'हिंदी के लिए हिंदी या हाँ कहें।',
+    );
+
+    final hindi = await voice.listen(
+      localeId: 'hi-IN',
+      timeout: const Duration(seconds: 5),
+    );
+
+    if (_affirmative(hindi, 'hi')) {
+      await setLanguage('hi');
+      return;
+    }
+
+    await tts.setLanguage('kn-IN');
+    await speakRaw(
+      'ಕನ್ನಡಕ್ಕಾಗಿ ಕನ್ನಡ ಅಥವಾ ಹೌದು ಎಂದು ಹೇಳಿ.',
+    );
+
+    final kannada = await voice.listen(
+      localeId: 'kn-IN',
+      timeout: const Duration(seconds: 5),
+    );
+
+    if (_affirmative(kannada, 'kn')) {
+      await setLanguage('kn');
+      return;
+    }
+
+    await tts.setLanguage('en-US');
+    await speakRaw(
+      'I could not hear a language choice. Please tap Hindi, Kannada, or English.',
+    );
+
+    if (mounted) {
+      setState(() {
+        status = 'Choose Hindi, Kannada, or English';
+      });
+    }
   }
 
   bool _affirmative(String? value, String code) {
@@ -444,45 +496,41 @@ class _LiveCameraScreenState
     }
   }
 
-  DetectionContext _chooseContext(
-    List<DetectionContext> contexts,
-  ) {
-    if (intel.focusedKey != null) {
-      for (final context in contexts) {
-        final key =
-            intel.detectionKey(
-          context.detection,
-        );
-
-        if (key == intel.focusedKey) {
-          return context;
-        }
-      }
-    }
-
-    return contexts.first;
-  }
-
   Future<String> composeDetectionSpeech(
     List<DetectionContext> contexts, {
     bool useGroq = true,
   }) async {
-    final inputs = contexts.map(
-      (context) => SpeechDetectionInput(
-        label: localizedClass(
-          context.detection.className,
+    final inputs = <SpeechDetectionInput>[];
+
+    for (final context in contexts.take(4)) {
+      final text = context.detection.ocrText.trim();
+      var placeContext = '';
+
+      if (currentLocation != null && text.isNotEmpty) {
+        final verification = await placeVerifier.verify(
+          visibleText: text,
+          location: currentLocation!,
+        );
+
+        if (verification != null && verification.reliable) {
+          lastVerifiedPlace = verification;
+          placeContext = localizedPlaceContext(verification);
+        }
+      }
+
+      inputs.add(
+        SpeechDetectionInput(
+          label: localizedClass(context.detection.className),
+          position: localizedPosition(context.position),
+          text: text,
+          movement: context.movement,
+          proximity: context.proximity,
+          guidance: localizedGuidance(context.position),
+          placeContext: placeContext,
+          safety: _isSafetyClass(context.detection.className),
         ),
-        position: localizedPosition(
-          context.position,
-        ),
-        text: context.detection.ocrText.trim(),
-        movement: context.movement,
-        proximity: context.proximity,
-        safety: _isSafetyClass(
-          context.detection.className,
-        ),
-      ),
-    ).toList();
+      );
+    }
 
     return aiSpeech.compose(
       detections: inputs,
@@ -490,6 +538,98 @@ class _LiveCameraScreenState
       place: currentLocation?.displayPlace,
       useGroq: useGroq,
     );
+  }
+
+  String localizedGuidance(SignPosition position) {
+    if (language.code == 'hi') {
+      const map = <SignPosition, String>{
+        SignPosition.left:
+            'इसे देखने के लिए कैमरा और सिर धीरे से बाईं ओर घुमाएँ।',
+        SignPosition.slightlyLeft:
+            'इसे देखने के लिए थोड़ा बाईं ओर देखें।',
+        SignPosition.front:
+            'संकेत सीधे सामने है। कैमरा स्थिर रखें।',
+        SignPosition.slightlyRight:
+            'इसे देखने के लिए थोड़ा दाईं ओर देखें।',
+        SignPosition.right:
+            'इसे देखने के लिए कैमरा और सिर धीरे से दाईं ओर घुमाएँ।',
+      };
+      return map[position]!;
+    }
+
+    if (language.code == 'kn') {
+      const map = <SignPosition, String>{
+        SignPosition.left:
+            'ಇದನ್ನು ನೋಡಲು ಕ್ಯಾಮೆರಾ ಮತ್ತು ತಲೆಯನ್ನು ನಿಧಾನವಾಗಿ ಎಡಕ್ಕೆ ತಿರುಗಿಸಿ.',
+        SignPosition.slightlyLeft:
+            'ಇದನ್ನು ನೋಡಲು ಸ್ವಲ್ಪ ಎಡಕ್ಕೆ ನೋಡಿ.',
+        SignPosition.front:
+            'ಫಲಕ ನೇರವಾಗಿ ಮುಂದೆ ಇದೆ. ಕ್ಯಾಮೆರಾವನ್ನು ಸ್ಥಿರವಾಗಿ ಹಿಡಿಯಿರಿ.',
+        SignPosition.slightlyRight:
+            'ಇದನ್ನು ನೋಡಲು ಸ್ವಲ್ಪ ಬಲಕ್ಕೆ ನೋಡಿ.',
+        SignPosition.right:
+            'ಇದನ್ನು ನೋಡಲು ಕ್ಯಾಮೆರಾ ಮತ್ತು ತಲೆಯನ್ನು ನಿಧಾನವಾಗಿ ಬಲಕ್ಕೆ ತಿರುಗಿಸಿ.',
+      };
+      return map[position]!;
+    }
+
+    const map = <SignPosition, String>{
+      SignPosition.left:
+          'Turn your head and camera gently to the left to face it.',
+      SignPosition.slightlyLeft:
+          'Look slightly left to face it.',
+      SignPosition.front:
+          'It is directly ahead. Keep the camera steady.',
+      SignPosition.slightlyRight:
+          'Look slightly right to face it.',
+      SignPosition.right:
+          'Turn your head and camera gently to the right to face it.',
+    };
+    return map[position]!;
+  }
+
+  String localizedPlaceContext(PlaceVerification value) {
+    final name = value.matchedName;
+    final distance = value.shortDistance;
+
+    if (language.code == 'hi') {
+      if (value.relation == PlaceRelation.onSite) {
+        return 'मानचित्र के अनुसार ' + name + ' लगभग ' + distance +
+            ' दूर है। फिर भी यह बोर्ड उस जगह के प्रवेश द्वार का प्रमाण नहीं है।';
+      }
+      if (value.relation == PlaceRelation.nearby) {
+        return 'मानचित्र में ' + name + ' लगभग ' + distance +
+            ' दूर है। यह बोर्ड उस जगह की ओर संकेत या विज्ञापन हो सकता है।';
+      }
+      return 'मानचित्र में ' + name + ' लगभग ' + distance +
+          ' दूर मिला। इसलिए यह बोर्ड किसी दूसरी जगह का विज्ञापन हो सकता है, यहाँ की जगह का नहीं।';
+    }
+
+    if (language.code == 'kn') {
+      if (value.relation == PlaceRelation.onSite) {
+        return 'ನಕ್ಷೆಯ ಪ್ರಕಾರ ' + name + ' ಸುಮಾರು ' + distance +
+            ' ದೂರದಲ್ಲಿದೆ. ಆದರೂ ಈ ಫಲಕವೇ ಆ ಸ್ಥಳದ ಪ್ರವೇಶದ್ವಾರ ಎಂದು ಖಚಿತಪಡಿಸುವುದಿಲ್ಲ.';
+      }
+      if (value.relation == PlaceRelation.nearby) {
+        return 'ನಕ್ಷೆಯಲ್ಲಿ ' + name + ' ಸುಮಾರು ' + distance +
+            ' ದೂರದಲ್ಲಿದೆ. ಈ ಫಲಕ ಆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಅಥವಾ ದಿಕ್ಕು ಸೂಚನೆ ಆಗಿರಬಹುದು.';
+      }
+      return 'ನಕ್ಷೆಯಲ್ಲಿ ' + name + ' ಸುಮಾರು ' + distance +
+          ' ದೂರದಲ್ಲಿದೆ. ಆದ್ದರಿಂದ ಈ ಫಲಕ ಇಲ್ಲಿನ ಸ್ಥಳವಲ್ಲ, ಬೇರೆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಆಗಿರಬಹುದು.';
+    }
+
+    if (value.relation == PlaceRelation.onSite) {
+      return 'Map data suggests ' + name + ' is about ' + distance +
+          ' away. The sign itself does not prove that this is the entrance.';
+    }
+
+    if (value.relation == PlaceRelation.nearby) {
+      return 'Map data places ' + name + ' about ' + distance +
+          ' away. This sign may advertise or point to that place.';
+    }
+
+    return 'Map data found ' + name + ' about ' + distance +
+        ' away. This sign may advertise a different location rather than this exact place.';
   }
 
   String buildSpeech(DetectionContext context) {
@@ -1270,16 +1410,55 @@ class _LiveCameraScreenState
         speech.contains('direction') ||
         speech.contains('दिशा') ||
         speech.contains('ನ್ಯಾವಿಗೇಟ್')) {
-      await speak(
-        copy('navigationLimit'),
-      );
-
+      await _navigateToVerifiedPlace();
       return;
     }
 
     await speak(
       copy('notUnderstood'),
     );
+  }
+
+  Future<void> _navigateToVerifiedPlace() async {
+    final place = lastVerifiedPlace;
+
+    if (place == null || !place.reliable) {
+      await speak(
+        language.code == 'hi'
+            ? 'मैं अभी इस बोर्ड से किसी जगह की विश्वसनीय पुष्टि नहीं कर पाया।'
+            : language.code == 'kn'
+                ? 'ಈ ಫಲಕದಿಂದ ಯಾವುದೇ ಸ್ಥಳವನ್ನು ವಿಶ್ವಾಸಾರ್ಹವಾಗಿ ಖಚಿತಪಡಿಸಲು ನನಗೆ ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.'
+                : 'I could not reliably verify a destination from this sign yet.',
+      );
+      return;
+    }
+
+    final destination =
+        place.latitude.toString() + ',' +
+        place.longitude.toString();
+
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=' +
+      Uri.encodeQueryComponent(destination) +
+      '&travelmode=walking&dir_action=navigate',
+    );
+
+    final opened = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (opened) {
+      await speak(
+        language.code == 'hi'
+            ? 'मैंने ' + place.matchedName + ' के लिए पैदल नेविगेशन खोला है।'
+            : language.code == 'kn'
+                ? place.matchedName + ' ಗೆ ನಡೆದುಹೋಗುವ ನ್ಯಾವಿಗೇಶನ್ ತೆರೆಯಲಾಗಿದೆ.'
+                : 'I opened walking navigation to ' + place.matchedName + '.',
+      );
+    } else {
+      await speak(copy('navigationLimit'));
+    }
   }
 
   String localize(
