@@ -307,7 +307,7 @@ class _LiveCameraScreenState
     }
 
     // Keep all useful detections instead of exposing only the highest one.
-    raw = raw.take(demo ? 6 : 5).toList();
+    raw = raw.take(8).toList();
 
     final decoded = img.decodeImage(await file.readAsBytes());
     if (decoded != null) {
@@ -530,7 +530,7 @@ class _LiveCameraScreenState
   Future<void> speakScene(
     List<DetectionContext> contexts,
   ) async {
-    final visible = contexts.take(6).toList();
+    final visible = contexts.toList();
 
     if (visible.isEmpty) {
       await speak(copy('noSigns'));
@@ -601,7 +601,7 @@ class _LiveCameraScreenState
       }
 
       final speech = await composeDetectionSpeech(
-        contexts.take(6).toList(),
+        contexts.toList(),
         useGroq: true,
       );
 
