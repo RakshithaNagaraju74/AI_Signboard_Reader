@@ -608,6 +608,10 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         'navigationLimit': 'GPS स्थान उपलब्ध है। सटीक दूरी और कम्पास दिशा तभी बताई जाएगी जब विश्वसनीय रूप से अनुमानित हो सके।',
         'notUnderstood': 'मैं समझ नहीं पाया। मदद के लिए हेल्प बोलें।',
         'demoComplete': 'डेमो विश्लेषण पूरा हुआ।',
+        'upload': 'तस्वीर चुनें',
+        'backCamera': 'कैमरा पर लौटें',
+        'voiceCommands': 'वॉइस कमांड',
+        'demoResults': 'डेमो परिणाम',
       };
       return map[key] ?? key;
     }
@@ -639,6 +643,10 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         'navigationLimit': 'GPS ಸ್ಥಳ ಲಭ್ಯವಿದೆ. ನಿಖರ ದೂರ ಮತ್ತು ಕಂಪಾಸ್ ದಿಕ್ಕನ್ನು ವಿಶ್ವಾಸಾರ್ಹವಾಗಿ ಅಂದಾಜಿಸಲು ಸಾಧ್ಯವಾದಾಗ ಮಾತ್ರ ಹೇಳಲಾಗುತ್ತದೆ.',
         'notUnderstood': 'ನನಗೆ ಅರ್ಥವಾಗಲಿಲ್ಲ. ಸಹಾಯಕ್ಕಾಗಿ ಹೆಲ್ಪ್ ಎಂದು ಹೇಳಿ.',
         'demoComplete': 'ಡೆಮೊ ವಿಶ್ಲೇಷಣೆ ಪೂರ್ಣಗೊಂಡಿದೆ.',
+        'upload': 'ಚಿತ್ರ ಆಯ್ಕೆಮಾಡಿ',
+        'backCamera': 'ಕ್ಯಾಮೆರಾಕ್ಕೆ ಹಿಂತಿರುಗಿ',
+        'voiceCommands': 'ವಾಯ್ಸ್ ಕಮಾಂಡ್',
+        'demoResults': 'ಡೆಮೊ ಫಲಿತಾಂಶಗಳು',
       };
       return map[key] ?? key;
     }
@@ -669,6 +677,10 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       'navigationLimit': 'GPS context is available. Exact distance and compass direction will only be stated when they can be estimated reliably.',
       'notUnderstood': 'I did not understand. Say help for available commands.',
       'demoComplete': 'Demo analysis complete.',
+      'upload': 'Upload image',
+      'backCamera': 'Back to camera',
+      'voiceCommands': 'Voice commands',
+      'demoResults': 'Demo results',
     };
     return map[key] ?? key;
   }
@@ -870,6 +882,90 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
     await tts.speak(localizedSpeech);
   }
 
+  Widget _resultPanel() {
+    if (visibleContexts.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 250),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.90),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: ListView(
+        shrinkWrap: true,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.analytics_outlined, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  demoMode ? copy('demoResults') : copy('detected'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                  ),
+                ),
+              ),
+              const Icon(Icons.location_on, size: 18),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...visibleContexts.take(5).map((context) {
+            final d = context.detection;
+            var detail = localizedClass(d.className) +
+                ' • ' +
+                localizedPosition(context.position) +
+                '\n' +
+                copy('class') +
+                ': ' +
+                d.classId.toString() +
+                ' • ' +
+                copy('confidence') +
+                ': ' +
+                (d.confidence * 100).toStringAsFixed(0) +
+                '%';
+            if (d.ocrText.trim().isNotEmpty) {
+              detail += '\n' + copy('text') + ': ' + d.ocrText.trim();
+            }
+            if (context.movement.isNotEmpty) {
+              detail += '\n' + localizedMovement(context.movement);
+            }
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 7),
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                detail,
+                style: const TextStyle(fontSize: 12.5),
+              ),
+            );
+          }),
+          const Divider(color: Colors.white24),
+          Text(
+            currentLocation == null
+                ? copy('locationUnavailable')
+                : currentLocation!.displayPlace +
+                    '\n' +
+                    currentLocation!.latitude.toStringAsFixed(5) +
+                    ', ' +
+                    currentLocation!.longitude.toStringAsFixed(5) +
+                    ' • ±' +
+                    currentLocation!.accuracy.toStringAsFixed(0) +
+                    'm',
+            style: const TextStyle(fontSize: 12.5),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (onboarding) {
@@ -925,17 +1021,48 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
           SafeArea(
             child: Column(
               children: [
-                Align(
-                  alignment: Alignment.topLeft,
-                  child: Container(
-                    margin: const EdgeInsets.all(16),
-                    padding: const EdgeInsets.all(10),
-                    color: Colors.black87,
-                    child: Text(
-                      language.name + (focusMode ? ' • Focus mode' : ''),
+                Row(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(10),
+                      color: Colors.black87,
+                      child: Text(
+                        language.name + (focusMode ? ' • Focus mode' : ''),
+                      ),
+                    ),
+                    const Spacer(),
+                    Semantics(
+                      button: true,
+                      label: 'Upload image for demonstration',
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.shade700,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: IconButton(
+                          tooltip: 'Upload image',
+                          onPressed: pickDemoImage,
+                          icon: const Icon(Icons.upload_file),
+                          iconSize: 28,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (demoMode)
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: ElevatedButton.icon(
+                        onPressed: closeDemo,
+                        icon: const Icon(Icons.camera_alt),
+                        label: Text(copy('backCamera')),
+                      ),
                     ),
                   ),
-                ),
                 const Spacer(),
                 Semantics(
                   liveRegion: true,
@@ -960,7 +1087,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
                         child: ElevatedButton.icon(
                           onPressed: commands,
                           icon: const Icon(Icons.mic),
-                          label: const Text('Voice commands'),
+                          label: Text(copy('voiceCommands')),
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size(0, 58),
                           ),
