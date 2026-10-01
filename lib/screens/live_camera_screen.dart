@@ -59,6 +59,22 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
     start();
   }
 
+  Future<void> refreshLocation({bool refreshPlace = false}) async {
+    try {
+      currentLocation = await location.current(
+        localeIdentifier: language.code == 'hi'
+            ? 'hi_IN'
+            : language.code == 'kn'
+                ? 'kn_IN'
+                : 'en_US',
+        refreshPlace: refreshPlace,
+      );
+    } catch (e) {
+      debugPrint('Location update skipped: $e');
+    }
+    if (mounted) setState(() {});
+  }
+
   Future<void> start() async {
     try {
       final saved = await lang.load();
@@ -88,14 +104,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       );
 
       await camera!.initialize();
-      currentLocation = await location.current(
-        localeIdentifier: language.code == 'hi'
-            ? 'hi_IN'
-            : language.code == 'kn'
-                ? 'kn_IN'
-                : 'en_US',
-        refreshPlace: true,
-      );
+      await refreshLocation(refreshPlace: true);
 
       if (mounted) {
         setState(() {
@@ -250,14 +259,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       lastDetections = enriched;
       final contexts = intel.analyze(enriched);
       visibleContexts = contexts;
-      currentLocation = await location.current(
-        localeIdentifier: language.code == 'hi'
-            ? 'hi_IN'
-            : language.code == 'kn'
-                ? 'kn_IN'
-                : 'en_US',
-      );
-      if (mounted) setState(() {});
+      await refreshLocation();
       if (contexts.isEmpty) return;
 
       if (sceneScanMode) {
@@ -865,10 +867,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
     if (speech.contains('help') ||
         speech.contains('मदद') ||
         speech.contains('ಸಹಾಯ')) {
-      await speak(
-        'Say scan, stop, repeat, find sign, stop focus, scan surroundings, '
-        'what signs, where, change language, history, or navigate.',
-      );
+      await speak(copy('help'));
       return;
     }
 
