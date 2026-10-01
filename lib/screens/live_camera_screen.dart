@@ -5,6 +5,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
 
 import '../models/detection_result.dart';
 import '../services/detection_intelligence.dart';
@@ -339,6 +340,244 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
 
   Future<void> maybeSpeak(String text) async {
     if (last != text) await speak(text);
+  }
+
+  Future<void> pickDemoImage() async {
+    try {
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 95,
+      );
+      if (picked == null) return;
+
+      final file = File(picked.path);
+      final bytes = await file.readAsBytes();
+      final image = img.decodeImage(bytes);
+      if (image == null) {
+        await speak(copy('analysisFailed'));
+        return;
+      }
+
+      processing = true;
+      demoMode = true;
+      demoImage = file;
+      visibleContexts = [];
+      if (mounted) setState(() {});
+
+      await speak(copy('analyzingImage'));
+
+      var raw = await TFLiteService().predictImage(file);
+      raw = raw.take(8).toList();
+
+      final enriched = <DetectionResult>[];
+      for (final detection in raw) {
+        var text = '';
+        if (detection.confidence >= 0.40) {
+          try {
+            text = await ocr.extractText(file, detection.bbox);
+          } catch (_) {}
+        }
+
+        final item = DetectionResult(
+          className: detection.className,
+          confidence: detection.confidence,
+          bbox: detection.bbox,
+          ocrText: text,
+          classId: detection.classId,
+        );
+        if (text.trim().isNotEmpty) intel.markOcrRead(item);
+        enriched.add(item);
+      }
+
+      lastDetections = enriched;
+      intel.setFrameSize(image.width, image.height);
+      final contexts = intel.analyze(enriched);
+      visibleContexts = contexts;
+
+      currentLocation = await location.current(
+        localeIdentifier: language.code == 'hi'
+            ? 'hi_IN'
+            : language.code == 'kn'
+                ? 'kn_IN'
+                : 'en_US',
+        refreshPlace: true,
+      );
+
+      if (mounted) setState(() {});
+
+      if (contexts.isEmpty) {
+        await speak(copy('noSigns'));
+        return;
+      }
+
+      final parts = <String>[];
+      for (final context in contexts.take(6)) {
+        final d = context.detection;
+        var part = localizedClass(d.className) +
+            ', ' +
+            copy('class') +
+            ' ' +
+            d.classId.toString() +
+            ', ' +
+            copy('confidence') +
+            ' ' +
+            (d.confidence * 100).toStringAsFixed(0) +
+            ' percent, ' +
+            copy('position') +
+            ' ' +
+            localizedPosition(context.position);
+        if (d.ocrText.trim().isNotEmpty) {
+          part += '. ' + copy('text') + ' ' + d.ocrText.trim();
+        }
+        parts.add(part);
+      }
+
+      await speak(
+        copy('demoComplete') +
+            '. ' +
+            parts.join('. ') +
+            '. ' +
+            localizedLocationSentence(),
+      );
+      await HapticFeedback.mediumImpact();
+    } catch (e) {
+      debugPrint('demo image error: $e');
+      await speak(copy('analysisFailed'));
+    } finally {
+      processing = false;
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> closeDemo() async {
+    demoMode = false;
+    demoImage = null;
+    visibleContexts = [];
+    if (mounted) setState(() {});
+    await speak(copy('scanning'));
+  }
+
+  String localizedClass(String raw) {
+    final value = raw.toLowerCase().replaceAll('_', ' ');
+    if (language.code == 'hi') {
+      const map = <String, String>{
+        'hospital': 'अस्पताल',
+        'bus': 'बस',
+        'bus stop': 'बस स्टॉप',
+        'railway': 'रेलवे',
+        'train': 'ट्रेन',
+        'traffic': 'ट्रैफिक संकेत',
+        'warning': 'चेतावनी संकेत',
+        'construction': 'निर्माण संकेत',
+        'road blocked': 'सड़क बंद संकेत',
+        'shop': 'दुकान',
+        'street': 'सड़क संकेत',
+        'notice': 'सूचना संकेत',
+      };
+      return map[value] ?? value;
+    }
+    if (language.code == 'kn') {
+      const map = <String, String>{
+        'hospital': 'ಆಸ್ಪತ್ರೆ',
+        'bus': 'ಬಸ್',
+        'bus stop': 'ಬಸ್ ನಿಲ್ದಾಣ',
+        'railway': 'ರೈಲ್ವೆ',
+        'train': 'ರೈಲು',
+        'traffic': 'ಟ್ರಾಫಿಕ್ ಸೂಚನೆ',
+        'warning': 'ಎಚ್ಚರಿಕೆ ಸೂಚನೆ',
+        'construction': 'ನಿರ್ಮಾಣ ಸೂಚನೆ',
+        'road blocked': 'ರಸ್ತೆ ಬಂದ್ ಸೂಚನೆ',
+        'shop': 'ಅಂಗಡಿ',
+        'street': 'ರಸ್ತೆ ಸೂಚನೆ',
+        'notice': 'ಸೂಚನಾ ಫಲಕ',
+      };
+      return map[value] ?? value;
+    }
+    return value;
+  }
+
+  String localizedPosition(SignPosition position) {
+    if (language.code == 'hi') {
+      const map = <SignPosition, String>{
+        SignPosition.left: 'बहुत बाईं ओर',
+        SignPosition.slightlyLeft: 'थोड़ा बाईं ओर',
+        SignPosition.front: 'सीधे सामने',
+        SignPosition.slightlyRight: 'थोड़ा दाईं ओर',
+        SignPosition.right: 'बहुत दाईं ओर',
+      };
+      return map[position]!;
+    }
+    if (language.code == 'kn') {
+      const map = <SignPosition, String>{
+        SignPosition.left: 'ತುಂಬಾ ಎಡಕ್ಕೆ',
+        SignPosition.slightlyLeft: 'ಸ್ವಲ್ಪ ಎಡಕ್ಕೆ',
+        SignPosition.front: 'ನೇರವಾಗಿ ಮುಂದೆ',
+        SignPosition.slightlyRight: 'ಸ್ವಲ್ಪ ಬಲಕ್ಕೆ',
+        SignPosition.right: 'ತುಂಬಾ ಬಲಕ್ಕೆ',
+      };
+      return map[position]!;
+    }
+    return position.label;
+  }
+
+  String localizedMovement(String movement) {
+    if (language.code == 'hi') {
+      return movement
+          .replaceAll('getting closer', 'संकेत पास आ रहा है')
+          .replaceAll('moving farther away', 'संकेत दूर जा रहा है')
+          .replaceAll('moving to your left', 'संकेत आपकी बाईं ओर जा रहा है')
+          .replaceAll('moving to your right', 'संकेत आपकी दाईं ओर जा रहा है');
+    }
+    if (language.code == 'kn') {
+      return movement
+          .replaceAll('getting closer', 'ಸಂಕೇತ ಹತ್ತಿರವಾಗುತ್ತಿದೆ')
+          .replaceAll('moving farther away', 'ಸಂಕೇತ ದೂರವಾಗುತ್ತಿದೆ')
+          .replaceAll('moving to your left', 'ಸಂಕೇತ ನಿಮ್ಮ ಎಡಕ್ಕೆ ಚಲಿಸುತ್ತಿದೆ')
+          .replaceAll('moving to your right', 'ಸಂಕೇತ ನಿಮ್ಮ ಬಲಕ್ಕೆ ಚಲಿಸುತ್ತಿದೆ');
+    }
+    return movement;
+  }
+
+  String localizedProximity(String proximity) {
+    if (language.code == 'hi') {
+      if (proximity == 'far') return 'संकेत दूर है';
+      if (proximity == 'approaching') return 'संकेत पास आ रहा है';
+      return 'संकेत पास है';
+    }
+    if (language.code == 'kn') {
+      if (proximity == 'far') return 'ಸಂಕೇತ ದೂರದಲ್ಲಿದೆ';
+      if (proximity == 'approaching') return 'ಸಂಕೇತ ಹತ್ತಿರವಾಗುತ್ತಿದೆ';
+      return 'ಸಂಕೇತ ಹತ್ತಿರದಲ್ಲಿದೆ';
+    }
+    if (proximity == 'far') return 'The sign is far away';
+    if (proximity == 'approaching') return 'The sign is approaching';
+    return 'The sign is nearby';
+  }
+
+  String localizedLocationSentence() {
+    final snapshot = currentLocation;
+    if (snapshot == null) return copy('locationUnavailable');
+
+    final place = snapshot.displayPlace;
+    if (language.code == 'hi') {
+      return 'वर्तमान स्थान: ' +
+          place +
+          '. GPS सटीकता लगभग ' +
+          snapshot.accuracy.toStringAsFixed(0) +
+          ' मीटर।';
+    }
+    if (language.code == 'kn') {
+      return 'ಪ್ರಸ್ತುತ ಸ್ಥಳ: ' +
+          place +
+          '. GPS ನಿಖರತೆ ಸುಮಾರು ' +
+          snapshot.accuracy.toStringAsFixed(0) +
+          ' ಮೀಟರ್.';
+    }
+    return 'Current location: ' +
+        place +
+        '. GPS accuracy is about ' +
+        snapshot.accuracy.toStringAsFixed(0) +
+        ' metres.';
   }
 
   Future<void> commands() async {
