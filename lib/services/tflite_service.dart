@@ -138,8 +138,10 @@ class TFLiteService {
       final bytes =
           await imageFile.readAsBytes();
 
-      final image =
-          img.decodeImage(bytes);
+      final decodedImage = img.decodeImage(bytes);
+      final image = decodedImage == null
+          ? null
+          : img.bakeOrientation(decodedImage);
 
       if (image == null) {
         Logger.log(
