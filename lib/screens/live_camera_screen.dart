@@ -47,6 +47,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
   String last = '';
   AppLanguage language = LanguageService.languages.first;
   List<DetectionResult> lastDetections = [];
+  List<DetectionContext> visibleContexts = [];
 
   final tts = TTSService();
   final voice = VoiceCommandService();
@@ -61,6 +62,22 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
   void initState() {
     super.initState();
     start();
+  }
+
+  Future<void> refreshLocation({bool refreshPlace = false}) async {
+    try {
+      currentLocation = await location.current(
+        localeIdentifier: language.code == 'hi'
+            ? 'hi_IN'
+            : language.code == 'kn'
+                ? 'kn_IN'
+                : 'en_US',
+        refreshPlace: refreshPlace,
+      );
+    } catch (e) {
+      debugPrint('Location update skipped: $e');
+    }
+    if (mounted) setState(() {});
   }
 
   Future<void> start() async {
@@ -92,14 +109,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       );
 
       await camera!.initialize();
-      currentLocation = await location.current(
-        localeIdentifier: language.code == 'hi'
-            ? 'hi_IN'
-            : language.code == 'kn'
-                ? 'kn_IN'
-                : 'en_US',
-        refreshPlace: true,
-      );
+      await refreshLocation(refreshPlace: true);
 
       if (mounted) {
         setState(() {
@@ -217,10 +227,17 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         return;
       }
 
-      intel.setFrameSize(
-        camera!.value.previewSize?.width.toInt() ?? 416,
-        camera!.value.previewSize?.height.toInt() ?? 416,
+      final decodedFrame = img.decodeImage(
+        await file.readAsBytes(),
       );
+      if (decodedFrame != null) {
+        intel.setFrameSize(decodedFrame.width, decodedFrame.height);
+      } else {
+        intel.setFrameSize(
+          camera!.value.previewSize?.width.toInt() ?? 416,
+          camera!.value.previewSize?.height.toInt() ?? 416,
+        );
+      }
 
       raw = raw.take(5).toList();
       final enriched = <DetectionResult>[];
@@ -247,14 +264,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       lastDetections = enriched;
       final contexts = intel.analyze(enriched);
       visibleContexts = contexts;
-      currentLocation = await location.current(
-        localeIdentifier: language.code == 'hi'
-            ? 'hi_IN'
-            : language.code == 'kn'
-                ? 'kn_IN'
-                : 'en_US',
-      );
-      if (mounted) setState(() {});
+      await refreshLocation();
       if (contexts.isEmpty) return;
 
       if (sceneScanMode) {
@@ -441,16 +451,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       final contexts = intel.analyze(enriched);
       visibleContexts = contexts;
 
-      currentLocation = await location.current(
-        localeIdentifier: language.code == 'hi'
-            ? 'hi_IN'
-            : language.code == 'kn'
-                ? 'kn_IN'
-                : 'en_US',
-        refreshPlace: true,
-      );
-
-      if (mounted) setState(() {});
+      await refreshLocation(refreshPlace: true);
 
       if (contexts.isEmpty) {
         await speak(copy('noSigns'));
@@ -862,10 +863,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
     if (speech.contains('help') ||
         speech.contains('मदद') ||
         speech.contains('ಸಹಾಯ')) {
-      await speak(
-        'Say scan, stop, repeat, find sign, stop focus, scan surroundings, '
-        'what signs, where, change language, history, or navigate.',
-      );
+      await speak(copy('help'));
       return;
     }
 
