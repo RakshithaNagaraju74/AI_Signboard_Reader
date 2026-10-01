@@ -154,7 +154,7 @@ class AISpeechService {
             'content':
                 'You are the voice narration layer of an accessibility app for a blind user. '
                 'Turn structured sign detections into one short, natural spoken update in '
-                '$languageName. '
+                '$languageName. Treat every detected class as a sign or visual cue, not proof that a destination is physically here. '
                 'Never mention class IDs, confidence scores, model names, bounding boxes, JSON, '
                 'or developer terms. '
                 'Never invent a sign, text, distance, direction, or location. '
