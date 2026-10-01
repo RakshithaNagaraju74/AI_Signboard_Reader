@@ -689,6 +689,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         'navigationLimit': 'GPS ಸ್ಥಳ ಲಭ್ಯವಿದೆ. ನಿಖರ ದೂರ ಮತ್ತು ಕಂಪಾಸ್ ದಿಕ್ಕನ್ನು ವಿಶ್ವಾಸಾರ್ಹವಾಗಿ ಅಂದಾಜಿಸಲು ಸಾಧ್ಯವಾದಾಗ ಮಾತ್ರ ಹೇಳಲಾಗುತ್ತದೆ.',
         'notUnderstood': 'ನನಗೆ ಅರ್ಥವಾಗಲಿಲ್ಲ. ಸಹಾಯಕ್ಕಾಗಿ ಹೆಲ್ಪ್ ಎಂದು ಹೇಳಿ.',
         'demoComplete': 'ಡೆಮೊ ವಿಶ್ಲೇಷಣೆ ಪೂರ್ಣಗೊಂಡಿದೆ.',
+        'lastSeen': 'ಕೊನೆಯದಾಗಿ ಕಂಡದ್ದು',
         'items': 'ಐಟಂಗಳು',
         'visible': 'ನನಗೆ ಕಾಣುತ್ತಿರುವುದು',
         'help': 'ಸ್ಕ್ಯಾನ್, ನಿಲ್ಲಿಸು, ಮತ್ತೆ ಹೇಳು, ಫೋಕಸ್, ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳು, ಇತಿಹಾಸ, ಭಾಷೆ ಬದಲಾಯಿಸು ಅಥವಾ ನ್ಯಾವಿಗೇಟ್ ಎಂದು ಹೇಳಿ.',
@@ -728,6 +729,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       'navigationLimit': 'GPS context is available. Exact distance and compass direction will only be stated when they can be estimated reliably.',
       'notUnderstood': 'I did not understand. Say help for available commands.',
       'demoComplete': 'Demo analysis complete.',
+      'lastSeen': 'Last seen',
       'items': 'items',
       'visible': 'I can see',
       'help': 'Say scan, stop, repeat, focus, surroundings, history, change language, or navigate.',
@@ -775,7 +777,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
     if (speech.contains('repeat') ||
         speech.contains('दोहर') ||
         speech.contains('ಮತ್ತೆ')) {
-      await speak(last.isEmpty ? 'Nothing to repeat.' : last);
+      await speak(last.isEmpty ? copy('nothingToRepeat') : last);
       return;
     }
 
@@ -837,8 +839,13 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       } else {
         final context = intel.select(lastDetections);
         await speak(
-          context.detection.className.replaceAll('_', ' ') +
-          ' was last seen ' + context.position.label + '.',
+          copy('lastSeen') +
+              ' ' +
+              localizedClass(context.detection.className) +
+              ' ' +
+              localizedPosition(context.position) +
+              '. ' +
+              localizedLocationSentence(),
         );
       }
       return;
@@ -855,6 +862,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
     }
 
     if (speech.contains('change language') ||
+        speech.contains('language') ||
         speech.contains('भाषा') ||
         speech.contains('ಭಾಷೆ')) {
       await chooseLanguage();
@@ -874,6 +882,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
     }
 
     if (speech.contains('navigate') ||
+        speech.contains('direction') ||
         speech.contains('दिशा') ||
         speech.contains('ನ್ಯಾವಿಗೇಟ್')) {
       await speak(copy('navigationLimit'));
