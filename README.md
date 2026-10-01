@@ -56,3 +56,16 @@ Bounding-box growth is used only for **relative** proximity such as "getting clo
 ### Important limitation
 
 GPS records the phone's location when a sign is detected. GPS alone does not provide the exact sign's position, bearing or distance. Compass-grade orientation and metric sign distance require additional sensors/calibration and are intentionally not fabricated.
+
+
+## Judge-ready demonstration mode
+
+- **Voice-first onboarding:** a welcome message is spoken before scanning. On first launch, Hindi is offered first; if there is no meaningful response after a short listening window, Kannada is offered, followed by English as a safe fallback.
+- **Language lock:** once a language is selected, application-generated guidance, commands, status messages, spatial guidance and location narration use that language.
+- **Rich detection results:** each detection can expose the predicted class, class ID, confidence, relative five-zone position, OCR text, motion/proximity cue and current GPS/place context.
+- **Reverse-geocoded place context:** current coordinates are converted to a human-readable street/area/city description when the platform geocoder is available.
+- **Judge/demo upload:** the upload button on the live screen lets a presenter select a saved signboard image. The image goes through the same YOLO/TFLite detection and OCR pipeline and presents a detailed result card plus spoken summary.
+- **Location-aware history:** detections continue to be stored with the current GPS coordinates when permission is available.
+- **Safe claims:** GPS identifies the phone's current location; it does not by itself prove the exact physical location, compass bearing or metric distance of a detected sign. Relative proximity is inferred from consecutive visual observations.
+
+The reverse-geocoding layer uses the Flutter geocoding plugin's native platform services; availability and rate limits depend on the device/platform.
