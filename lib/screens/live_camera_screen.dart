@@ -229,6 +229,15 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
 
       lastDetections = enriched;
       final contexts = intel.analyze(enriched);
+      visibleContexts = contexts;
+      currentLocation = await location.current(
+        localeIdentifier: language.code == 'hi'
+            ? 'hi_IN'
+            : language.code == 'kn'
+                ? 'kn_IN'
+                : 'en_US',
+      );
+      if (mounted) setState(() {});
       if (contexts.isEmpty) return;
 
       if (sceneScanMode) {
@@ -247,7 +256,6 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         return;
       }
 
-      final currentLocation = await location.current();
       await speak(buildSpeech(context));
       intel.markAnnounced(context);
       await HapticFeedback.mediumImpact();
@@ -284,34 +292,50 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
 
   String buildSpeech(DetectionContext context) {
     final detection = context.detection;
-    final label = detection.className.replaceAll('_', ' ');
-    var speech = label + ' ' + context.position.label;
+    final label = localizedClass(detection.className);
+
+    var speech = copy('detected') +
+        ' ' +
+        label +
+        '. ' +
+        copy('position') +
+        ': ' +
+        localizedPosition(context.position);
 
     if (focusMode && context.position == SignPosition.front) {
-      speech = label + ' directly ahead. Hold steady.';
+      speech = copy('detected') +
+          ' ' +
+          label +
+          '. ' +
+          copy('aheadHold');
     }
 
-    if (detection.ocrText.isNotEmpty) {
-      speech += '. Text: ' + detection.ocrText;
+    if (detection.ocrText.trim().isNotEmpty) {
+      speech += '. ' + copy('text') + ': ' + detection.ocrText.trim();
     }
 
     if (context.movement.isNotEmpty) {
-      speech += '. ' + context.movement;
-    } else if (context.proximity == 'far') {
-      speech += '. The sign is far away';
-    } else if (context.proximity == 'approaching') {
-      speech += '. The sign is approaching';
+      speech += '. ' + localizedMovement(context.movement);
+    } else {
+      speech += '. ' + localizedProximity(context.proximity);
     }
 
-    if (detection.className.contains('warning') ||
-        detection.className.contains('construction') ||
-        detection.className.contains('pedestrian_dont') ||
-        detection.className.contains('stop') ||
-        detection.className.contains('road_blocked')) {
-      speech = 'Warning. ' + speech;
+    speech += '. ' + localizedLocationSentence();
+
+    if (_isSafetyClass(detection.className)) {
+      speech = copy('warning') + ' ' + speech;
     }
 
-    return speech + '.';
+    return speech;
+  }
+
+  bool _isSafetyClass(String label) {
+    final value = label.toLowerCase();
+    return value.contains('warning') ||
+        value.contains('construction') ||
+        value.contains('pedestrian_dont') ||
+        value.contains('stop') ||
+        value.contains('road_blocked');
   }
 
   Future<void> speakScene(List<DetectionContext> contexts) async {
