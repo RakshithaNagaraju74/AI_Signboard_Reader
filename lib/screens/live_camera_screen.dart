@@ -41,6 +41,7 @@ class _LiveCameraScreenState
   bool onboarding = true;
   bool demoMode = false;
   bool languageChosen = false;
+  File? pendingRecoveredImage;
 
   File? demoImage;
 
@@ -76,34 +77,12 @@ class _LiveCameraScreenState
   Future<void> _recoverLostImage() async {
     try {
       final response = await picker.retrieveLostData();
-      if (response.isEmpty || response.file == null || !mounted) return;
-      final file = File(response.file!.path);
-      // Store it for the user instead of silently discarding a recovered image.
-      demoImage = file;
-      status = copy('analyzingImage');
-      setState(() {});
-      await _runRecoveredDemo(file);
+      if (response.isEmpty || response.file == null) return;
+
+      pendingRecoveredImage = File(response.file!.path);
+      debugPrint('Recovered image from Android image picker.');
     } catch (e) {
       debugPrint('Lost image recovery failed: $e');
-    }
-  }
-
-  Future<void> _runRecoveredDemo(File file) async {
-    processing = true;
-    demoMode = true;
-    ready = false;
-    try {
-      timer?.cancel();
-      await camera?.dispose();
-      camera = null;
-      final contexts = await _analyzeFile(file, demo: true);
-      visibleContexts = contexts;
-      if (mounted) setState(() {});
-    } catch (e) {
-      debugPrint('Recovered image analysis failed: $e');
-    } finally {
-      processing = false;
-      if (mounted) setState(() {});
     }
   }
 
@@ -122,6 +101,33 @@ class _LiveCameraScreenState
       } else {
         language = saved;
         await tts.setLanguage(language.speechLocale);
+      }
+
+      if (pendingRecoveredImage != null) {
+        final recovered = pendingRecoveredImage!;
+        pendingRecoveredImage = null;
+
+        onboarding = false;
+        demoMode = true;
+        demoImage = recovered;
+        ready = false;
+
+        if (mounted) {
+          setState(() {
+            status = copy('analyzingImage');
+          });
+        }
+
+        final recoveredContexts = await _analyzeFile(
+          recovered,
+          demo: true,
+        );
+
+        visibleContexts = recoveredContexts;
+        if (mounted) setState(() {});
+
+        // The user can return to camera explicitly after recovery.
+        return;
       }
 
       await _initializeCamera();
