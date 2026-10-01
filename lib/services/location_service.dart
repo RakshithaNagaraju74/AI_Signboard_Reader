@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -86,7 +88,7 @@ class LocationService {
         final placemarks = await _geocoding.placemarkFromCoordinates(
           position.latitude,
           position.longitude,
-          localeIdentifier: localeIdentifier,
+          locale: _toLocale(localeIdentifier),
         );
 
         if (placemarks.isNotEmpty) {
@@ -121,6 +123,12 @@ class LocationService {
     );
 
     return _cached;
+  }
+
+  Locale _toLocale(String identifier) {
+    final parts = identifier.split('_');
+    if (parts.length == 2) return Locale(parts[0], parts[1]);
+    return Locale(parts.first);
   }
 
   String? _firstNonEmpty(List<String?> values) {
