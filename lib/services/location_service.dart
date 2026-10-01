@@ -42,7 +42,7 @@ class LocationSnapshot {
 }
 
 class LocationService {
-  final Geocoding _geocoding = Geocoding();
+  
   LocationSnapshot? _cached;
   DateTime? _lastGeocoded;
 
@@ -85,10 +85,10 @@ class LocationService {
 
     if (shouldGeocode) {
       try {
-        final placemarks = await _geocoding.placemarkFromCoordinates(
+        final placemarks = await _geocodingFor(localeIdentifier)
+            .placemarkFromCoordinates(
           position.latitude,
           position.longitude,
-          locale: _toLocale(localeIdentifier),
         );
 
         if (placemarks.isNotEmpty) {
