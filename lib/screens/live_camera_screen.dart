@@ -42,6 +42,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
   String last = '';
   AppLanguage language = LanguageService.languages.first;
   List<DetectionResult> lastDetections = [];
+  List<DetectionContext> visibleContexts = [];
 
   final tts = TTSService();
   final voice = VoiceCommandService();
