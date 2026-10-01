@@ -16,6 +16,7 @@ import '../services/ocr_service.dart';
 import '../services/tts_service.dart';
 import '../services/voice_command_service.dart';
 import '../services/tflite_service.dart';
+import '../services/ai_speech_service.dart';
 
 class LiveCameraScreen extends StatefulWidget {
   const LiveCameraScreen({super.key});
@@ -65,6 +66,7 @@ class _LiveCameraScreenState
   final ocr = OCRService();
   final intel = DetectionIntelligence();
   final picker = ImagePicker();
+  final aiSpeech = AISpeechService();
 
   @override
   void initState() {
@@ -299,50 +301,149 @@ class _LiveCameraScreenState
 
   Future<List<DetectionContext>> _analyzeFile(File file, {required bool demo}) async {
     var raw = await TFLiteService().predictImage(file);
-    if (raw.isEmpty) { lastDetections = []; return []; }
-    raw = raw.take(demo ? 4 : 3).toList();
-    final decoded = img.decodeImage(await file.readAsBytes());
-    if (decoded != null) intel.setFrameSize(decoded.width, decoded.height);
-    final preliminary = intel.analyze(raw);
-    final ocrLimit = demo ? 2 : 1;
-    final ocrKeys = preliminary.take(ocrLimit)
-        .where((context) => context.detection.confidence >= 0.50)
-        .map((context) => intel.detectionKey(context.detection)).toSet();
-    final enriched = <DetectionResult>[];
-    for (final detection in raw) {
-      var text = '';
-      if (ocrKeys.contains(intel.detectionKey(detection))) {
-        try { text = await ocr.extractText(file, detection.bbox, languageCode: language.code); }
-        catch (e) { debugPrint('OCR error: $e'); }
-      }
-      final item = DetectionResult(className: detection.className, confidence: detection.confidence, bbox: detection.bbox, ocrText: text, classId: detection.classId);
-      if (text.trim().isNotEmpty) intel.markOcrRead(item);
-      enriched.add(item);
+    if (raw.isEmpty) {
+      lastDetections = [];
+      return [];
     }
-    lastDetections = enriched;
-    return intel.analyze(enriched);
+
+    // Keep all useful detections instead of exposing only the highest one.
+    raw = raw.take(demo ? 6 : 5).toList();
+
+    final decoded = img.decodeImage(await file.readAsBytes());
+    if (decoded != null) {
+      final oriented = img.bakeOrientation(decoded);
+      intel.setFrameSize(oriented.width, oriented.height);
+    }
+
+    // Track once per frame. OCR is attached to those same contexts so one
+    // camera frame does not artificially advance stability twice.
+    final preliminary = intel.analyze(raw);
+    final ocrLimit = demo ? 3 : 2;
+    final ocrKeys = preliminary
+        .take(ocrLimit)
+        .where((context) => context.detection.confidence >= 0.50)
+        .map((context) => intel.detectionKey(context.detection))
+        .toSet();
+
+    final enriched = <DetectionContext>[];
+
+    for (final context in preliminary) {
+      var text = '';
+
+      if (ocrKeys.contains(
+        intel.detectionKey(context.detection),
+      )) {
+        try {
+          text = await ocr.extractText(
+            file,
+            context.detection.bbox,
+            languageCode: language.code,
+          );
+        } catch (e) {
+          debugPrint('OCR error: $e');
+        }
+      }
+
+      final enrichedContext = intel.withText(
+        context,
+        text,
+      );
+
+      if (text.trim().isNotEmpty) {
+        intel.markOcrRead(enrichedContext.detection);
+      }
+
+      enriched.add(enrichedContext);
+    }
+
+    enriched.sort(
+      (a, b) => b.priority.compareTo(a.priority),
+    );
+
+    lastDetections = enriched.map((e) => e.detection).toList();
+    return enriched;
   }
 
   Future<void> scan() async {
-    if (!ready || processing || stopped || listening || demoMode || camera == null || !camera!.value.isInitialized) return;
+    if (!ready ||
+        processing ||
+        stopped ||
+        listening ||
+        demoMode ||
+        camera == null ||
+        !camera!.value.isInitialized) {
+      return;
+    }
+
     if (!TFLiteService().isInitialized) return;
+
     processing = true;
+
     try {
       final shot = await camera!.takePicture();
-      final contexts = await _analyzeFile(File(shot.path), demo: false);
+      final contexts = await _analyzeFile(
+        File(shot.path),
+        demo: false,
+      );
+
       visibleContexts = contexts;
+
       if (mounted) setState(() {});
+
       if (contexts.isEmpty) return;
-      if (sceneScanMode) { await speakScene(contexts); sceneScanMode = false; return; }
-      final context = _chooseContext(contexts);
-      if (!intel.shouldAnnounce(context, cooldown: focusMode ? const Duration(seconds: 2) : const Duration(seconds: 8))) return;
-      await speak(buildSpeech(context));
-      intel.markAnnounced(context);
+
+      if (sceneScanMode) {
+        await speakScene(contexts);
+        sceneScanMode = false;
+        return;
+      }
+
+      // Announce every newly useful sign in the frame, not just the top one.
+      final announceable = contexts
+          .where(
+            (context) => intel.shouldAnnounce(
+              context,
+              cooldown: focusMode
+                  ? const Duration(seconds: 2)
+                  : const Duration(seconds: 8),
+            ),
+          )
+          .toList();
+
+      if (announceable.isEmpty) return;
+
+      final speech = await composeDetectionSpeech(
+        announceable,
+        useGroq: true,
+      );
+
+      await speak(speech);
+
+      for (final context in announceable) {
+        intel.markAnnounced(context);
+
+        history.add(
+          DetectionHistoryEntry(
+            label: context.detection.className,
+            text: context.detection.ocrText,
+            position: context.position.label,
+            confidence: context.detection.confidence,
+            latitude: currentLocation?.latitude,
+            longitude: currentLocation?.longitude,
+            timestamp: DateTime.now(),
+          ),
+        ).catchError((_) {});
+      }
+
       await HapticFeedback.mediumImpact();
-      history.add(DetectionHistoryEntry(label: context.detection.className, text: context.detection.ocrText, position: context.position.label, confidence: context.detection.confidence, latitude: currentLocation?.latitude, longitude: currentLocation?.longitude, timestamp: DateTime.now())).catchError((_) {});
-    } catch (e) { debugPrint('scan error: $e'); }
-    finally { processing = false; if (mounted) setState(() {}); }
+    } catch (e) {
+      debugPrint('scan error: $e');
+    } finally {
+      processing = false;
+      if (mounted) setState(() {});
+    }
   }
+
   DetectionContext _chooseContext(
     List<DetectionContext> contexts,
   ) {
@@ -362,59 +463,55 @@ class _LiveCameraScreenState
     return contexts.first;
   }
 
-  String buildSpeech(
-    DetectionContext context,
-  ) {
-    final detection =
-        context.detection;
+  Future<String> composeDetectionSpeech(
+    List<DetectionContext> contexts, {
+    bool useGroq = true,
+  }) async {
+    final inputs = contexts.map(
+      (context) => SpeechDetectionInput(
+        label: localizedClass(
+          context.detection.className,
+        ),
+        position: localizedPosition(
+          context.position,
+        ),
+        text: context.detection.ocrText.trim(),
+        movement: context.movement,
+        proximity: context.proximity,
+        safety: _isSafetyClass(
+          context.detection.className,
+        ),
+      ),
+    ).toList();
 
-    final label = localizedClass(
-      detection.className,
+    return aiSpeech.compose(
+      detections: inputs,
+      languageCode: language.code,
+      place: currentLocation?.displayPlace,
+      useGroq: useGroq,
     );
+  }
 
-    var speech =
-        '${copy('detected')} '
-        '$label. '
-        '${copy('position')}: '
-        '${localizedPosition(context.position)}';
+  String buildSpeech(DetectionContext context) {
+    final label = localizedClass(context.detection.className);
+    final position = localizedPosition(context.position);
+    final text = context.detection.ocrText.trim();
 
-    if (focusMode &&
-        context.position ==
-            SignPosition.front) {
-      speech =
-          '${copy('detected')} '
-          '$label. '
-          '${copy('aheadHold')}';
+    if (language.code == 'hi') {
+      return text.isEmpty
+          ? '$label $position है।'
+          : '$label $position है। इस पर "$text" लिखा है।';
     }
 
-    if (detection.ocrText
-        .trim()
-        .isNotEmpty) {
-      speech +=
-          '. ${copy('text')}: '
-          '${detection.ocrText.trim()}';
+    if (language.code == 'kn') {
+      return text.isEmpty
+          ? '$label $position ಇದೆ.'
+          : '$label $position ಇದೆ. ಅದರಲ್ಲಿ "$text" ಎಂದು ಬರೆಯಲಾಗಿದೆ.';
     }
 
-    if (context.movement
-        .isNotEmpty) {
-      speech +=
-          '. ${localizedMovement(context.movement)}';
-    } else {
-      speech +=
-          '. ${localizedProximity(context.proximity)}';
-    }
-
-    speech +=
-        '. ${localizedLocationSentence()}';
-
-    if (_isSafetyClass(
-      detection.className,
-    )) {
-      speech =
-          '${copy('warning')} $speech';
-    }
-
-    return speech;
+    return text.isEmpty
+        ? '$label is $position.'
+        : '$label is $position, with the text "$text".';
   }
 
   bool _isSafetyClass(
@@ -433,44 +530,19 @@ class _LiveCameraScreenState
   Future<void> speakScene(
     List<DetectionContext> contexts,
   ) async {
-    final visible =
-        contexts.take(4).toList();
+    final visible = contexts.take(6).toList();
 
     if (visible.isEmpty) {
-      await speak(
-        copy('noSigns'),
-      );
+      await speak(copy('noSigns'));
       return;
     }
 
-    final parts = <String>[];
-
-    for (final context in visible) {
-      final label = localizedClass(
-        context.detection.className,
-      );
-
-      var item =
-          '$label '
-          '${localizedPosition(context.position)}';
-
-      if (context.detection.ocrText
-          .trim()
-          .isNotEmpty) {
-        item +=
-            ', ${context.detection.ocrText.trim()}';
-      }
-
-      parts.add(item);
-    }
-
-    await speak(
-      '${copy('visible')} '
-      '${parts.length} '
-      '${copy('items')}. '
-      '${parts.join('. ')}. '
-      '${localizedLocationSentence()}',
+    final speech = await composeDetectionSpeech(
+      visible,
+      useGroq: true,
     );
+
+    await speak(speech);
   }
 
   Future<void> maybeSpeak(
@@ -528,24 +600,12 @@ class _LiveCameraScreenState
         return;
       }
 
-      final parts = <String>[];
-      for (final context in contexts.take(4)) {
-        final d = context.detection;
-        var part =
-            '${localizedClass(d.className)}, '
-            '${copy('class')} ${d.classId}, '
-            '${copy('confidence')} '
-            '${(d.confidence * 100).toStringAsFixed(0)} percent, '
-            '${copy('position')} '
-            '${localizedPosition(context.position)}';
+      final speech = await composeDetectionSpeech(
+        contexts.take(6).toList(),
+        useGroq: true,
+      );
 
-        if (d.ocrText.trim().isNotEmpty) {
-          part += '. ${copy('text')} ${d.ocrText.trim()}';
-        }
-        parts.add(part);
-      }
-
-      await speak('${copy('demoComplete')} ${parts.join('. ')}.');
+      await speak(speech);
       await HapticFeedback.mediumImpact();
     } catch (e) {
       debugPrint('demo image error: $e');
@@ -934,10 +994,6 @@ class _LiveCameraScreenState
           'Detected',
       'position':
           'Position',
-      'class':
-          'class',
-      'confidence':
-          'confidence',
       'text':
           'Text',
       'warning':
