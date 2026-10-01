@@ -26,7 +26,7 @@ class VoiceCommandService {
 
   Future<String?> listen({
     required String localeId,
-    Duration timeout = const Duration(seconds: 5),
+    Duration timeout = const Duration(seconds: 6),
   }) async {
     if (!await initialize()) return null;
 
@@ -34,12 +34,20 @@ class VoiceCommandService {
 
     final completer = Completer<String?>();
     _activeCompleter = completer;
+    var latestWords = '';
 
     try {
       await _speech.listen(
         onResult: (result) {
-          if (result.finalResult && !completer.isCompleted) {
-            completer.complete(result.recognizedWords);
+          final words = result.recognizedWords.trim();
+          if (words.isNotEmpty) {
+            latestWords = words;
+          }
+
+          if (result.finalResult &&
+              latestWords.isNotEmpty &&
+              !completer.isCompleted) {
+            completer.complete(latestWords);
           }
         },
         listenOptions: SpeechListenOptions(
@@ -47,19 +55,22 @@ class VoiceCommandService {
           listenFor: timeout,
           pauseFor: const Duration(seconds: 2),
           partialResults: true,
+          cancelOnError: false,
+          autoPunctuation: false,
         ),
       );
 
       final result = await completer.future.timeout(
         timeout + const Duration(seconds: 1),
-        onTimeout: () => null,
+        onTimeout: () =>
+            latestWords.isEmpty ? null : latestWords,
       );
 
       await stop();
       return result;
     } catch (_) {
       await stop();
-      return null;
+      return latestWords.isEmpty ? null : latestWords;
     } finally {
       if (identical(_activeCompleter, completer)) {
         _activeCompleter = null;
