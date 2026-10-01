@@ -910,6 +910,12 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         .replaceAll('The sign is approaching', 'ಸಂಕೇತ ಹತ್ತಿರವಾಗುತ್ತಿದೆ');
   }
 
+  Future<void> speakRaw(String speech) async {
+    last = speech;
+    if (mounted) setState(() => status = speech);
+    await tts.speak(speech);
+  }
+
   Future<void> speak(String speech) async {
     last = speech;
     final localizedSpeech = localize(speech);
@@ -1050,7 +1056,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
             Positioned(
               left: 10,
               right: 10,
-              bottom: 96,
+              bottom: 160,
               child: _resultPanel(),
             ),
           SafeArea(
@@ -1069,7 +1075,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
                     const Spacer(),
                     Semantics(
                       button: true,
-                      label: 'Upload image for demonstration',
+                      label: copy('upload'),
                       child: Container(
                         margin: const EdgeInsets.only(right: 12),
                         decoration: BoxDecoration(
@@ -1077,7 +1083,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: IconButton(
-                          tooltip: 'Upload image',
+                          tooltip: copy('upload'),
                           onPressed: pickDemoImage,
                           icon: const Icon(Icons.upload_file),
                           iconSize: 28,
