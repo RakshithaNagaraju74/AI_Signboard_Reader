@@ -1,6 +1,6 @@
 name: signboard_reader
 description: AI Signboard Reader for visually impaired users
-version: 2.0.0+2
+version: 2.1.0+3
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -17,6 +17,7 @@ dependencies:
   flutter_tts: ^4.2.5
   speech_to_text: ^7.0.0
   geolocator: ^14.0.2
+  geocoding: ^5.0.0
   shared_preferences: ^2.5.3
   permission_handler: ^13.0.1
   path_provider: ^2.1.6

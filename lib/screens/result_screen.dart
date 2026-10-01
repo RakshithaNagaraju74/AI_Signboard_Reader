@@ -39,7 +39,12 @@ class ResultScreen extends StatelessWidget {
               margin: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
+<<<<<<< HEAD
                 boxShadow: const [BoxShadow(
+=======
+                boxShadow: [
+                  const BoxShadow(
+>>>>>>> fd5c36653e084654373566e07d3be2de1cdf1eb9
                     color: Colors.black26,
                     blurRadius: 8,
                     offset: Offset(0, 2),

@@ -7,20 +7,51 @@ class VoiceCommandService {
 
   Future<bool> initialize() async {
     if (_available) return true;
-    _available = await _speech.initialize(onError: (_) {}, onStatus: (_) {});
+    _available = await _speech.initialize(
+      onError: (_) {},
+      onStatus: (_) {},
+    );
     return _available;
   }
 
-  Future<String?> listen({required String localeId, Duration timeout = const Duration(seconds:5)}) async {
+  Future<String?> listen({
+    required String localeId,
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
     if (!await initialize()) return null;
-    final c = Completer<String?>();
+
+    final completer = Completer<String?>();
+
     await _speech.listen(
+<<<<<<< HEAD
       onResult: (r) { if (r.finalResult && !c.isCompleted) c.complete(r.recognizedWords); },
+=======
+      onResult: (result) {
+        if (result.finalResult && !completer.isCompleted) {
+          completer.complete(result.recognizedWords);
+        }
+      },
+      options: SpeechListenOptions(
+        localeId: localeId,
+        listenFor: timeout,
+        pauseFor: const Duration(seconds: 2),
+        partialResults: true,
+      ),
+>>>>>>> fd5c36653e084654373566e07d3be2de1cdf1eb9
     );
-    final result = await c.future.timeout(timeout + const Duration(seconds:1), onTimeout:()=>null);
+
+    final result = await completer.future.timeout(
+      timeout + const Duration(seconds: 1),
+      onTimeout: () => null,
+    );
+
     await stop();
     return result;
   }
 
-  Future<void> stop() async { try { await _speech.stop(); } catch (_) {} }
+  Future<void> stop() async {
+    try {
+      await _speech.stop();
+    } catch (_) {}
+  }
 }
