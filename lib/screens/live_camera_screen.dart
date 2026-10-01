@@ -1503,7 +1503,6 @@ class _LiveCameraScreenState
             height: 8,
           ),
           ...visibleContexts
-              .take(5)
               .map(
             (context) {
               final d =
