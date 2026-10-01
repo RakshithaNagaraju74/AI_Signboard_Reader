@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_litert/flutter_litert.dart';
+import 'package:flutter_litert/native.dart'
 
 import '../models/detection_result.dart';
 import '../utils/logger.dart';
@@ -17,6 +17,8 @@ class TFLiteService {
   TFLiteService._internal();
 
   Interpreter? _interpreter;
+  IsolateInterpreter? _isolateInterpreter;
+  Future<void>? _initializing;
 
   List<String> _labels = [];
 
@@ -36,171 +38,53 @@ class TFLiteService {
   // ============================================================
 
   Future<void> initialize() async {
-    if (_isInitialized && _interpreter != null) {
-      return;
-    }
-
-    try {
-      // ----------------------------------------------------------
-      // LOAD LABELS
-      // ----------------------------------------------------------
-
-      final labelString = await rootBundle.loadString(
-        'assets/models/labels.txt',
-      );
-
-      _labels = labelString
-          .split(RegExp(r'\r?\n'))
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toList();
-
-      Logger.log(
-        'Loaded ${_labels.length} labels',
-      );
-
-      if (_labels.length != 21) {
-        Logger.log(
-          'WARNING: Expected 21 labels, '
-          'but found ${_labels.length}',
-        );
-      }
-
-      // ----------------------------------------------------------
-      // LOAD MODEL
-      // ----------------------------------------------------------
-
-      final modelFile = await _getModelFile();
-
-      final options = InterpreterOptions()
-        ..threads = 4;
-
-      _interpreter = Interpreter.fromFile(
-        modelFile,
-        options: options,
-      );
-
-      _interpreter!.allocateTensors();
-
-      final inputTensor =
-          _interpreter!.getInputTensor(0);
-
-      final outputTensor =
-          _interpreter!.getOutputTensor(0);
-
-      Logger.log(
-        '===============================================',
-      );
-
-      Logger.log(
-        'TFLite model loaded successfully',
-      );
-
-      Logger.log(
-        'Input shape: ${inputTensor.shape}',
-      );
-
-      Logger.log(
-        'Input type: ${inputTensor.type}',
-      );
-
-      Logger.log(
-        'Output shape: ${outputTensor.shape}',
-      );
-
-      Logger.log(
-        'Output type: ${outputTensor.type}',
-      );
-
-      Logger.log(
-        '===============================================',
-      );
-
-      // ----------------------------------------------------------
-      // INPUT VALIDATION
-      // ----------------------------------------------------------
-
-      if (inputTensor.shape.length != 4) {
-        throw Exception(
-          'Unexpected input shape: '
-          '${inputTensor.shape}',
-        );
-      }
-
-      /*
-       * Your exported model is NHWC:
-       *
-       * [1, 416, 416, 3]
-       */
-
-      if (inputTensor.shape[0] != 1 ||
-          inputTensor.shape[1] != inputSize ||
-          inputTensor.shape[2] != inputSize ||
-          inputTensor.shape[3] != 3) {
-        throw Exception(
-          'Expected input shape '
-          '[1,416,416,3], '
-          'but found ${inputTensor.shape}',
-        );
-      }
-
-      if (inputTensor.type != TensorType.float32) {
-        throw Exception(
-          'Expected float32 input, '
-          'found ${inputTensor.type}',
-        );
-      }
-
-      // ----------------------------------------------------------
-      // OUTPUT VALIDATION
-      // ----------------------------------------------------------
-
-      final outputShape = outputTensor.shape;
-
-      if (outputShape.length != 3) {
-        throw Exception(
-          'Expected 3D YOLO output, '
-          'found $outputShape',
-        );
-      }
-
-      /*
-       * For 21 classes:
-       *
-       * 4 box values + 21 classes = 25
-       *
-       * Therefore one dimension must be 25.
-       */
-
-      if (!outputShape.contains(25)) {
-        throw Exception(
-          'Unexpected YOLO output shape: '
-          '$outputShape. '
-          'Expected one dimension to be 25 '
-          '(4 + 21 classes).',
-        );
-      }
-
-      _isInitialized = true;
-
-      Logger.log(
-        'TFLite Service ready',
-      );
-    } catch (e) {
-      Logger.log(
-        'TFLite initialization error: $e',
-      );
-
-      _interpreter?.close();
-
-      _interpreter = null;
-
-      _isInitialized = false;
-
-      rethrow;
+    if (_isInitialized && _interpreter != null && _isolateInterpreter != null) return;
+    final existing = _initializing;
+    if (existing != null) { await existing; return; }
+    final pending = _initializeInternal();
+    _initializing = pending;
+    try { await pending; } finally {
+      if (identical(_initializing, pending)) _initializing = null;
     }
   }
 
+  Future<void> _initializeInternal() async {
+    try {
+      final labelString = await rootBundle.loadString('assets/models/labels.txt');
+      _labels = labelString.split(RegExp(r'\r?\n')).map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      if (_labels.length != 21) {
+        throw StateError('Model/label mismatch: expected 21 labels, found ' + _labels.length.toString() + '.');
+      }
+      final modelFile = await _getModelFile();
+      final options = InterpreterOptions()..threads = 2;
+      final interpreter = Interpreter.fromFile(modelFile, options: options);
+      interpreter.allocateTensors();
+      final inputTensor = interpreter.getInputTensor(0);
+      final outputTensor = interpreter.getOutputTensor(0);
+      if (inputTensor.shape.length != 4 || inputTensor.shape[0] != 1 || inputTensor.shape[1] != inputSize || inputTensor.shape[2] != inputSize || inputTensor.shape[3] != 3) {
+        interpreter.close();
+        throw StateError('Expected input shape [1,416,416,3], found ' + inputTensor.shape.toString() + '.');
+      }
+      if (inputTensor.type != TensorType.float32) {
+        interpreter.close();
+        throw StateError('Expected float32 model input, found ' + inputTensor.type.toString() + '.');
+      }
+      if (outputTensor.shape.length != 3 || !outputTensor.shape.contains(25)) {
+        interpreter.close();
+        throw StateError('Expected YOLO output containing dimension 25, found ' + outputTensor.shape.toString() + '.');
+      }
+      final isolate = await IsolateInterpreter.create(address: interpreter.address, debugName: 'signboard_yolo');
+      _interpreter = interpreter;
+      _isolateInterpreter = isolate;
+      _isInitialized = true;
+    } catch (e) {
+      _isolateInterpreter = null;
+      _interpreter?.close();
+      _interpreter = null;
+      _isInitialized = false;
+      rethrow;
+    }
+  }
   // ============================================================
   // MODEL FILE
   // ============================================================
@@ -248,16 +132,9 @@ class TFLiteService {
   Future<List<DetectionResult>> predictImage(
     File imageFile,
   ) async {
-    if (!_isInitialized ||
-        _interpreter == null) {
-      Logger.log(
-        'TFLite is not initialized',
-      );
-
-      return [];
-    }
-
     try {
+      await initialize();
+      if (!_isInitialized || _interpreter == null || _isolateInterpreter == null) return [];
       final bytes =
           await imageFile.readAsBytes();
 
@@ -289,7 +166,7 @@ class TFLiteService {
       // ----------------------------------------------------------
 
       final output =
-          _runInference(input);
+          await _runInference(input);
 
       // ----------------------------------------------------------
       // PARSE
@@ -366,57 +243,19 @@ class TFLiteService {
   // RUN INFERENCE
   // ============================================================
 
-  Float32List _runInference(
-    Float32List input,
-  ) {
-    final interpreter =
-        _interpreter!;
-
-    final inputTensor =
-        interpreter.getInputTensor(0);
-
-    final outputTensor =
-        interpreter.getOutputTensor(0);
-
-    final expectedInput =
-        inputTensor.shape.reduce(
-      (a, b) => a * b,
-    );
-
-    if (input.length != expectedInput) {
-      throw Exception(
-        'Input size mismatch: '
-        '${input.length} vs $expectedInput',
-      );
-    }
-
-    final outputShape =
-        outputTensor.shape;
-
-    final outputSize =
-        outputShape.reduce(
-      (a, b) => a * b,
-    );
-
-    final output =
-        Float32List(outputSize);
-
-    Logger.log(
-      'Running inference...',
-    );
-
-    interpreter.run(
-      input,
-      output,
-    );
-
-    Logger.log(
-      'Inference completed',
-    );
-
+  Future<Float32List> _runInference(Float32List input) async {
+    final interpreter = _interpreter;
+    final isolate = _isolateInterpreter;
+    if (interpreter == null || isolate == null) throw StateError('LiteRT inference worker is not ready.');
+    final inputTensor = interpreter.getInputTensor(0);
+    final outputTensor = interpreter.getOutputTensor(0);
+    final expectedInput = inputTensor.shape.reduce((a, b) => a * b);
+    if (input.length != expectedInput) throw StateError('Input size mismatch.');
+    final outputSize = outputTensor.shape.reduce((a, b) => a * b);
+    final output = Float32List(outputSize);
+    await isolate.run(input, output);
     return output;
   }
-
   // ============================================================
   // PARSE YOLO OUTPUT
   //
@@ -906,15 +745,12 @@ class TFLiteService {
   // DISPOSE
   // ============================================================
 
-  void dispose() {
+  Future<void> dispose() async {
+    try { await _isolateInterpreter?.close(); } catch (_) {}
+    _isolateInterpreter = null;
     _interpreter?.close();
-
     _interpreter = null;
-
     _isInitialized = false;
-
-    Logger.log(
-      'TFLite Service disposed',
-    );
+    _initializing = null;
   }
 }
