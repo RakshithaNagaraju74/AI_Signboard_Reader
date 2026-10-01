@@ -309,22 +309,18 @@ class DetectionIntelligence {
     final normalized =
         x.clamp(0.0, 1.0).toDouble();
 
-    if (normalized < 0.20) {
+    if (normalized < 0.16) {
       return SignPosition.left;
     }
-
-    if (normalized < 0.40) {
+    if (normalized < 0.38) {
       return SignPosition.slightlyLeft;
     }
-
-    if (normalized < 0.60) {
+    if (normalized <= 0.62) {
       return SignPosition.front;
     }
-
-    if (normalized < 0.80) {
+    if (normalized <= 0.84) {
       return SignPosition.slightlyRight;
     }
-
     return SignPosition.right;
   }
 
@@ -404,6 +400,25 @@ class DetectionIntelligence {
         position0(normalizedX);
 
     return '${detection.className}|${position.name}';
+  }
+
+  DetectionContext withText(DetectionContext context, String text) {
+    final d = context.detection;
+    return DetectionContext(
+      detection: DetectionResult(
+        className: d.className,
+        confidence: d.confidence,
+        bbox: d.bbox,
+        ocrText: text,
+        classId: d.classId,
+      ),
+      position: context.position,
+      priority: context.priority + (text.trim().isNotEmpty ? 0.15 : 0.0),
+      movement: context.movement,
+      proximity: context.proximity,
+      stableFrames: context.stableFrames,
+      isNew: context.isNew,
+    );
   }
 
   void pruneOldTracks() {
