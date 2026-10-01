@@ -122,6 +122,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
   }
 
   Future<void> chooseLanguage() async {
+    await tts.setLanguage('hi-IN');
     await speakRaw(
       'हिंदी में जारी रखने के लिए हाँ कहें। अगर जवाब नहीं मिलता है, मैं कन्नड़ पूछूँगा।',
     );
@@ -135,6 +136,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       return;
     }
 
+    await tts.setLanguage('kn-IN');
     await speakRaw(
       'ಕನ್ನಡದಲ್ಲಿ ಮುಂದುವರಿಸಲು ಹೌದು ಎಂದು ಹೇಳಿ. ಕೆಲವು ಸೆಕೆಂಡುಗಳಲ್ಲಿ ಉತ್ತರಿಸದಿದ್ದರೆ ಇಂಗ್ಲಿಷ್ ಕೇಳುತ್ತೇನೆ.',
     );
@@ -148,6 +150,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       return;
     }
 
+    await tts.setLanguage('en-US');
     await speakRaw('Say yes for English to continue.');
     final english = await voice.listen(
       localeId: 'en-US',
