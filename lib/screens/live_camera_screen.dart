@@ -341,24 +341,30 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
   Future<void> speakScene(List<DetectionContext> contexts) async {
     final visible = contexts.take(4).toList();
     if (visible.isEmpty) {
-      await speak('I do not see any clear signs.');
+      await speak(copy('noSigns'));
       return;
     }
 
     final parts = <String>[];
     for (final context in visible) {
-      final label = context.detection.className.replaceAll('_', ' ');
-      var item = label + ' ' + context.position.label;
+      final label = localizedClass(context.detection.className);
+      var item = label + ' ' + localizedPosition(context.position);
       if (context.detection.ocrText.isNotEmpty) {
         item += ', ' + context.detection.ocrText;
       }
       parts.add(item);
     }
 
-    final countWord = parts.length == 1 ? 'sign' : 'signs';
     await speak(
-      'I can see ' + parts.length.toString() + ' ' +
-      countWord + '. ' + parts.join('. ') + '.',
+      copy('visible') +
+          ' ' +
+          parts.length.toString() +
+          ' ' +
+          copy('items') +
+          '. ' +
+          parts.join('. ') +
+          '. ' +
+          localizedLocationSentence(),
     );
   }
 
@@ -634,6 +640,9 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         'navigationLimit': 'GPS स्थान उपलब्ध है। सटीक दूरी और कम्पास दिशा तभी बताई जाएगी जब विश्वसनीय रूप से अनुमानित हो सके।',
         'notUnderstood': 'मैं समझ नहीं पाया। मदद के लिए हेल्प बोलें।',
         'demoComplete': 'डेमो विश्लेषण पूरा हुआ।',
+        'items': 'आइटम',
+        'visible': 'मुझे दिखाई दे रहे हैं',
+        'help': 'स्कैन, रोकें, दोहराएँ, फोकस, आसपास के संकेत, इतिहास, भाषा बदलें या नेविगेट बोलें।',
         'upload': 'तस्वीर चुनें',
         'backCamera': 'कैमरा पर लौटें',
         'voiceCommands': 'वॉइस कमांड',
@@ -671,6 +680,9 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         'navigationLimit': 'GPS ಸ್ಥಳ ಲಭ್ಯವಿದೆ. ನಿಖರ ದೂರ ಮತ್ತು ಕಂಪಾಸ್ ದಿಕ್ಕನ್ನು ವಿಶ್ವಾಸಾರ್ಹವಾಗಿ ಅಂದಾಜಿಸಲು ಸಾಧ್ಯವಾದಾಗ ಮಾತ್ರ ಹೇಳಲಾಗುತ್ತದೆ.',
         'notUnderstood': 'ನನಗೆ ಅರ್ಥವಾಗಲಿಲ್ಲ. ಸಹಾಯಕ್ಕಾಗಿ ಹೆಲ್ಪ್ ಎಂದು ಹೇಳಿ.',
         'demoComplete': 'ಡೆಮೊ ವಿಶ್ಲೇಷಣೆ ಪೂರ್ಣಗೊಂಡಿದೆ.',
+        'items': 'ಐಟಂಗಳು',
+        'visible': 'ನನಗೆ ಕಾಣುತ್ತಿರುವುದು',
+        'help': 'ಸ್ಕ್ಯಾನ್, ನಿಲ್ಲಿಸು, ಮತ್ತೆ ಹೇಳು, ಫೋಕಸ್, ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳು, ಇತಿಹಾಸ, ಭಾಷೆ ಬದಲಾಯಿಸು ಅಥವಾ ನ್ಯಾವಿಗೇಟ್ ಎಂದು ಹೇಳಿ.',
         'upload': 'ಚಿತ್ರ ಆಯ್ಕೆಮಾಡಿ',
         'backCamera': 'ಕ್ಯಾಮೆರಾಕ್ಕೆ ಹಿಂತಿರುಗಿ',
         'voiceCommands': 'ವಾಯ್ಸ್ ಕಮಾಂಡ್',
@@ -707,6 +719,9 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       'navigationLimit': 'GPS context is available. Exact distance and compass direction will only be stated when they can be estimated reliably.',
       'notUnderstood': 'I did not understand. Say help for available commands.',
       'demoComplete': 'Demo analysis complete.',
+      'items': 'items',
+      'visible': 'I can see',
+      'help': 'Say scan, stop, repeat, focus, surroundings, history, change language, or navigate.',
       'upload': 'Upload image',
       'backCamera': 'Back to camera',
       'voiceCommands': 'Voice commands',
