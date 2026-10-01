@@ -88,3 +88,25 @@ flutter run --dart-define=GROQ_API_KEY=YOUR_KEY --dart-define=GROQ_MODEL=openai/
 ```
 
 Create a local `.env` file once from `.env.example` and add your Groq key there. The app loads it automatically, so normal `flutter run` does not need `--dart-define`. `.env` is gitignored and must never be committed. For production deployment, route the request through a trusted backend/proxy instead of embedding a secret in the APK.
+
+
+## Accessibility Intelligence (v2.4)
+
+The live reader treats a detected sign as **visual evidence**, not automatically as proof of a destination.
+
+### User-facing intelligence
+- Voice-first language selection with English/Hindi/Kannada fallback buttons.
+- Partial speech-recognition recovery for short voice commands.
+- Natural narration through the optional Groq voice layer, with a deterministic fallback.
+- Human-friendly camera guidance such as looking slightly right or gently turning the camera toward the visible sign.
+- GPS context is refreshed during scanning.
+- OCR business/place text can be cross-checked against OpenStreetMap/Nominatim data.
+- The narration distinguishes a mapped place near the user from a mapped place farther away, so an advertisement is not automatically presented as the exact destination.
+- “Navigate” opens walking directions only after a destination has been reasonably verified.
+- Left/right visual position is never presented as a road-turn instruction by itself.
+- Material 3 controls, larger voice controls, live status semantics, and clearer result cards improve accessibility.
+
+### Important limitation
+Map and place verification is supporting evidence, not ground truth. OpenStreetMap data can be incomplete or outdated, and OCR can misread business names. The app therefore uses language such as “map data suggests” rather than claiming that a sign proves the exact physical location.
+
+OpenStreetMap attribution is shown in the result panel when map-derived place verification is used.
