@@ -611,6 +611,8 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         'languageSelected': 'भाषा चुन ली गई है। अब से सभी ऐप निर्देश इसी भाषा में होंगे।',
         'detected': 'पहचाना गया',
         'position': 'स्थिति',
+        'class': 'क्लास',
+        'confidence': 'विश्वास',
         'text': 'पाठ',
         'warning': 'चेतावनी।',
         'aheadHold': 'सीधे सामने है। कैमरा स्थिर रखें।',
@@ -646,6 +648,8 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         'languageSelected': 'ಭಾಷೆಯನ್ನು ಆಯ್ಕೆ ಮಾಡಲಾಗಿದೆ. ಇನ್ನು ಮುಂದೆ ಎಲ್ಲಾ ಆಪ್ ಸೂಚನೆಗಳು ಇದೇ ಭಾಷೆಯಲ್ಲಿ ಇರುತ್ತವೆ.',
         'detected': 'ಗುರುತಿಸಲಾಗಿದೆ',
         'position': 'ಸ್ಥಾನ',
+        'class': 'ವರ್ಗ',
+        'confidence': 'ವಿಶ್ವಾಸ',
         'text': 'ಪಠ್ಯ',
         'warning': 'ಎಚ್ಚರಿಕೆ.',
         'aheadHold': 'ನೇರವಾಗಿ ಮುಂದೆ ಇದೆ. ಕ್ಯಾಮೆರಾವನ್ನು ಸ್ಥಿರವಾಗಿ ಹಿಡಿಯಿರಿ.',
@@ -680,6 +684,8 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       'languageSelected': 'Language selected. From now on, all app guidance will use this language.',
       'detected': 'Detected',
       'position': 'Position',
+      'class': 'class',
+      'confidence': 'confidence',
       'text': 'Text',
       'warning': 'Warning.',
       'aheadHold': 'directly ahead. Hold the camera steady.',
@@ -714,13 +720,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
     listening = true;
     await tts.stop();
 
-    if (language.code == 'hi') {
-      await speak('आदेश बोलें।');
-    } else if (language.code == 'kn') {
-      await speak('ಆಜ್ಞೆಯನ್ನು ಹೇಳಿ.');
-    } else {
-      await speak('Say a command.');
-    }
+    await speak(copy('voicePrompt'));
 
     final result = await voice.listen(localeId: language.speechLocale);
     listening = false;
@@ -735,7 +735,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         speech.contains('रुको') ||
         speech.contains('ನಿಲ್ಲಿಸು')) {
       stopped = true;
-      await speak('Scanning stopped.');
+      await speak(copy('stopDone'));
       return;
     }
 
@@ -744,7 +744,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         speech.contains('स्कैन') ||
         speech.contains('ಸ್ಕ್ಯಾನ್')) {
       stopped = false;
-      await speak('Scanning resumed.');
+      await speak(copy('scanning'));
       return;
     }
 
@@ -760,15 +760,15 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         speech.contains('लक्ष्य') ||
         speech.contains('ಫೋಕಸ್')) {
       if (lastDetections.isEmpty) {
-        await speak('I do not currently see a sign to focus on.');
+        await speak(copy('noFocus'));
       } else {
         final context = intel.select(lastDetections);
         intel.focus(context);
         focusMode = true;
         await speak(
-          'Focused on ' +
-          context.detection.className.replaceAll('_', ' ') +
-          '. I will guide you until the sign is centered.',
+          copy('focusOn') + ' ' +
+          localizedClass(context.detection.className) +
+          '. ' + copy('focusGuide'),
         );
       }
       return;
@@ -779,7 +779,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         speech.contains('unfocus')) {
       focusMode = false;
       intel.clearFocus();
-      await speak('Focus mode stopped.');
+      await speak(copy('focusStopped'));
       return;
     }
 
@@ -789,7 +789,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         speech.contains('क्या है') ||
         speech.contains('ಸುತ್ತ')) {
       sceneScanMode = true;
-      await speak('Scanning the surroundings.');
+      await speak(copy('scanningSurroundings'));
       return;
     }
 
@@ -797,7 +797,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         speech.contains('nearby signs') ||
         speech.contains('signs around')) {
       if (lastDetections.isEmpty) {
-        await speak('No signs are currently visible.');
+        await speak(copy('noSigns'));
       } else {
         await speakScene(intel.analyze(lastDetections));
       }
@@ -809,7 +809,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
         speech.contains('कहाँ') ||
         speech.contains('ಎಲ್ಲಿ')) {
       if (lastDetections.isEmpty) {
-        await speak('No current sign position is available.');
+        await speak(copy('locationUnavailable'));
       } else {
         final context = intel.select(lastDetections);
         await speak(
@@ -843,9 +843,8 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
       final entries = await history.read();
       await speak(
         entries.isEmpty
-            ? 'No recent signs.'
-            : 'There are ' + entries.length.toString() +
-              ' recent detections in history.',
+            ? copy('noHistory')
+            : copy('historyHas') + ' ' + entries.length.toString() + ' ' + copy('items') + '.',
       );
       return;
     }
@@ -853,14 +852,11 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
     if (speech.contains('navigate') ||
         speech.contains('दिशा') ||
         speech.contains('ನ್ಯಾವಿಗೇಟ್')) {
-      await speak(
-        'GPS context is available. Exact sign distance and compass direction '
-        'are not claimed unless they can be estimated reliably.',
-      );
+      await speak(copy('navigationLimit'));
       return;
     }
 
-    await speak('I did not understand. Say help for available commands.');
+    await speak(copy('notUnderstood'));
   }
 
   String localize(String speech) {
