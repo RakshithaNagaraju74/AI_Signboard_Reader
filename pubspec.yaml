@@ -1,6 +1,6 @@
 name: signboard_reader
 description: AI Signboard Reader for visually impaired users
-version: 2.1.1+4
+version: 2.2.0+5
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
