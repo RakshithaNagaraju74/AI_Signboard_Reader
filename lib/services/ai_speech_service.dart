@@ -41,36 +41,36 @@ class SpeechDetectionInput {
 
 class AISpeechService {
   String get _endpoint {
-    final value = dotenv.env['GROQ_BASE_URL']?.trim();
+    final value = dotenv.env['NARA_BASE_URL']?.trim();
 
     if (value != null && value.isNotEmpty) {
       return value;
     }
 
-    return 'https://api.groq.com/openai/v1';
+    return 'https://router.bynara.id/v1';
   }
 
   String get _apiKey {
-    return dotenv.env['GROQ_API_KEY']?.trim() ?? '';
+    return dotenv.env['NARA_API_KEY']?.trim() ?? '';
   }
 
   String get _model {
-    final value = dotenv.env['GROQ_MODEL']?.trim();
+    final value = dotenv.env['NARA_MODEL']?.trim();
 
     if (value != null && value.isNotEmpty) {
       return value;
     }
 
-    return 'openai/gpt-oss-120b';
+    return 'auto/bynara';
   }
 
-  bool get groqEnabled => _apiKey.isNotEmpty;
+  bool get naraEnabled => _apiKey.isNotEmpty;
 
   Future<String> compose({
     required List<SpeechDetectionInput> detections,
     required String languageCode,
     String? place,
-    bool useGroq = true,
+    bool useNara = true,
   }) async {
     if (detections.isEmpty) {
       return _fallback(
@@ -80,8 +80,8 @@ class AISpeechService {
       );
     }
 
-    if (useGroq && groqEnabled) {
-      final generated = await _composeWithGroq(
+    if (useNara && naraEnabled) {
+      final generated = await _composeWithNara(
         detections: detections,
         languageCode: languageCode,
         place: place,
@@ -100,7 +100,7 @@ class AISpeechService {
     );
   }
 
-  Future<String?> _composeWithGroq({
+  Future<String?> _composeWithNara({
     required List<SpeechDetectionInput> detections,
     required String languageCode,
     String? place,
