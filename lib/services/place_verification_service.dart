@@ -49,6 +49,28 @@ class PlaceVerificationService {
   final Map<String, _CachedVerification> _cache = {};
   DateTime? _lastRequestAt;
 
+  bool isPlaceLikeText(String text) {
+    final value = _cleanQuery(text);
+    if (value.length < 4 || _looksGeneric(value)) return false;
+    return RegExp(r'[A-Za-z]').hasMatch(value) ||
+        RegExp(r'[\u0900-\u097F]').hasMatch(value) ||
+        RegExp(r'[\u0C80-\u0CFF]').hasMatch(value);
+  }
+
+  String spokenContext(PlaceVerification verification) {
+    final distance = verification.shortDistance;
+    switch (verification.relation) {
+      case PlaceRelation.onSite:
+        return 'The sign appears to refer to ${verification.matchedName}, and the location is about $distance from you.';
+      case PlaceRelation.nearby:
+        return '${verification.matchedName} appears to be nearby, about $distance from you.';
+      case PlaceRelation.elsewhere:
+        return 'The sign refers to ${verification.matchedName}, which appears to be about $distance from your current location. The sign does not mean the place is here.';
+      case PlaceRelation.uncertain:
+        return '';
+    }
+  }
+
   Future<PlaceVerification?> verify({
     required String visibleText,
     required LocationSnapshot location,
