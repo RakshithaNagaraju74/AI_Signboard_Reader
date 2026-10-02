@@ -1,4 +1,4 @@
-import 'dart:async';
+import 'dart:async';\n\nimport 'package:flutter/foundation.dart';
 
 import 'package:speech_to_text/speech_to_text.dart';
 
@@ -18,10 +18,10 @@ class VoiceCommandService {
             completer.complete(null);
           }
         },
-        onStatus: (status) => print('STT status: $status'),
+        onStatus: (status) => debugPrint('STT status: $status'),
       );
     } catch (e) {
-      print('STT initialization failed: $e');
+      debugPrint('STT initialization failed: $e');
       _available = false;
     }
     return _available;
@@ -55,14 +55,14 @@ class VoiceCommandService {
           .firstWhere((_) => true, orElse: () => null);
       effectiveLocale ??= locales.isNotEmpty ? locales.first.localeId : localeId;
 
-      print('STT requested=$localeId effective=$effectiveLocale');
+      debugPrint('STT requested=$localeId effective=$effectiveLocale');
 
       await _speech.listen(
         onResult: (result) {
           final words = result.recognizedWords.trim();
           if (words.isNotEmpty) {
             latestWords = words;
-            print('STT recognized: $latestWords');
+            debugPrint('STT recognized: $latestWords');
           }
           if (result.finalResult && !completer.isCompleted) {
             completer.complete(latestWords.isEmpty ? null : latestWords);
@@ -83,7 +83,7 @@ class VoiceCommandService {
         onTimeout: () => latestWords.isEmpty ? null : latestWords,
       );
     } catch (e) {
-      print('STT listen failed: $e');
+      debugPrint('STT listen failed: $e');
       return latestWords.isEmpty ? null : latestWords;
     } finally {
       try { await _speech.stop(); } catch (_) {}
