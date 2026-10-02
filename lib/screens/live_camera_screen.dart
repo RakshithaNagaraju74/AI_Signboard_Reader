@@ -510,7 +510,7 @@ class _LiveCameraScreenState
 
       final speech = await composeDetectionSpeech(
         announceable,
-        useGroq: true,
+        useNara: true,
       );
 
       await speak(speech);
@@ -542,7 +542,7 @@ class _LiveCameraScreenState
 
   Future<String> composeDetectionSpeech(
     List<DetectionContext> contexts, {
-    bool useGroq = true,
+    bool useNara = true,
   }) async {
     final inputs = <SpeechDetectionInput>[];
 
@@ -584,7 +584,7 @@ class _LiveCameraScreenState
       detections: inputs,
       languageCode: language.code,
       place: currentLocation?.displayPlace,
-      useGroq: useGroq,
+      useNara: useNara,
     );
   }
 
@@ -755,7 +755,7 @@ class _LiveCameraScreenState
 
     final speech = await composeDetectionSpeech(
       visible,
-      useGroq: true,
+      useNara: true,
     );
 
     await speak(speech);
@@ -818,7 +818,7 @@ class _LiveCameraScreenState
 
       final speech = await composeDetectionSpeech(
         contexts.toList(),
-        useGroq: true,
+        useNara: true,
       );
 
       await speak(speech);
