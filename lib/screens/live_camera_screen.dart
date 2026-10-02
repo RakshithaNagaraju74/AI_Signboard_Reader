@@ -416,6 +416,16 @@ class _LiveCameraScreenState
     processing = true;
 
     try {
+      try {
+        final refreshed = await location.current(
+          localeIdentifier: _locationLocale(),
+          refreshPlace: false,
+        );
+        if (refreshed != null) currentLocation = refreshed;
+      } catch (e) {
+        debugPrint('Pre-scan location refresh failed: $e');
+      }
+
       final shot = await camera!.takePicture();
       final shotFile = File(shot.path);
       final contexts = await _analyzeFile(
@@ -534,7 +544,7 @@ class _LiveCameraScreenState
           text: text,
           movement: context.movement,
           proximity: context.proximity,
-          guidance: '',
+          guidance: localizedGuidance(context.position),
           placeContext: placeContext,
           safety: _isSafetyClass(context.detection.className),
         ),
@@ -542,17 +552,21 @@ class _LiveCameraScreenState
     }
 
     debugPrint(
-      '[NaraRouter] live_camera -> sending detection(s): '
+      '[Groq] live_camera -> sending detection(s): '
       + inputs.length.toString()
       + ', language=' + language.code
-      + ', useNara=' + useNara.toString()
+      + ', currentPlace=' + (currentLocation?.displayPlace ?? 'unknown')
+      + ', gpsAccuracy=' + (currentLocation?.accuracy.toStringAsFixed(1) ?? 'unknown')
+      + ', useGroq=' + useNara.toString()
       + ', keyLoaded=' + aiSpeech.groqEnabled.toString(),
     );
 
     return aiSpeech.compose(
       detections: inputs,
       languageCode: language.code,
-      place: currentLocation?.displayPlace,
+      place: currentLocation == null
+          ? ''
+          : currentLocation!.displayPlace + ' (GPS accuracy about ' + currentLocation!.accuracy.toStringAsFixed(0) + ' metres)',
       useNara: useNara,
     );
   }
