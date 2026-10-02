@@ -161,14 +161,16 @@ class AISpeechService {
       final payload = {
         'model': _model,
         'temperature': 0.0,
-        'max_tokens': 220,
+        'max_completion_tokens': 180,
+        'reasoning_effort': 'low',
+        'include_reasoning': false,
         'messages': [
           {
             'role': 'system',
             'content': '''
 You are SightToSound, an accessibility narration engine for a blind pedestrian.
 
-Your ONLY job is to convert visual detection evidence into one short, accurate, natural sentence that can be spoken aloud.
+Your ONLY job is to produce the final spoken narration for a blind pedestrian. Think silently, then output the narration directly. The narration must sound like a helpful human assistant, NOT like a computer vision report.
 
 IMPORTANT EVIDENCE MODEL:
 - The input is structured evidence from a detector and OCR. You do NOT see the camera image.
@@ -191,14 +193,18 @@ CRITICAL RULES:
 11. Safety information comes first.
 12. Do not give crossing, turning, route, or navigation instructions unless explicit guidance is supplied.
 13. Do not mention place context unless it is useful to understanding the sign.
-14. Prefer meaning over literal OCR. Never spell ordinary words letter by letter. "P H A R M A C Y" and "PHARNACY" should become "pharmacy" when context is strong.
+14. When multiple detections are present, combine related detections into ONE concise scene summary. Do not produce repetitive sentences for every detection.
+15. Prefer meaning over literal OCR. Never spell ordinary words letter by letter. "P H A R M A C Y" and "PHARNACY" should become "pharmacy" when context is strong.
 15. Output ONLY the final spoken sentence. No quotes, headings, labels, explanations, or alternatives.
-16. Keep it natural and concise, normally one or two sentences.
+16. Keep it very concise: normally one sentence, maximum two short sentences.
 17. Speak ONLY in $languageName. Do not answer in English when Hindi or Kannada is requested.
 18. Never spell isolated OCR letters as if they were a normal word.
 19. Never output internal detector or debugging terminology.
 20. If a shop/business name is readable after correction, preserve that corrected name naturally.
 21. Never claim that a business is nearby unless location verification explicitly supplies that fact.
+22. Never say phrases like "I can see 3 signs" or "the sign refers to" when a direct natural description is possible.
+23. Ignore phone numbers, PIN codes, full addresses, and noisy OCR unless specifically useful.
+24. If a warning sign and a business sign are both present, mention the warning first.
 
 REASONING PROCEDURE (do silently):
 A. Identify the strongest sign category.
@@ -310,8 +316,8 @@ EXAMPLES:
     final count = detections.length;
 
     if (languageCode == 'hi') {
-      final parts =
-          detections.map(_hindiItem).join('। ');
+      final selected = _selectFallbackDetections(detections);
+      final parts = selected.map(_hindiItem).join('। ');
 
       final prefix =
           safety ? 'सावधान। ' : '';
@@ -328,8 +334,8 @@ EXAMPLES:
     }
 
     if (languageCode == 'kn') {
-      final parts =
-          detections.map(_kannadaItem).join('. ');
+      final selected = _selectFallbackDetections(detections);
+      final parts = selected.map(_kannadaItem).join('. ');
 
       final prefix =
           safety ? 'ಎಚ್ಚರಿಕೆ. ' : '';
@@ -345,8 +351,8 @@ EXAMPLES:
           '$placePart';
     }
 
-    final parts =
-        detections.map(_englishItem).join('. ');
+    final selected = _selectFallbackDetections(detections);
+    final parts = selected.map(_englishItem).join('. ');
 
     final prefix =
         safety ? 'Warning. ' : '';
@@ -365,11 +371,50 @@ EXAMPLES:
         '$placePart';
   }
 
+
+  List<SpeechDetectionInput> _selectFallbackDetections(
+    List<SpeechDetectionInput> detections,
+  ) {
+    final sorted = [...detections]
+      ..sort((a, b) {
+        if (a.safety != b.safety) return a.safety ? -1 : 1;
+        return b.text.trim().length.compareTo(a.text.trim().length);
+      });
+    return sorted.take(2).toList();
+  }
+
+  String _friendlyLabel(String label, String languageCode) {
+    final value = label.toLowerCase().replaceAll('_', ' ').trim();
+    if (languageCode == 'kn') {
+      if (value.contains('no parking')) return 'ನೋ ಪಾರ್ಕಿಂಗ್ ಫಲಕ';
+      if (value.contains('parking')) return 'ಪಾರ್ಕಿಂಗ್ ಫಲಕ';
+      if (value.contains('hospital')) return 'ಆಸ್ಪತ್ರೆಯ ಫಲಕ';
+      if (value.contains('stop')) return 'ಸ್ಟಾಪ್ ಫಲಕ';
+      if (value.contains('warning')) return 'ಎಚ್ಚರಿಕೆ ಫಲಕ';
+      if (value.contains('shop')) return 'ಅಂಗಡಿಯ ಫಲಕ';
+    }
+    if (languageCode == 'hi') {
+      if (value.contains('no parking')) return 'नो पार्किंग का संकेत';
+      if (value.contains('parking')) return 'पार्किंग का संकेत';
+      if (value.contains('hospital')) return 'अस्पताल का संकेत';
+      if (value.contains('stop')) return 'स्टॉप का संकेत';
+      if (value.contains('warning')) return 'चेतावनी का संकेत';
+      if (value.contains('shop')) return 'दुकान का संकेत';
+    }
+    if (value.contains('no parking')) return 'no-parking sign';
+    if (value.contains('parking')) return 'parking sign';
+    if (value.contains('hospital')) return 'hospital sign';
+    if (value.contains('stop')) return 'stop sign';
+    if (value.contains('warning')) return 'warning sign';
+    if (value.contains('shop')) return 'shop sign';
+    return 'sign';
+  }
+
   String _englishItem(
     SpeechDetectionInput e,
   ) {
     var result =
-        '${e.label} ${e.position}';
+        '${_friendlyLabel(e.label, 'en')} ${e.position}';
 
     if (e.guidance.isNotEmpty) {
       result += '. ${e.guidance}';
@@ -399,7 +444,7 @@ EXAMPLES:
     SpeechDetectionInput e,
   ) {
     var result =
-        '${e.label} ${_hindiPosition(e.position)}';
+        '${_friendlyLabel(e.label, 'hi')} ${_hindiPosition(e.position)}';
 
     if (e.guidance.isNotEmpty) {
       result += '। ${e.guidance}';
@@ -429,7 +474,7 @@ EXAMPLES:
     SpeechDetectionInput e,
   ) {
     var result =
-        '${e.label} ${_kannadaPosition(e.position)}';
+        '${_friendlyLabel(e.label, 'kn')} ${_kannadaPosition(e.position)}';
 
     if (e.guidance.isNotEmpty) {
       result += '. ${e.guidance}';
@@ -605,8 +650,8 @@ EXAMPLES:
 
   bool _matchesRequestedLanguage(String text, String languageCode) {
     if (text.trim().isEmpty) return false;
-    if (languageCode == 'kn') return RegExp(r'[[Groq]0C80-[Groq]0CFF]').hasMatch(text);
-    if (languageCode == 'hi') return RegExp(r'[[Groq]0900-[Groq]097F]').hasMatch(text);
+    if (languageCode == 'kn') return RegExp(r'[\u0C80-\u0CFF]').hasMatch(text);
+    if (languageCode == 'hi') return RegExp(r'[\u0900-\u097F]').hasMatch(text);
     return true;
   }
 
