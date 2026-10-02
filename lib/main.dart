@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'models/sign_model.dart';
 import 'screens/live_camera_screen.dart';
+import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,7 +42,7 @@ class SignboardReaderApp extends StatelessWidget {
             ),
           ),
         ),
-        home: const LiveCameraScreen(),
+        home: const SplashScreen(),
       ),
     );
   }
