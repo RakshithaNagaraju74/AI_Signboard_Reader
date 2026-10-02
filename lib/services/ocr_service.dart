@@ -31,7 +31,7 @@ class OCRService {
       if (decoded == null) return '';
       final image = img.bakeOrientation(decoded);
       final crop = _safeCrop(image, bbox);
-      if (crop == null) return _recognizeFullImage(image, script);
+      if (crop == null) return await _recognizeFullImage(image, script);
 
       final variants = _buildVariants(crop);
       final recognizer = _recognizerFor(script);
@@ -70,7 +70,7 @@ class OCRService {
 
       if (candidates.isEmpty) {
         debugPrint('OCR: sign crop returned no text; trying full frame.');
-        return _recognizeFullImage(image, script);
+        return await _recognizeFullImage(image, script);
       }
       candidates.sort((a, b) => b.score.compareTo(a.score));
       final best = candidates.first;
@@ -111,7 +111,7 @@ class OCRService {
           candidates.add(_OCRCandidate(text: text, variant: i, score: _score(text)));
         }
       } catch (e) {
-        debugPrint('Full-image OCR variant ' + i.toString() + ' failed: ' + e.toString());
+        debugPrint('Full-image OCR variant $i failed: $e');
       } finally {
         try {
           if (await tempFile.exists()) await tempFile.delete();
