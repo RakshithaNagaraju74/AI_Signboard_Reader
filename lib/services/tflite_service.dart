@@ -38,13 +38,22 @@ class TFLiteService {
   // ============================================================
 
   Future<void> initialize() async {
-    if (_isInitialized && _interpreter != null && _isolateInterpreter != null) return;
+    if (_isInitialized && _interpreter != null && _isolateInterpreter != null) {
+      return;
+    }
     final existing = _initializing;
-    if (existing != null) { await existing; return; }
+    if (existing != null) {
+      await existing;
+      return;
+    }
     final pending = _initializeInternal();
     _initializing = pending;
-    try { await pending; } finally {
-      if (identical(_initializing, pending)) _initializing = null;
+    try {
+      await pending;
+    } finally {
+      if (identical(_initializing, pending)) {
+        _initializing = null;
+      }
     }
   }
 
@@ -53,7 +62,7 @@ class TFLiteService {
       final labelString = await rootBundle.loadString('assets/models/labels.txt');
       _labels = labelString.split(RegExp(r'\r?\n')).map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
       if (_labels.length != 21) {
-        throw StateError('Model/label mismatch: expected 21 labels, found ' + _labels.length.toString() + '.');
+        throw StateError('Model/label mismatch: expected 21 labels, found ${_labels.length}.');
       }
       final modelFile = await _getModelFile();
       final options = InterpreterOptions()..threads = 2;
@@ -63,15 +72,15 @@ class TFLiteService {
       final outputTensor = interpreter.getOutputTensor(0);
       if (inputTensor.shape.length != 4 || inputTensor.shape[0] != 1 || inputTensor.shape[1] != inputSize || inputTensor.shape[2] != inputSize || inputTensor.shape[3] != 3) {
         interpreter.close();
-        throw StateError('Expected input shape [1,416,416,3], found ' + inputTensor.shape.toString() + '.');
+        throw StateError('Expected input shape [1,416,416,3], found ${inputTensor.shape}.');
       }
       if (inputTensor.type != TensorType.float32) {
         interpreter.close();
-        throw StateError('Expected float32 model input, found ' + inputTensor.type.toString() + '.');
+        throw StateError('Expected float32 model input, found ${inputTensor.type}.');
       }
       if (outputTensor.shape.length != 3 || !outputTensor.shape.contains(25)) {
         interpreter.close();
-        throw StateError('Expected YOLO output containing dimension 25, found ' + outputTensor.shape.toString() + '.');
+        throw StateError('Expected YOLO output containing dimension 25, found ${outputTensor.shape}.');
       }
       final isolate = await IsolateInterpreter.create(address: interpreter.address, debugName: 'signboard_yolo');
       _interpreter = interpreter;
@@ -134,7 +143,9 @@ class TFLiteService {
   ) async {
     try {
       await initialize();
-      if (!_isInitialized || _interpreter == null || _isolateInterpreter == null) return [];
+      if (!_isInitialized || _interpreter == null || _isolateInterpreter == null) {
+        return [];
+      }
       final bytes =
           await imageFile.readAsBytes();
 
@@ -248,11 +259,15 @@ class TFLiteService {
   Future<Float32List> _runInference(Float32List input) async {
     final interpreter = _interpreter;
     final isolate = _isolateInterpreter;
-    if (interpreter == null || isolate == null) throw StateError('LiteRT inference worker is not ready.');
+    if (interpreter == null || isolate == null) {
+      throw StateError('LiteRT inference worker is not ready.');
+    }
     final inputTensor = interpreter.getInputTensor(0);
     final outputTensor = interpreter.getOutputTensor(0);
     final expectedInput = inputTensor.shape.reduce((a, b) => a * b);
-    if (input.length != expectedInput) throw StateError('Input size mismatch.');
+    if (input.length != expectedInput) {
+      throw StateError('Input size mismatch.');
+    }
     final outputSize = outputTensor.shape.reduce((a, b) => a * b);
     final output = Float32List(outputSize);
     await isolate.run(input, output);
@@ -748,7 +763,9 @@ class TFLiteService {
   // ============================================================
 
   Future<void> dispose() async {
-    try { await _isolateInterpreter?.close(); } catch (_) {}
+    try {
+      await _isolateInterpreter?.close();
+    } catch (_) {}
     _isolateInterpreter = null;
     _interpreter?.close();
     _interpreter = null;
