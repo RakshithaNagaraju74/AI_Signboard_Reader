@@ -484,10 +484,19 @@ class _LiveCameraScreenState
 
     try {
       final shot = await camera!.takePicture();
+      final shotFile = File(shot.path);
       final contexts = await _analyzeFile(
-        File(shot.path),
+        shotFile,
         demo: false,
       );
+
+      // Camera captures are temporary inputs. Remove them after analysis so
+      // repeated live scanning does not gradually fill the app cache.
+      try {
+        if (await shotFile.exists()) {
+          await shotFile.delete();
+        }
+      } catch (_) {}
 
       try {
         final refreshed = await location.current(
