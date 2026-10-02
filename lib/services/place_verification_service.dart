@@ -86,8 +86,7 @@ class PlaceVerificationService {
 
       final uri = Uri.parse(
         'https://nominatim.openstreetmap.org/search'
-        '?format=jsonv2&limit=5&addressdetails=1&q=' +
-        Uri.encodeQueryComponent(searchQuery),
+        '?format=jsonv2&limit=5&addressdetails=1&q=${Uri.encodeQueryComponent(searchQuery)}',
       );
 
       final request =
