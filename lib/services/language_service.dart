@@ -59,10 +59,26 @@ class LanguageService {
     if (value.isEmpty) return null;
 
     if (_containsAny(value, [
-      'english', 'england', 'inglish', 'in glish',
-      'english language', 'one', 'number one', 'option one', 'first', '1',
+      'one', 'number one', 'option one', 'first', '1',
+      'english', 'england', 'inglish', 'in glish', 'english language',
     ])) {
       return 'en';
+    }
+
+    if (_containsAny(value, [
+      'two', 'number two', 'option two', 'second', '2',
+      'hindi', 'hindee', 'hindy', 'indie', 'indi', 'hindi language',
+      'हिंदी', 'हिन्दी',
+    ])) {
+      return 'hi';
+    }
+
+    if (_containsAny(value, [
+      'three', 'number three', 'option three', 'third', '3',
+      'kannada', 'kanada', 'kannad', 'canada', 'can adda',
+      'kannada language', 'ಕನ್ನಡ',
+    ])) {
+      return 'kn';
     }
 
     return null;
@@ -77,8 +93,8 @@ class LanguageService {
 
   static bool isNo(String text) {
     return _containsAny(normalize(text), [
-      'no', 'nope', 'wrong', 'again', 'change',
-      'nah', 'nahi', 'नहीं', 'illa', 'ಇಲ್ಲ',
+      'no', 'nope', 'wrong', 'again', 'change', 'nah', 'nahi',
+      'नहीं', 'illa', 'ಇಲ್ಲ',
     ]);
   }
 
