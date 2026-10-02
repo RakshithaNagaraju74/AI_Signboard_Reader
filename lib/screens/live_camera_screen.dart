@@ -568,17 +568,26 @@ class _LiveCameraScreenState
 
       inputs.add(
         SpeechDetectionInput(
-          label: '',
+          // Preserve the detector's semantic class for NaraRouter.
+          label: context.detection.className,
           position: localizedPosition(context.position),
           text: text,
           movement: context.movement,
           proximity: context.proximity,
-          guidance: localizedGuidance(context.position),
+          guidance: '',
           placeContext: placeContext,
           safety: _isSafetyClass(context.detection.className),
         ),
       );
     }
+
+    debugPrint(
+      '[NaraRouter] live_camera -> sending detection(s): '
+      + inputs.length.toString()
+      + ', language=' + language.code
+      + ', useNara=' + useNara.toString()
+      + ', keyLoaded=' + aiSpeech.naraEnabled.toString(),
+    );
 
     return aiSpeech.compose(
       detections: inputs,
@@ -1699,9 +1708,9 @@ class _LiveCameraScreenState
     }
 
     return Container(
-      constraints:
-          const BoxConstraints(
-        maxHeight: 250,
+      constraints: const BoxConstraints(
+        maxHeight: 155,
+        minHeight: 70,
       ),
       padding:
           const EdgeInsets.all(14),
@@ -1717,6 +1726,8 @@ class _LiveCameraScreenState
       ),
       child: ListView(
         shrinkWrap: true,
+        physics: const BouncingScrollPhysics(),
+        padding: EdgeInsets.zero,
         children: [
           Row(
             children: [
