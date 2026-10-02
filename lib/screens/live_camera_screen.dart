@@ -546,7 +546,7 @@ class _LiveCameraScreenState
       + inputs.length.toString()
       + ', language=' + language.code
       + ', useNara=' + useNara.toString()
-      + ', keyLoaded=' + aiSpeech.naraEnabled.toString(),
+      + ', keyLoaded=' + aiSpeech.groqEnabled.toString(),
     );
 
     return aiSpeech.compose(
