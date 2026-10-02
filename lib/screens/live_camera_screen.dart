@@ -186,7 +186,7 @@ class _LiveCameraScreenState
 
     final controller = CameraController(
       backCamera,
-      ResolutionPreset.medium,
+      ResolutionPreset.high,
       enableAudio: false,
     );
 
@@ -394,10 +394,10 @@ class _LiveCameraScreenState
     // Track once per frame. OCR is attached to those same contexts so one
     // camera frame does not artificially advance stability twice.
     final preliminary = intel.analyze(raw);
-    final ocrLimit = demo ? 3 : 2;
+    final ocrLimit = demo ? 6 : 4;
     final ocrKeys = preliminary
         .take(ocrLimit)
-        .where((context) => context.detection.confidence >= 0.50)
+        .where((context) => context.detection.confidence >= 0.45)
         .map((context) => intel.detectionKey(context.detection))
         .toSet();
 

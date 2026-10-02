@@ -14,55 +14,75 @@ class OCRService {
   TextRecognizer _recognizerFor(TextRecognitionScript script) =>
       _recognizers.putIfAbsent(script, () => TextRecognizer(script: script));
 
-  Future<String> extractText(File imageFile,List<double> bbox,{String languageCode='en'}) async {
-    final script=languageCode.toLowerCase()=='hi'?TextRecognitionScript.devanagiri:TextRecognitionScript.latin;
-    try{
-      final recognizer=_recognizerFor(script);
-      try{
-        final result=await recognizer.processImage(InputImage.fromFile(imageFile));
-        final text=_cleanText(result.text);
-        if(_isUsefulText(text)) return text;
-      }catch(e){debugPrint('Direct OCR failed: $e');}
-      if(bbox.length<4)return '';
-      final decoded=img.decodeImage(await imageFile.readAsBytes());
-      if(decoded==null)return '';
-      final image=img.bakeOrientation(decoded);
-      final crop=_safeCrop(image,bbox);
-      if(crop!=null){
-        final candidates=await _recognizeVariants(crop,recognizer,'s2s_crop');
-        final best=_bestCandidate(candidates);
-        if(best.isNotEmpty)return best;
+  Future<String> extractText(
+    File imageFile,
+    List<double> bbox, {
+    String languageCode = 'en',
+  }) async {
+    final script = languageCode.toLowerCase() == 'hi'
+        ? TextRecognitionScript.devanagiri
+        : TextRecognitionScript.latin;
+
+    if (bbox.length < 4) return '';
+
+    try {
+      final decoded = img.decodeImage(await imageFile.readAsBytes());
+      if (decoded == null) return '';
+      final image = img.bakeOrientation(decoded);
+      final crop = _safeCrop(image, bbox);
+      if (crop == null) return _recognizeFullImage(image, script);
+
+      final variants = _buildVariants(crop);
+      final recognizer = _recognizerFor(script);
+      final candidates = <_OCRCandidate>[];
+
+      for (var i = 0; i < variants.length; i++) {
+        final tempFile = File(
+          '\${Directory.systemTemp.path}/s2s_ocr_'
+          '\${DateTime.now().microsecondsSinceEpoch}_$i.jpg',
+        );
+
+        try {
+          await tempFile.writeAsBytes(
+            img.encodeJpg(variants[i], quality: 96),
+            flush: true,
+          );
+          final recognized = await recognizer.processImage(
+            InputImage.fromFile(tempFile),
+          );
+          final cleaned = _cleanText(recognized.text);
+          if (cleaned.isNotEmpty) {
+            candidates.add(_OCRCandidate(
+              text: cleaned,
+              variant: i,
+              score: _score(cleaned),
+            ));
+          }
+        } catch (e) {
+          debugPrint('OCR variant $i failed: $e');
+        } finally {
+          try {
+            if (await tempFile.exists()) await tempFile.delete();
+          } catch (_) {}
+        }
       }
-      return _recognizeFullImage(image,script);
-    }catch(e){debugPrint('OCR error: $e');return '';}
-  }
 
-  Future<List<_OCRCandidate>> _recognizeVariants(img.Image source,TextRecognizer recognizer,String prefix) async {
-    final variants=_buildVariants(_upscaleForText(source));
-    final candidates=<_OCRCandidate>[];
-    for(var i=0;i<variants.length;i++){
-      final tempFile=File(Directory.systemTemp.path+'/'+prefix+'_'+DateTime.now().microsecondsSinceEpoch.toString()+'_$i.jpg');
-      try{
-        await tempFile.writeAsBytes(img.encodeJpg(variants[i],quality:97),flush:true);
-        final result=await recognizer.processImage(InputImage.fromFile(tempFile));
-        final text=_cleanText(result.text);
-        if(_isUsefulText(text))candidates.add(_OCRCandidate(text:text,variant:i,score:_score(text)));
-      }catch(e){debugPrint('OCR variant $i failed: $e');}
-      finally{try{if(await tempFile.exists())await tempFile.delete();}catch(_){}}
+      if (candidates.isEmpty) {
+        return _recognizeFullImage(image, script);
+      }
+      candidates.sort((a, b) => b.score.compareTo(a.score));
+      final best = candidates.first;
+
+      for (final candidate in candidates.skip(1)) {
+        if (_similar(candidate.text, best.text) >= 0.72) {
+          return _preferReadable(best.text, candidate.text);
+        }
+      }
+      return best.text;
+    } catch (e) {
+      debugPrint('OCR error: $e');
+      return '';
     }
-    return candidates;
-  }
-
-  String _bestCandidate(List<_OCRCandidate> candidates){
-    if(candidates.isEmpty)return '';
-    candidates.sort((a,b)=>b.score.compareTo(a.score));
-    return candidates.first.text;
-  }
-
-  bool _isUsefulText(String text){
-    final value=_cleanText(text);
-    if(value.length<2)return false;
-    return RegExp(r'[A-Za-z0-9\u0900-\u0CFF]').allMatches(value).length>=2;
   }
 
   Future<String> _recognizeFullImage(

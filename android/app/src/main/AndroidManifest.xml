@@ -8,8 +8,8 @@
     <application
         android:label="SightToSound"
         android:name="${applicationName}"
-        android:icon="@drawable/app_logo"
-        android:roundIcon="@drawable/app_logo">
+        android:icon="@drawable/ic_sighttosound"
+        android:roundIcon="@drawable/ic_sighttosound">
         <activity
             android:name=".MainActivity"
             android:exported="true"
