@@ -296,52 +296,12 @@ class _LiveCameraScreenState
       final selected = LanguageService.fromCode(detected);
       if (selected == null) continue;
 
-      // Confirm before saving. This prevents a noisy recognition result from
-      // permanently selecting the wrong language.
-      await tts.setLanguage(selected.speechLocale);
-      await speakRaw(
-        selected.code == 'hi'
-            ? 'आपने हिंदी चुनी है। जारी रखने के लिए हाँ कहें, या फिर से चुनने के लिए नहीं कहें।'
-            : selected.code == 'kn'
-                ? 'ನೀವು ಕನ್ನಡವನ್ನು ಆಯ್ಕೆ ಮಾಡಿದ್ದೀರಿ. ಮುಂದುವರಿಯಲು ಹೌದು ಎಂದು ಹೇಳಿ, ಮತ್ತೆ ಆಯ್ಕೆ ಮಾಡಲು ಇಲ್ಲ ಎಂದು ಹೇಳಿ.'
-                : 'You selected English. Say yes to continue, or no to choose again.',
-      );
-
-      await Future<void>.delayed(const Duration(milliseconds: 250));
-      final confirmation = await voice.listen(
-        localeId: selected.speechLocale,
-        timeout: const Duration(seconds: 6),
-      );
-
-      if (LanguageService.isYes(confirmation ?? '')) {
-        await setLanguage(selected.code);
-        return;
-      }
-
-      if (LanguageService.isNo(confirmation ?? '')) {
-        await voice.stop();
-        continue;
-      }
-
-      // If confirmation is unclear, give one short retry in the same
-      // language rather than silently accepting the choice.
-      await speakRaw(
-        selected.code == 'hi'
-            ? 'कृपया हाँ या नहीं कहें।'
-            : selected.code == 'kn'
-                ? 'ದಯವಿಟ್ಟು ಹೌದು ಅಥವಾ ಇಲ್ಲ ಎಂದು ಹೇಳಿ.'
-                : 'Please say yes or no.',
-      );
-
-      final retry = await voice.listen(
-        localeId: selected.speechLocale,
-        timeout: const Duration(seconds: 4),
-      );
-
-      if (LanguageService.isYes(retry ?? '')) {
-        await setLanguage(selected.code);
-        return;
-      }
+      // The spoken number is the user's language choice. Do not ask for a
+      // second confirmation: requiring another speech turn can trap a blind
+      // user in onboarding when Android STT misses the confirmation.
+      await setLanguage(selected.code);
+      await speak(copy('languageSelected'));
+      return;
     }
 
     // Never trap a blind user in speech onboarding.
@@ -1856,12 +1816,32 @@ class _LiveCameraScreenState
     );
   }
 
+  Future<void> _selectLanguageFromButton(String code) async {
+    await setLanguage(code);
+    if (!mounted) return;
+
+    onboarding = false;
+    await _initializeCamera();
+    if (!mounted) return;
+
+    unawaited(_refreshLocationInBackground());
+    unawaited(TFLiteService().initialize());
+
+    await speak(copy('scanning'));
+
+    timer?.cancel();
+    timer = Timer.periodic(
+      const Duration(milliseconds: 2500),
+      (_) => scan(),
+    );
+  }
+
   Widget _languageButton(String label, String code) {
     return SizedBox(
       width: double.infinity,
       height: 62,
       child: ElevatedButton(
-        onPressed: () => setLanguage(code),
+        onPressed: () => _selectLanguageFromButton(code),
         child: Text(label, style: const TextStyle(fontSize: 20)),
       ),
     );
