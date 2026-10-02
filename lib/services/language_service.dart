@@ -58,29 +58,16 @@ class LanguageService {
     final value = normalize(text);
     if (value.isEmpty) return null;
 
-    if (_containsAny(value, [
-      'one', 'number one', 'option one', 'first', '1',
-      'english', 'england', 'inglish', 'in glish', 'english language',
-    ])) {
-      return 'en';
-    }
+    // Speech recognition often adds extra words. Detect the language choice
+    // from anywhere in the short response instead of requiring an exact phrase.
+    if (RegExp(r'(^|\\s)(one|1|first|english|inglish)(\\s|$)').hasMatch(value)) return 'en';
+    if (RegExp(r'(^|\\s)(two|2|second|hindi|hindee|hindy|indi)(\\s|$)').hasMatch(value) || value.contains('हिंदी') || value.contains('हिन्दी')) return 'hi';
+    if (RegExp(r'(^|\\s)(three|3|third|kannada|kanada|kannad|canada)(\\s|$)').hasMatch(value) || value.contains('ಕನ್ನಡ')) return 'kn';
 
-    if (_containsAny(value, [
-      'two', 'number two', 'option two', 'second', '2',
-      'hindi', 'hindee', 'hindy', 'indie', 'indi', 'hindi language',
-      'हिंदी', 'हिन्दी',
-    ])) {
-      return 'hi';
-    }
-
-    if (_containsAny(value, [
-      'three', 'number three', 'option three', 'third', '3',
-      'kannada', 'kanada', 'kannad', 'canada', 'can adda',
-      'kannada language', 'ಕನ್ನಡ',
-    ])) {
-      return 'kn';
-    }
-
+    // Common Android STT phonetic outputs for the numbers.
+    if (value.contains('won') || value.contains('wan')) return 'en';
+    if (value.contains('to') && !value.contains('two')) return 'hi';
+    if (value.contains('tree') || value.contains('free')) return 'kn';
     return null;
   }
 
