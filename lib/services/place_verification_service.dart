@@ -107,7 +107,7 @@ class PlaceVerificationService {
           (city.isEmpty ? '' : ' in ' + city));
 
       client = HttpClient()
-        ..connectionTimeout = const Duration(seconds: 3);
+        ..connectionTimeout = const Duration(seconds: 5);
 
       final uri = Uri.parse(
         'https://nominatim.openstreetmap.org/search'
@@ -410,6 +410,204 @@ class _CachedVerification {
         'railway': 'railway',
       };
       final corrected = known[compact.toLowerCase()];
+      if (corrected != null) return corrected;
+    }
+
+    return result;
+  }
+
+  String _correctCommonOCR(String value) {
+    var result = value.trim();
+    if (result.isEmpty) return result;
+
+    const replacements = <String, String>{
+      'pharnacy': 'pharmacy',
+      'pharmasy': 'pharmacy',
+      'pharmecy': 'pharmacy',
+      'pharmcy': 'pharmacy',
+      'med1cal': 'medical',
+      'medlcal': 'medical',
+      'h0spital': 'hospital',
+      'hospita1': 'hospital',
+      'restarunt': 'restaurant',
+      'resturant': 'restaurant',
+      'restraunt': 'restaurant',
+      'bakary': 'bakery',
+      'bakkery': 'bakery',
+      'supermarke': 'supermarket',
+      'martket': 'market',
+    };
+
+    final words = result.split(RegExp(r'\s+'));
+    for (var i = 0; i < words.length; i++) {
+      final replacement = replacements[words[i].toLowerCase()];
+      if (replacement != null) words[i] = replacement;
+    }
+    result = words.join(' ');
+
+    final letters = result.split(RegExp(r'\s+'));
+    if (letters.length >= 4 &&
+        letters.every((word) => RegExp(r'^[A-Za-z]
+    return value
+        .replaceAll(RegExp(r'[|•]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim()
+        .split(RegExp(r'(?<=[.!?])\s+'))
+        .take(2)
+        .join(' ')
+        .trim();
+  }
+
+  bool _looksGeneric(String value) {
+    final normalized = value.toLowerCase();
+
+    const generic = {
+      'stop',
+      'hospital',
+      'medical',
+      'medicine',
+      'shop',
+      'store',
+      'welcome',
+      'notice',
+      'warning',
+      'school',
+      'bus',
+      'railway',
+      'road',
+    };
+
+    if (generic.contains(normalized)) return true;
+
+    return normalized.split(' ').length == 1 &&
+        normalized.length < 5;
+  }
+
+  String _firstDisplayPart(String value) {
+    final comma = value.indexOf(',');
+    return comma > 0
+        ? value.substring(0, comma).trim()
+        : value;
+  }
+
+  double _nameSimilarity(
+    String query,
+    String candidate,
+  ) {
+    final q = _tokens(query);
+    final c = _tokens(candidate);
+
+    if (q.isEmpty || c.isEmpty) return 0.0;
+
+    var overlap = 0;
+    for (final token in q) {
+      if (c.contains(token)) overlap++;
+    }
+
+    final tokenScore =
+        overlap / q.length;
+
+    final compactQuery = q.join();
+    final compactCandidate = c.join();
+
+    if (compactQuery.isEmpty ||
+        compactCandidate.isEmpty) {
+      return tokenScore;
+    }
+
+    final substringScore =
+        compactCandidate.contains(compactQuery) ||
+                compactQuery.contains(compactCandidate)
+            ? 0.85
+            : 0.0;
+
+    return math.max(
+      tokenScore,
+      substringScore,
+    );
+  }
+
+  Set<String> _tokens(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll(
+          RegExp(
+            r'[^a-z0-9\u0900-\u097f\u0c80-\u0cff ]',
+          ),
+          ' ',
+        )
+        .split(RegExp(r'\s+'))
+        .where((e) => e.length >= 2)
+        .toSet();
+  }
+
+  PlaceRelation _relation(double meters) {
+    if (meters <= 120) return PlaceRelation.onSite;
+    if (meters <= 500) return PlaceRelation.nearby;
+    return PlaceRelation.elsewhere;
+  }
+
+  double _candidateRank(PlaceVerification value) {
+    final distanceScore =
+        1.0 / (1.0 + value.distanceMeters / 100.0);
+
+    return value.matchScore * 0.75 +
+        distanceScore * 0.25;
+  }
+
+  double _distanceMeters(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
+    const earthRadius = 6371000.0;
+    final dLat = _toRadians(lat2 - lat1);
+    final dLon = _toRadians(lon2 - lon1);
+
+    final a =
+        math.sin(dLat / 2) *
+            math.sin(dLat / 2) +
+        math.cos(_toRadians(lat1)) *
+            math.cos(_toRadians(lat2)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+
+    return earthRadius *
+        2 *
+        math.atan2(
+          math.sqrt(a),
+          math.sqrt(1 - a),
+        );
+  }
+
+  double _toRadians(double value) =>
+      value * math.pi / 180.0;
+}
+
+class _CachedVerification {
+  final DateTime time;
+  final PlaceVerification? value;
+
+  const _CachedVerification({
+    required this.time,
+    required this.value,
+  });
+}
+).hasMatch(word))) {
+      final compact = letters.join().toLowerCase();
+      const knownWords = <String, String>{
+        'pharmacy': 'pharmacy',
+        'hospital': 'hospital',
+        'medical': 'medical',
+        'parking': 'parking',
+        'school': 'school',
+        'restaurant': 'restaurant',
+        'bakery': 'bakery',
+        'market': 'market',
+        'railway': 'railway',
+      };
+      final corrected = knownWords[compact];
       if (corrected != null) return corrected;
     }
 
