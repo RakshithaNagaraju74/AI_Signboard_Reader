@@ -52,21 +52,15 @@ class LocationService {
       Geocoding(locale: _toLocale(localeIdentifier));
 
   Future<bool> ensurePermission() async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      print('[Location] GPS service is disabled.');
-      return false;
-    }
+    if (!await Geolocator.isLocationServiceEnabled()) return false;
 
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
 
-    final allowed = permission != LocationPermission.denied &&
+    return permission != LocationPermission.denied &&
         permission != LocationPermission.deniedForever;
-    print('[Location] permission=$permission, allowed=$allowed');
-    return allowed;
   }
 
   Future<LocationSnapshot?> current({
@@ -84,28 +78,16 @@ class LocationService {
       return _cached;
     }
 
-    Position? position;
-    try {
-      position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          distanceFilter: 5,
-        ),
-      ).timeout(
-        const Duration(seconds: 8),
-        onTimeout: () => throw TimeoutException('Location request timed out'),
-      );
-    } catch (e) {
-      print('[Location] current fix failed: $e');
-      position = await Geolocator.getLastKnownPosition();
-    }
+    final position = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+      ),
+    ).timeout(
+      const Duration(seconds: 6),
+      onTimeout: () => throw TimeoutException('Location request timed out'),
+    );
 
-    if (position == null) {
-      print('[Location] No current or last-known position available.');
-      return _cached;
-    }
-
-    print('[Location] FIX -> lat=${position.latitude}, lon=${position.longitude}, accuracy=${position.accuracy}m');
     _lastLocationFetch = now;
     final shouldGeocode = refreshPlace ||
         _lastGeocoded == null ||
