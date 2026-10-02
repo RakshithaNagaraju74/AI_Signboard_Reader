@@ -77,6 +77,10 @@ class PlaceVerificationService {
     required String visibleText,
     required LocationSnapshot location,
   }) async {
+    // Do not attempt a confident map match when the phone's GPS fix is too
+    // uncertain. The user should hear "location uncertain", not a false shop.
+    if (location.accuracy > 60) return null;
+
     final query = _correctCommonOCR(_cleanQuery(visibleText));
     if (query.length < 4 || _looksGeneric(query)) return null;
 
