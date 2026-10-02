@@ -16,21 +16,9 @@ class LanguageService {
   static const _key = 'preferred_language';
 
   static const languages = <AppLanguage>[
-    AppLanguage(
-      code: 'en',
-      speechLocale: 'en-US',
-      name: 'English',
-    ),
-    AppLanguage(
-      code: 'hi',
-      speechLocale: 'hi-IN',
-      name: 'Hindi',
-    ),
-    AppLanguage(
-      code: 'kn',
-      speechLocale: 'kn-IN',
-      name: 'Kannada',
-    ),
+    AppLanguage(code: 'en', speechLocale: 'en-US', name: 'English'),
+    AppLanguage(code: 'hi', speechLocale: 'hi-IN', name: 'Hindi'),
+    AppLanguage(code: 'kn', speechLocale: 'kn-IN', name: 'Kannada'),
   ];
 
   Future<AppLanguage?> load() async {
@@ -41,6 +29,11 @@ class LanguageService {
   Future<void> save(AppLanguage language) async {
     final p = await SharedPreferences.getInstance();
     await p.setString(_key, language.code);
+  }
+
+  Future<void> clear() async {
+    final p = await SharedPreferences.getInstance();
+    await p.remove(_key);
   }
 
   static AppLanguage? fromCode(String code) {
@@ -54,90 +47,52 @@ class LanguageService {
     return text
         .toLowerCase()
         .replaceAll(
-          RegExp(
-            r'[^a-zA-Z\u0900-\u097F\u0C80-\u0CFF ]',
-          ),
+          RegExp(r'[^a-zA-Z\u0900-\u097F\u0C80-\u0CFF0-9 ]'),
           ' ',
         )
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
   }
 
-  /// Converts common speech-recognition mishearings into a language choice.
-  /// The first three numeric choices are intentionally supported because
-  /// they are generally easier for speech recognition than language names.
   static String? detectCommand(String text) {
     final value = normalize(text);
-
     if (value.isEmpty) return null;
 
-    // English / choice 1
     if (_containsAny(value, [
-      'english',
-      'england',
-      'inglish',
-      'in glish',
-      'one',
-      'number one',
-      'option one',
-      'first',
-      '1',
-    ])) {
-      return 'en';
-    }
+      'kannada', 'kanada', 'canada', 'can adda', 'kannad',
+      'ಕನ್ನಡ', 'three', 'number three', 'option three', 'third', '3',
+    ])) return 'kn';
 
-    // Hindi / choice 2
     if (_containsAny(value, [
-      'hindi',
-      'hindee',
-      'hindy',
-      'indie',
-      'indi',
-      'hindi language',
-      'two',
-      'number two',
-      'option two',
-      'second',
-      '2',
-      'हिंदी',
-      'हिन्दी',
-    ])) {
-      return 'hi';
-    }
+      'hindi', 'hindee', 'hindy', 'indie', 'indi',
+      'hindi language', 'हिंदी', 'हिन्दी',
+      'two', 'number two', 'option two', 'second', '2',
+    ])) return 'hi';
 
-    // Kannada / choice 3.
-    // "Canada"/"canada" is a frequent English recognition result for Kannada.
     if (_containsAny(value, [
-      'kannada',
-      'kanada',
-      'canada',
-      'can adda',
-      'kannad',
-      'kannada language',
-      'three',
-      'number three',
-      'option three',
-      'third',
-      '3',
-      'ಕನ್ನಡ',
-    ])) {
-      return 'kn';
-    }
+      'english', 'england', 'inglish', 'in glish',
+      'english language', 'one', 'number one', 'option one', 'first', '1',
+    ])) return 'en';
 
     return null;
   }
 
-  static bool _containsAny(
-    String value,
-    List<String> candidates,
-  ) {
+  static bool isYes(String text) => _containsAny(normalize(text), [
+    'yes', 'yeah', 'yep', 'correct', 'confirm', 'okay', 'ok',
+    'haan', 'हां', 'हाँ', 'howdu', 'ಹೌದು',
+  ]);
+
+  static bool isNo(String text) => _containsAny(normalize(text), [
+    'no', 'nope', 'wrong', 'again', 'change',
+    'nah', 'nahi', 'नहीं', 'illa', 'ಇಲ್ಲ',
+  ]);
+
+  static bool _containsAny(String value, List<String> candidates) {
     for (final candidate in candidates) {
       if (value == candidate ||
           value.contains(' ' + candidate + ' ') ||
           value.startsWith(candidate + ' ') ||
-          value.endsWith(' ' + candidate)) {
-        return true;
-      }
+          value.endsWith(' ' + candidate)) return true;
     }
     return false;
   }
