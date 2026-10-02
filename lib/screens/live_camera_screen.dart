@@ -275,7 +275,7 @@ class _LiveCameraScreenState
     // Keep the first interaction extremely simple. English speech
     // recognition is used only for the numeric choice because numbers are
     // generally more robust than multilingual language-name recognition.
-    for (var attempt = 0; attempt < 3; attempt++) {
+    for (var attempt = 0; attempt < 4; attempt++) {
       await tts.setLanguage('en-US');
 
       final prompt = attempt == 0
@@ -283,11 +283,11 @@ class _LiveCameraScreenState
           : 'Please say only one, two, or three.';
 
       await speakRaw(prompt);
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(const Duration(milliseconds: 900));
 
       final answer = await voice.listen(
         localeId: 'en-US',
-        timeout: const Duration(seconds: 10),
+        timeout: const Duration(seconds: 12),
       );
 
       final detected = LanguageService.detectCommand(answer ?? '');
