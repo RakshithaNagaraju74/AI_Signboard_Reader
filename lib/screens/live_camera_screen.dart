@@ -1525,8 +1525,8 @@ class _LiveCameraScreenState
         language.code == 'hi'
 ? 'मैंने ${place.matchedName} के लिए पैदल नेविगेशन खोला है।'
             : language.code == 'kn'
-                ? place.matchedName + ' ಗೆ ನಡೆದುಹೋಗುವ ನ್ಯಾವಿಗೇಶನ್ ತೆರೆಯಲಾಗಿದೆ.'
-: 'I opened walking navigation to ${place.matchedName}.',
+                ? '${place.matchedName} ಗೆ ನಡೆದುಹೋಗುವ ನ್ಯಾವಿಗೇಶನ್ ತೆರೆಯಲಾಗಿದೆ.'
+                : 'I opened walking navigation to ${place.matchedName}.',
       );
     } else {
       await speak(copy('navigationLimit'));
@@ -2017,7 +2017,7 @@ class _LiveCameraScreenState
                           Text(
                             stopped
                                 ? 'Paused'
-                                : 'Live • ${language.name}${focusMode ? ' • Focus' : ''},
+                                : 'Live • ${language.name}${focusMode ? ' • Focus' : ''}',
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                             ),
