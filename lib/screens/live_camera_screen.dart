@@ -42,6 +42,7 @@ class _LiveCameraScreenState
   bool focusMode = false;
   bool sceneScanMode = false;
   bool onboarding = true;
+  bool showBrandIntro = true;
   bool demoMode = false;
   bool languageChosen = false;
   File? pendingRecoveredImage;
@@ -95,8 +96,14 @@ class _LiveCameraScreenState
 
   Future<void> start() async {
     try {
-      status = 'Starting AI Signboard Reader';
+      status = 'Starting SightToSound';
       if (mounted) setState(() {});
+
+      // Give the branded launch screen time to be perceived before asking
+      // the user for speech input. This is intentionally short so the app
+      // still feels immediate.
+      await Future<void>.delayed(const Duration(milliseconds: 1800));
+      if (mounted) setState(() => showBrandIntro = false);
 
       final saved = await lang.load();
       if (saved == null) {
@@ -179,7 +186,7 @@ class _LiveCameraScreenState
 
     final controller = CameraController(
       backCamera,
-      ResolutionPreset.low,
+      ResolutionPreset.medium,
       enableAudio: false,
     );
 
@@ -256,121 +263,95 @@ class _LiveCameraScreenState
   Future<void> chooseLanguage() async {
     languageChosen = false;
 
-    // Initialize speech before asking the first question. This prevents the
-    // microphone from missing the first few words on some Android devices.
     await voice.initialize();
     await voice.stop();
+    await tts.initialize();
     await tts.stop();
 
     if (mounted) {
-      setState(() {
-        status = 'Listening for language choice';
-      });
+      setState(() => status = 'Choose your language');
     }
 
-    // Numbered choices are deliberately included because speech recognition
-    // often understands "one/two/three" more reliably than language names.
+    // Keep the first interaction extremely simple. English speech
+    // recognition is used only for the numeric choice because numbers are
+    // generally more robust than multilingual language-name recognition.
+    for (var attempt = 0; attempt < 3; attempt++) {
+      await tts.setLanguage('en-US');
+
+      final prompt = attempt == 0
+          ? 'Choose your language. Say one for English, two for Hindi, or three for Kannada.'
+          : 'Please say only one, two, or three.';
+
+      await speakRaw(prompt);
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+
+      final answer = await voice.listen(
+        localeId: 'en-US',
+        timeout: const Duration(seconds: 8),
+      );
+
+      final detected = LanguageService.detectCommand(answer ?? '');
+      if (detected == null) continue;
+
+      final selected = LanguageService.fromCode(detected);
+      if (selected == null) continue;
+
+      // Confirm before saving. This prevents a noisy recognition result from
+      // permanently selecting the wrong language.
+      await tts.setLanguage(selected.speechLocale);
+      await speakRaw(
+        selected.code == 'hi'
+            ? 'आपने हिंदी चुनी है। जारी रखने के लिए हाँ कहें, या फिर से चुनने के लिए नहीं कहें।'
+            : selected.code == 'kn'
+                ? 'ನೀವು ಕನ್ನಡವನ್ನು ಆಯ್ಕೆ ಮಾಡಿದ್ದೀರಿ. ಮುಂದುವರಿಯಲು ಹೌದು ಎಂದು ಹೇಳಿ, ಮತ್ತೆ ಆಯ್ಕೆ ಮಾಡಲು ಇಲ್ಲ ಎಂದು ಹೇಳಿ.'
+                : 'You selected English. Say yes to continue, or no to choose again.',
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      final confirmation = await voice.listen(
+        localeId: selected.speechLocale,
+        timeout: const Duration(seconds: 6),
+      );
+
+      if (LanguageService.isYes(confirmation ?? '')) {
+        await setLanguage(selected.code);
+        return;
+      }
+
+      if (LanguageService.isNo(confirmation ?? '')) {
+        await voice.stop();
+        continue;
+      }
+
+      // If confirmation is unclear, give one short retry in the same
+      // language rather than silently accepting the choice.
+      await speakRaw(
+        selected.code == 'hi'
+            ? 'कृपया हाँ या नहीं कहें।'
+            : selected.code == 'kn'
+                ? 'ದಯವಿಟ್ಟು ಹೌದು ಅಥವಾ ಇಲ್ಲ ಎಂದು ಹೇಳಿ.'
+                : 'Please say yes or no.',
+      );
+
+      final retry = await voice.listen(
+        localeId: selected.speechLocale,
+        timeout: const Duration(seconds: 4),
+      );
+
+      if (LanguageService.isYes(retry ?? '')) {
+        await setLanguage(selected.code);
+        return;
+      }
+    }
+
+    // Never trap a blind user in speech onboarding.
     await tts.setLanguage('en-US');
     await speakRaw(
-      'Welcome to Signboard Reader. '
-      'Choose your language. '
-      'Say English, or number one. '
-      'Say Hindi, or number two. '
-      'Say Kannada, or number three.',
-    );
-
-    // Give Android speech recognition a short moment after TTS finishes.
-    await Future<void>.delayed(
-      const Duration(milliseconds: 450),
-    );
-
-    final answer = await voice.listen(
-      localeId: 'en-US',
-      timeout: const Duration(seconds: 7),
-    );
-
-    final detected =
-        LanguageService.detectCommand(answer ?? '');
-
-    if (detected != null) {
-      await setLanguage(detected);
-      return;
-    }
-
-    // Second attempt: ask for a simple number only.
-    await tts.setLanguage('en-US');
-    await speakRaw(
-      'I did not catch that. '
-      'Say one for English, two for Hindi, or three for Kannada.',
-    );
-
-    await Future<void>.delayed(
-      const Duration(milliseconds: 350),
-    );
-
-    final numberAnswer = await voice.listen(
-      localeId: 'en-US',
-      timeout: const Duration(seconds: 5),
-    );
-
-    final numberDetected =
-        LanguageService.detectCommand(numberAnswer ?? '');
-
-    if (numberDetected != null) {
-      await setLanguage(numberDetected);
-      return;
-    }
-
-    // Third attempt: recognize the user's native language name directly.
-    await tts.setLanguage('hi-IN');
-    await speakRaw(
-      'भाषा चुनने के लिए हिंदी कहें।',
-    );
-
-    await Future<void>.delayed(
-      const Duration(milliseconds: 350),
-    );
-
-    final hindiAnswer = await voice.listen(
-      localeId: 'hi-IN',
-      timeout: const Duration(seconds: 4),
-    );
-
-    if (_containsLanguageAnswer(hindiAnswer, 'hi')) {
-      await setLanguage('hi');
-      return;
-    }
-
-    await tts.setLanguage('kn-IN');
-    await speakRaw(
-      'ಭಾಷೆಯನ್ನು ಆಯ್ಕೆ ಮಾಡಲು ಕನ್ನಡ ಎಂದು ಹೇಳಿ.',
-    );
-
-    await Future<void>.delayed(
-      const Duration(milliseconds: 350),
-    );
-
-    final kannadaAnswer = await voice.listen(
-      localeId: 'kn-IN',
-      timeout: const Duration(seconds: 4),
-    );
-
-    if (_containsLanguageAnswer(kannadaAnswer, 'kn')) {
-      await setLanguage('kn');
-      return;
-    }
-
-    // Never trap a blind user in onboarding.
-    await tts.setLanguage('en-US');
-    await speakRaw(
-      'I could not hear your choice. '
-      'Please tap one of the three large language buttons.',
+      'Voice selection was not clear. The three large buttons below can be used to choose your language.',
     );
 
     if (mounted) {
-      setState(() {
-        status = 'Choose English, Hindi, or Kannada';
-      });
+      setState(() => status = 'Choose English, Hindi, or Kannada');
     }
   }
 
@@ -1910,6 +1891,56 @@ class _LiveCameraScreenState
   Widget build(
     BuildContext context,
   ) {
+    if (showBrandIntro) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Semantics(
+          label: 'SightToSound. From sight to sound. From sound to freedom.',
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 132,
+                    height: 132,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white24, width: 2),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.asset(
+                      'assets/images/app_logo.png',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.graphic_eq_rounded,
+                        size: 72,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'SightToSound',
+                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'From Sight to Sound.\nFrom Sound to Freedom.',
+                    style: TextStyle(fontSize: 19, height: 1.45),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 26),
+                  const CircularProgressIndicator(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     if (onboarding) {
       return Scaffold(
         backgroundColor: Colors.black,
@@ -1923,7 +1954,7 @@ class _LiveCameraScreenState
                   const Icon(Icons.record_voice_over, size: 72),
                   const SizedBox(height: 20),
                   const Text(
-                    'AI Signboard Reader',
+                    'SightToSound',
                     style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
