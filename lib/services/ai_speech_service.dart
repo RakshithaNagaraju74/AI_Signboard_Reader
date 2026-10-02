@@ -29,7 +29,7 @@ class SpeechDetectionInput {
     return {
       'sign': label,
       'position': position,
-      if (text.isNotEmpty) 'visible_text': text,
+      if (text.isNotEmpty) 'visible_text': _normalizeVisibleText(text),
       if (movement.isNotEmpty) 'movement': movement,
       if (proximity.isNotEmpty) 'proximity': proximity,
       if (guidance.isNotEmpty) 'guidance': guidance,
@@ -104,10 +104,11 @@ class AISpeechService {
 
       if (generated != null && generated.trim().isNotEmpty) {
         final cleaned = _clean(generated);
-        if (_matchesRequestedLanguage(cleaned, languageCode)) {
-          _debug('Groq response ACCEPTED -> language=$languageCode, chars=${cleaned.length}');
-          _debug('FINAL SPOKEN RESULT -> $cleaned');
-          return cleaned;
+        final repaired = _repairSpokenOCR(cleaned);
+        if (_matchesRequestedLanguage(repaired, languageCode)) {
+          _debug('Groq response ACCEPTED -> language=$languageCode, chars=${repaired.length}');
+          _debug('FINAL SPOKEN RESULT -> $repaired');
+          return repaired;
         }
         _debug('Groq response REJECTED -> wrong language/script for $languageCode');
       }
@@ -646,6 +647,130 @@ EXAMPLES:
     }
 
     return '';
+  }
+
+  String _repairSpokenOCR(String value) {
+    var result = value.trim();
+    const replacements = <String, String>{
+      'PHARNACY': 'PHARMACY',
+      'PHARMASY': 'PHARMACY',
+      'PHARMECY': 'PHARMACY',
+      'PHARMCY': 'PHARMACY',
+      'MED1CAL': 'MEDICAL',
+      'MEDLCAL': 'MEDICAL',
+      'H0SPITAL': 'HOSPITAL',
+      'HOSPITA1': 'HOSPITAL',
+      'RESTARUNT': 'RESTAURANT',
+      'RESTURANT': 'RESTAURANT',
+      'RESTRAUNT': 'RESTAURANT',
+      'BAKARY': 'BAKERY',
+      'BAKKERY': 'BAKERY',
+      'SUPERMARKE': 'SUPERMARKET',
+      'MARTKET': 'MARKET',
+    };
+    for (final entry in replacements.entries) {
+      result = result.replaceAll(
+        RegExp(r'\\b' + RegExp.escape(entry.key) + r'\\b', caseSensitive: false),
+        entry.value,
+      );
+    }
+    const letterWords = <String, String>{
+      'P H A R M A C Y': 'pharmacy',
+      'H O S P I T A L': 'hospital',
+      'M E D I C A L': 'medical',
+      'P A R K I N G': 'parking',
+      'N O P A R K I N G': 'no parking',
+    };
+    for (final entry in letterWords.entries) {
+      result = result.replaceAll(RegExp(RegExp.escape(entry.key), caseSensitive: false), entry.value);
+    }
+    return result.replaceAll(RegExp(r'\\s+'), ' ').trim();
+  }
+
+  static String _normalizeVisibleText(String value) {
+    var result = value.trim();
+    const replacements = <String, String>{
+      'pharnacy': 'pharmacy',
+      'pharmasy': 'pharmacy',
+      'pharmecy': 'pharmacy',
+      'pharmcy': 'pharmacy',
+      'med1cal': 'medical',
+      'medlcal': 'medical',
+      'h0spital': 'hospital',
+      'hospita1': 'hospital',
+      'restarunt': 'restaurant',
+      'resturant': 'restaurant',
+      'restraunt': 'restaurant',
+      'bakary': 'bakery',
+      'bakkery': 'bakery',
+      'supermarke': 'supermarket',
+      'martket': 'market',
+    };
+    final words = result.split(RegExp(r'\\s+'));
+    for (var i = 0; i < words.length; i++) {
+      final replacement = replacements[words[i].toLowerCase()];
+      if (replacement != null) words[i] = replacement;
+    }
+    result = words.join(' ');
+    final letters = result.split(' ');
+    if (letters.length >= 4 && letters.every((word) => RegExp(r'^[A-Za-z]
+    if (text.trim().isEmpty) return false;
+    if (languageCode == 'kn') return RegExp(r'[\u0C80-\u0CFF]').hasMatch(text);
+    if (languageCode == 'hi') return RegExp(r'[\u0900-\u097F]').hasMatch(text);
+    return true;
+  }
+
+  String _clean(String value) {
+    var result = value.trim();
+
+    // Remove common prefixes such as:
+    // "assistant: ..."
+    // "response: ..."
+    result = result.replaceFirst(
+      RegExp(
+        r'^(assistant|response):\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+
+    // Remove one pair of surrounding quotes.
+    if (result.length >= 2) {
+      final startsWithQuote =
+          result.startsWith('"') ||
+              result.startsWith("'");
+
+      final endsWithQuote =
+          result.endsWith('"') ||
+              result.endsWith("'");
+
+      if (startsWithQuote &&
+          endsWithQuote) {
+        result = result.substring(
+          1,
+          result.length - 1,
+        );
+      }
+    }
+
+    return result.trim();
+  }
+}).hasMatch(word))) {
+      final compact = letters.join().toLowerCase();
+      const known = <String, String>{
+        'pharmacy': 'pharmacy',
+        'hospital': 'hospital',
+        'medical': 'medical',
+        'parking': 'parking',
+        'school': 'school',
+        'restaurant': 'restaurant',
+        'bakery': 'bakery',
+        'market': 'market',
+        'railway': 'railway',
+      };
+      result = known[compact] ?? result;
+    }
+    return result;
   }
 
   bool _matchesRequestedLanguage(String text, String languageCode) {
