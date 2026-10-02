@@ -58,6 +58,11 @@ class AISpeechService {
     final value = dotenv.env['NARA_MODEL']?.trim();
 
     if (value != null && value.isNotEmpty) {
+      // NaraRouter's documented stable router alias.
+      // Normalize the older Agnes alias used by previous .env files.
+      if (value == 'agnes-2.5-flash') {
+        return 'auto/bynara';
+      }
       return value;
     }
 
@@ -233,6 +238,13 @@ EXAMPLES:
       _debug('HTTP STATUS = ${response.statusCode}');
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
+        var detail = body.replaceAll(RegExp(r'\\s+'), ' ').trim();
+        if (detail.length > 500) {
+          detail = detail.substring(0, 500);
+        }
+        if (detail.isNotEmpty) {
+          _debug('ERROR BODY -> $detail');
+        }
         _debug('REQUEST FAILED -> HTTP ${response.statusCode} -> local fallback');
         return null;
       }
