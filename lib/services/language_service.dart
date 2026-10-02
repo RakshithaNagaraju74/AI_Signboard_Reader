@@ -59,40 +59,37 @@ class LanguageService {
     if (value.isEmpty) return null;
 
     if (_containsAny(value, [
-      'kannada', 'kanada', 'canada', 'can adda', 'kannad',
-      'ಕನ್ನಡ', 'three', 'number three', 'option three', 'third', '3',
-    ])) return 'kn';
-
-    if (_containsAny(value, [
-      'hindi', 'hindee', 'hindy', 'indie', 'indi',
-      'hindi language', 'हिंदी', 'हिन्दी',
-      'two', 'number two', 'option two', 'second', '2',
-    ])) return 'hi';
-
-    if (_containsAny(value, [
       'english', 'england', 'inglish', 'in glish',
       'english language', 'one', 'number one', 'option one', 'first', '1',
-    ])) return 'en';
+    ])) {
+      return 'en';
+    }
 
     return null;
   }
 
-  static bool isYes(String text) => _containsAny(normalize(text), [
-    'yes', 'yeah', 'yep', 'correct', 'confirm', 'okay', 'ok',
-    'haan', 'हां', 'हाँ', 'howdu', 'ಹೌದು',
-  ]);
+  static bool isYes(String text) {
+    return _containsAny(normalize(text), [
+      'yes', 'yeah', 'yep', 'correct', 'confirm', 'okay', 'ok',
+      'haan', 'हां', 'हाँ', 'howdu', 'ಹೌದು',
+    ]);
+  }
 
-  static bool isNo(String text) => _containsAny(normalize(text), [
-    'no', 'nope', 'wrong', 'again', 'change',
-    'nah', 'nahi', 'नहीं', 'illa', 'ಇಲ್ಲ',
-  ]);
+  static bool isNo(String text) {
+    return _containsAny(normalize(text), [
+      'no', 'nope', 'wrong', 'again', 'change',
+      'nah', 'nahi', 'नहीं', 'illa', 'ಇಲ್ಲ',
+    ]);
+  }
 
   static bool _containsAny(String value, List<String> candidates) {
     for (final candidate in candidates) {
       if (value == candidate ||
-          value.contains(' ' + candidate + ' ') ||
-          value.startsWith(candidate + ' ') ||
-          value.endsWith(' ' + candidate)) return true;
+          value.contains(' $candidate ') ||
+          value.startsWith('$candidate ') ||
+          value.endsWith(' $candidate')) {
+        return true;
+      }
     }
     return false;
   }
