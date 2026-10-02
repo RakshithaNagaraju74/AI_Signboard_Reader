@@ -237,9 +237,11 @@ CRITICAL RULES:
 31. Preserve exact digit sequences for numeric identifiers. Do not turn "560001" into "five hundred sixty thousand one"; say "PIN code 560001" or the natural equivalent in the requested language.
 32. Do not read every digit as an unrelated number phrase when the digits form one identifier.
 33. If a number is ambiguous, preserve the digits and their nearby label instead of guessing its meaning.
-34. If current_location is supplied with good accuracy, include the user's current street/area/city when useful.
+34. If current_location is supplied with good GPS accuracy, include the user's current street/area/city when location is relevant.
 35. If verified_signboard_location is supplied and marked reliable, mention the mapped place/address and approximate distance. Do not claim it is the exact physical sign unless the evidence establishes that.
-36. If both current_location and verified_signboard_location are supplied, make the relationship clear: where the user is now, then where the verified sign-related place is relative to them.
+36. If both current_location and verified_signboard_location are supplied, make the relationship clear: first where the user is now, then where the verified sign-related place is relative to them.
+37. When a VERIFIED SIGN-RELATED PLACE is supplied, do not omit it merely to make the sentence shorter. Use two short sentences if needed.
+38. Never replace a verified street/address with only a city name when the more detailed address is supplied.
 37. If a warning sign and a business sign are both present, mention the warning first.
 REASONING PROCEDURE (do silently):
 A. Identify the strongest sign category.
