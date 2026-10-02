@@ -94,7 +94,7 @@ class VoiceCommandService {
         listenOptions: SpeechListenOptions(
           localeId: effectiveLocale,
           listenFor: timeout,
-          pauseFor: const Duration(seconds: 2),
+          pauseFor: const Duration(seconds: 3),
           partialResults: true,
           cancelOnError: false,
           autoPunctuation: false,
