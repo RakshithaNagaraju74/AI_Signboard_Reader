@@ -27,8 +27,10 @@ class PlaceVerification {
     required this.relation,
   });
 
+  // Only speak a mapped place as verified when the name match is strong.
   bool get reliable =>
-      matchScore >= 0.45 && relation != PlaceRelation.uncertain;
+      matchScore >= 0.80 &&
+      relation != PlaceRelation.uncertain;
 
   String get shortDistance {
     if (distanceMeters < 1000) {
@@ -354,8 +356,8 @@ class PlaceVerificationService {
   }
 
   PlaceRelation _relation(double meters) {
-    if (meters <= 120) return PlaceRelation.onSite;
-    if (meters <= 500) return PlaceRelation.nearby;
+    if (meters <= 80) return PlaceRelation.onSite;
+    if (meters <= 300) return PlaceRelation.nearby;
     return PlaceRelation.elsewhere;
   }
 
