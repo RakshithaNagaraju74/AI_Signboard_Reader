@@ -66,18 +66,27 @@ class AISpeechService {
 
   bool get naraEnabled => _apiKey.isNotEmpty;
 
+  void _debug(String message) {
+    // Safe diagnostics: never print the API key or Authorization header.
+    // ignore: avoid_print
+    print('[NaraRouter] $message');
+  }
+
   Future<String> compose({
     required List<SpeechDetectionInput> detections,
     required String languageCode,
     String? place,
     bool useNara = true,
   }) async {
+    _debug(
+      'compose() called: useNara=$useNara, keyLoaded=${_apiKey.isNotEmpty}, '
+      'model=$_model, endpoint=$_endpoint, language=$languageCode, '
+      'detections=${detections.length}',
+    );
+
     if (detections.isEmpty) {
-      return _fallback(
-        detections,
-        languageCode,
-        place,
-      );
+      _debug('No detections -> local fallback.');
+      return _fallback(detections, languageCode, place);
     }
 
     if (useNara && naraEnabled) {
@@ -87,10 +96,16 @@ class AISpeechService {
         place: place,
       );
 
-      if (generated != null &&
-          generated.trim().isNotEmpty) {
-        return _clean(generated);
+      if (generated != null && generated.trim().isNotEmpty) {
+        final cleaned = _clean(generated);
+        if (_matchesRequestedLanguage(cleaned, languageCode)) {
+          _debug('NaraRouter response ACCEPTED -> language=$languageCode, chars=${cleaned.length}');
+          return cleaned;
+        }
+        _debug('NaraRouter response REJECTED -> wrong language/script for $languageCode');
       }
+    } else if (useNara) {
+      _debug('NaraRouter requested but API key is missing -> local fallback.');
     }
 
     return _fallback(
@@ -108,6 +123,7 @@ class AISpeechService {
     HttpClient? client;
 
     try {
+      _debug('REQUEST START -> POST /chat/completions model=$_model language=$languageCode');
       client = HttpClient()
         ..connectionTimeout = const Duration(seconds: 5);
 
@@ -145,14 +161,21 @@ You are SightToSound, an accessibility narration engine for a blind pedestrian.
 
 Your ONLY job is to convert visual detection evidence into one short, accurate, natural sentence that can be spoken aloud.
 
+IMPORTANT EVIDENCE MODEL:
+- The input is structured evidence from a detector and OCR. You do NOT see the camera image.
+- "sign" is the detector's class/category and is important evidence. Never ignore it.
+- "visible_text" is OCR text from the sign. It may be noisy, incomplete, or only a symbol.
+- "proximity" is an estimated relation to the camera. A number such as 50M inside visible_text is NOT the distance from the user.
+- Never say a sign is 50 metres away merely because the sign contains 50M. Only use a distance when explicitly supplied by proximity or guidance.
+
 CRITICAL RULES:
 1. NEVER output class IDs, confidence scores, bounding boxes, JSON, OCR terminology, model terminology, debugging text, or words such as "class 0".
 2. NEVER simply repeat the detected label. Interpret the label together with all visible text and context.
 3. visible_text is noisy OCR. Correct obvious OCR errors only when the evidence strongly supports the correction.
 4. Combine fragments. "M E D I C A L" -> "Medical". "H" on a hospital sign may mean Hospital. "P" on a parking/no-parking sign may mean Parking when the sign context supports it.
 5. Do NOT invent missing words. If evidence is uncertain, describe only what is reliably known.
-6. Preserve numbers exactly. "50M" means "50 metres". Do not turn 2, 4, 6, 8 into an invented rule. Explain numbers only when their surrounding sign evidence establishes their meaning.
-7. If a sign says or clearly indicates NO PARKING, say "No parking" rather than merely "parking".
+6. Preserve useful numbers from the sign, but treat them as sign content. Never convert 50M or 20M in OCR into the user's distance from the sign.
+7. If the detector class or OCR clearly says NO PARKING / NO-PARKING, say "No parking". If evidence only says "P", do NOT claim no parking; say parking or a parking symbol.
 8. If several OCR fragments belong to one sign, combine them into one meaning instead of reading each fragment separately.
 9. Position is important. Use the supplied position exactly: far left, slightly left, directly ahead, slightly right, or far right.
 10. Mention movement or proximity only when supplied.
@@ -162,7 +185,9 @@ CRITICAL RULES:
 14. Prefer meaning over literal OCR. Never spell ordinary words letter by letter.
 15. Output ONLY the final spoken sentence. No quotes, headings, labels, explanations, or alternatives.
 16. Keep it natural and concise, normally one or two sentences.
-17. Speak in $languageName.
+17. Speak ONLY in $languageName. Do not answer in English when Hindi or Kannada is requested.
+18. Never spell isolated OCR letters as if they were a normal word.
+19. Never output internal detector or debugging terminology.
 
 REASONING PROCEDURE (do silently):
 A. Identify the strongest sign category.
@@ -174,7 +199,8 @@ F. Produce the safest useful narration supported by the evidence.
 
 EXAMPLES:
 - sign=parking, visible_text=P, position=directly ahead -> "There is a parking sign directly ahead."
-- sign=no parking, visible_text=P 50M -> "No parking ahead, with the restriction indicated for 50 metres." 
+- sign=no parking, visible_text=P 50M -> "There is a no-parking sign directly ahead." Do not call 50M the distance from the user.
+- sign=traffic, visible_text=P 50M -> "There is a parking symbol directly ahead." Do not claim no parking without evidence.
 - sign=hospital, visible_text=H -> "There is a hospital sign ahead."
 - sign=shop, visible_text=M E D I C A L -> "There is a medical shop sign ahead."
 - sign=stop, visible_text=STOP -> "There is a stop sign ahead."
@@ -199,12 +225,22 @@ EXAMPLES:
       );
 
       final body = await utf8.decoder.bind(response).join();
+      _debug('HTTP STATUS = ${response.statusCode}');
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
+        _debug('REQUEST FAILED -> HTTP ${response.statusCode} -> local fallback');
         return null;
       }
 
       final decoded = jsonDecode(body) as Map<String, dynamic>;
+      final usage = decoded['usage'];
+      if (usage is Map<String, dynamic>) {
+        _debug('TOKEN USAGE -> prompt=${usage['prompt_tokens']}, completion=${usage['completion_tokens']}, total=${usage['total_tokens']}');
+      } else {
+        _debug('TOKEN USAGE -> not returned by router');
+      }
+      _debug('ROUTER RESPONSE -> model=${decoded['model'] ?? 'unknown'}, requestId=${decoded['id'] ?? 'unknown'}');
+
       final choices = decoded['choices'] as List<dynamic>?;
 
       if (choices == null || choices.isEmpty) {
@@ -219,8 +255,10 @@ EXAMPLES:
         return null;
       }
 
+      _debug('RESPONSE CONTENT RECEIVED -> ${content.length} characters');
       return content;
-    } catch (_) {
+    } catch (e) {
+      _debug('REQUEST EXCEPTION -> $e');
       return null;
     } finally {
       client?.close(force: true);
@@ -541,6 +579,13 @@ EXAMPLES:
     }
 
     return '';
+  }
+
+  bool _matchesRequestedLanguage(String text, String languageCode) {
+    if (text.trim().isEmpty) return false;
+    if (languageCode == 'kn') return RegExp(r'[\u0C80-\u0CFF]').hasMatch(text);
+    if (languageCode == 'hi') return RegExp(r'[\u0900-\u097F]').hasMatch(text);
+    return true;
   }
 
   String _clean(String value) {
