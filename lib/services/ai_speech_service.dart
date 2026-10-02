@@ -109,135 +109,118 @@ class AISpeechService {
 
     try {
       client = HttpClient()
-        ..connectionTimeout =
-            const Duration(seconds: 2);
+        ..connectionTimeout = const Duration(seconds: 5);
 
       final base = _endpoint.endsWith('/')
-          ? _endpoint.substring(
-              0,
-              _endpoint.length - 1,
-            )
+          ? _endpoint.substring(0, _endpoint.length - 1)
           : _endpoint;
 
       final request = await client
-          .postUrl(
-            Uri.parse(
-              '$base/chat/completions',
-            ),
-          )
-          .timeout(
-            const Duration(seconds: 3),
-          );
+          .postUrl(Uri.parse('$base/chat/completions'))
+          .timeout(const Duration(seconds: 7));
 
-      request.headers.contentType =
-          ContentType.json;
-
+      request.headers.contentType = ContentType.json;
       request.headers.set(
         HttpHeaders.authorizationHeader,
         'Bearer $_apiKey',
       );
 
-      final languageName =
-          languageCode == 'hi'
-              ? 'Hindi'
-              : languageCode == 'kn'
-                  ? 'Kannada'
-                  : 'English';
+      final languageName = languageCode == 'hi'
+          ? 'Hindi'
+          : languageCode == 'kn'
+              ? 'Kannada'
+              : 'English';
+
+      final evidence = detections.map((d) => d.toJson()).toList();
 
       final payload = {
         'model': _model,
-        'temperature': 0.1,
-        'reasoning_effort': 'high',
-        'max_completion_tokens': 180,
+        'temperature': 0.0,
+        'max_tokens': 220,
         'messages': [
           {
             'role': 'system',
-            'content':
-                'You are the accessibility voice assistant for a blind pedestrian. '
-                'Transform the supplied visual detections into a calm, helpful spoken description in $languageName. '
-                'The user needs useful information, not technical analysis. '
-                'Treat visible_text as noisy OCR, not as ground truth. First silently correct obvious OCR spelling and spacing mistakes when the intended word is clear. ' +
-                'For letter-spaced text such as M E D I C A L, combine it into a normal word when context makes that clear. ' +
-                'Do not blindly preserve OCR errors, but never invent or guess a word when the evidence is insufficient. ' +
-                'Use the sign category, OCR text, visible letters, numbers, position, and place context together as evidence. Do not treat a single OCR character literally when it is clearly a sign abbreviation. ' +
-                'Context examples: P or a partial P on a parking/no-parking sign can mean Parking or No Parking when the sign category and surrounding evidence support it; H on a hospital/medical sign can mean Hospital; a single B, M, S, etc. may be a shortened word only when the sign context strongly supports it. ' +
-                'If OCR returns only one or two characters, first ask what real-world sign meaning best explains those characters together with the detected sign class and other OCR fragments. ' +
-                'For a No Parking sign, combine fragments such as P, NO, 50 M, and vehicle/type markings into one useful meaning instead of reading them as separate letters and numbers. ' +
-                'If the sign contains a distance such as 50M, interpret it as a distance and say "50 metres" rather than reading each character. ' +
-                'If vehicle classes or counts such as 2, 4, 6, or 8 appear, treat them as sign restrictions or vehicle categories when the sign context indicates that, and explain the meaning naturally without inventing a rule that is not supported by the sign. ' +
-                'Prioritize the corrected readable sign meaning over the generic sign category. If OCR text exists, say what the sign means in context. '
-                'Example style: There is a shop sign directly ahead. It says Medical Store. '
-                'If there is no readable text, briefly describe the sign category and where it is. '
-                'Use position words such as left, slightly left, ahead, slightly right, and right exactly as supplied. '
-                'Only mention getting closer, farther away, or other movement when supplied. '
-                'Do not give road-crossing or turning instructions unless explicit guidance says so. '
-                'Never invent text, places, distances, objects, destinations, or hazards. Only correct OCR when the correction is strongly supported by the detected characters and context. '
-                'Never mention class IDs, confidence, bounding boxes, JSON, OCR, model names, or developer language. '
-                'For a safety sign, start with a clear warning. '
-                'If a place_context warns that a sign advertises a place elsewhere, say that clearly. '
-                'Read words as normal human language, never as a sequence of letters unless the sign genuinely contains an acronym or initials. ' +
-                'Treat phone numbers, PIN codes, OTPs, house numbers, route numbers, prices, dates, and other numeric strings as meaningful numbers, not arithmetic. ' +
-                'For phone numbers and PIN codes, preserve every digit and present them in small natural groups so text-to-speech reads the digits clearly. ' +
-                'Never pronounce a word letter-by-letter merely because OCR supplied isolated characters. Prefer the complete human-readable word or meaning whenever context makes it reliable. ' +
-                'Do not drop, reorder, merge, or invent digits. For ordinary numbers, use natural spoken-number wording when appropriate. ' +
-                'Avoid repetitive wording and combine related information into a short natural sentence. '
-                'Keep the narration concise, ideally one or two sentences. Return only the spoken narration, with no quotation marks, labels, bullet points, markdown, or explanations.',
+            'content': '''
+You are SightToSound, an accessibility narration engine for a blind pedestrian.
+
+Your ONLY job is to convert visual detection evidence into one short, accurate, natural sentence that can be spoken aloud.
+
+CRITICAL RULES:
+1. NEVER output class IDs, confidence scores, bounding boxes, JSON, OCR terminology, model terminology, debugging text, or words such as "class 0".
+2. NEVER simply repeat the detected label. Interpret the label together with all visible text and context.
+3. visible_text is noisy OCR. Correct obvious OCR errors only when the evidence strongly supports the correction.
+4. Combine fragments. "M E D I C A L" -> "Medical". "H" on a hospital sign may mean Hospital. "P" on a parking/no-parking sign may mean Parking when the sign context supports it.
+5. Do NOT invent missing words. If evidence is uncertain, describe only what is reliably known.
+6. Preserve numbers exactly. "50M" means "50 metres". Do not turn 2, 4, 6, 8 into an invented rule. Explain numbers only when their surrounding sign evidence establishes their meaning.
+7. If a sign says or clearly indicates NO PARKING, say "No parking" rather than merely "parking".
+8. If several OCR fragments belong to one sign, combine them into one meaning instead of reading each fragment separately.
+9. Position is important. Use the supplied position exactly: far left, slightly left, directly ahead, slightly right, or far right.
+10. Mention movement or proximity only when supplied.
+11. Safety information comes first.
+12. Do not give crossing, turning, route, or navigation instructions unless explicit guidance is supplied.
+13. Do not mention place context unless it is useful to understanding the sign.
+14. Prefer meaning over literal OCR. Never spell ordinary words letter by letter.
+15. Output ONLY the final spoken sentence. No quotes, headings, labels, explanations, or alternatives.
+16. Keep it natural and concise, normally one or two sentences.
+17. Speak in $languageName.
+
+REASONING PROCEDURE (do silently):
+A. Identify the strongest sign category.
+B. Collect every OCR fragment and number belonging to that detection.
+C. Repair obvious spacing, character substitutions, and partial words.
+D. Check whether fragments change the meaning of the sign, especially NOT/NO, arrows, distances, restrictions, and warnings.
+E. Combine category + readable meaning + position + relevant distance/proximity.
+F. Produce the safest useful narration supported by the evidence.
+
+EXAMPLES:
+- sign=parking, visible_text=P, position=directly ahead -> "There is a parking sign directly ahead."
+- sign=no parking, visible_text=P 50M -> "No parking ahead, with the restriction indicated for 50 metres." 
+- sign=hospital, visible_text=H -> "There is a hospital sign ahead."
+- sign=shop, visible_text=M E D I C A L -> "There is a medical shop sign ahead."
+- sign=stop, visible_text=STOP -> "There is a stop sign ahead."
+- uncertain OCR such as XQ7 -> do not invent a word; describe the detected sign category and position.
+''',
           },
           {
             'role': 'user',
             'content': jsonEncode({
               'language': languageName,
               'location_context': place ?? '',
-              'detections': detections
-                  .map((e) => e.toJson())
-                  .toList(),
+              'detections': evidence,
             }),
           },
         ],
       };
 
-      request.add(
-        utf8.encode(
-          jsonEncode(payload),
-        ),
+      request.add(utf8.encode(jsonEncode(payload)));
+
+      final response = await request.close().timeout(
+        const Duration(seconds: 10),
       );
 
-      final response = await request
-          .close()
-          .timeout(
-            const Duration(seconds: 4),
-          );
+      final body = await utf8.decoder.bind(response).join();
 
-      final body = await utf8.decoder
-          .bind(response)
-          .join();
-
-      if (response.statusCode < 200 ||
-          response.statusCode >= 300) {
+      if (response.statusCode < 200 || response.statusCode >= 300) {
         return null;
       }
 
-      final decoded =
-          jsonDecode(body)
-              as Map<String, dynamic>;
+      final decoded = jsonDecode(body) as Map<String, dynamic>;
+      final choices = decoded['choices'] as List<dynamic>?;
 
-      final choices =
-          decoded['choices'] as List<dynamic>?;
-
-      if (choices == null ||
-          choices.isEmpty) {
+      if (choices == null || choices.isEmpty) {
         return null;
       }
 
-      final firstChoice =
-          choices.first as Map<String, dynamic>;
+      final first = choices.first as Map<String, dynamic>;
+      final message = first['message'] as Map<String, dynamic>?;
+      final content = message?['content']?.toString().trim();
 
-      final message =
-          firstChoice['message']
-              as Map<String, dynamic>?;
+      if (content == null || content.isEmpty) {
+        return null;
+      }
 
-      return message?['content']?.toString();
-    } catch (e) {
+      return content;
+    } catch (_) {
       return null;
     } finally {
       client?.close(force: true);
