@@ -550,7 +550,7 @@ class _LiveCameraScreenState
       final text = context.detection.ocrText.trim();
       var placeContext = '';
 
-      if (currentLocation != null && text.isNotEmpty) {
+      if (currentLocation != null && placeVerifier.isPlaceLikeText(text)) {
         final verification = await placeVerifier.verify(
           visibleText: text,
           location: currentLocation!,
@@ -558,7 +558,7 @@ class _LiveCameraScreenState
 
         if (verification != null && verification.reliable) {
           lastVerifiedPlace = verification;
-          placeContext = localizedPlaceContext(verification);
+          placeContext = placeVerifier.spokenContext(verification);
         }
       }
 
@@ -568,7 +568,7 @@ class _LiveCameraScreenState
 
       inputs.add(
         SpeechDetectionInput(
-          label: localizedClass(context.detection.className),
+          label: '',
           position: localizedPosition(context.position),
           text: text,
           movement: context.movement,
