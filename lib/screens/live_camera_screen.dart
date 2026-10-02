@@ -102,7 +102,7 @@ class _LiveCameraScreenState
       // Give the branded launch screen time to be perceived before asking
       // the user for speech input. This is intentionally short so the app
       // still feels immediate.
-      await Future<void>.delayed(const Duration(milliseconds: 1800));
+      await Future<void>.delayed(const Duration(milliseconds: 2600));
       if (mounted) setState(() => showBrandIntro = false);
 
       final saved = await lang.load();
@@ -283,11 +283,11 @@ class _LiveCameraScreenState
           : 'Please say only one, two, or three.';
 
       await speakRaw(prompt);
-      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
 
       final answer = await voice.listen(
         localeId: 'en-US',
-        timeout: const Duration(seconds: 8),
+        timeout: const Duration(seconds: 10),
       );
 
       final detected = LanguageService.detectCommand(answer ?? '');
