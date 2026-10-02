@@ -30,7 +30,8 @@ class PlaceVerification {
   // Only speak a mapped place as verified when the name match is strong.
   bool get reliable =>
       matchScore >= 0.80 &&
-      relation != PlaceRelation.uncertain;
+      relation != PlaceRelation.uncertain &&
+      displayName.trim().isNotEmpty;
 
   String get shortDistance {
     if (distanceMeters < 1000) {
