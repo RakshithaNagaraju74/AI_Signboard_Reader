@@ -32,9 +32,9 @@ class PlaceVerification {
 
   String get shortDistance {
     if (distanceMeters < 1000) {
-      return distanceMeters.round().toString() + ' metres';
+      return '${distanceMeters.round()} metres';
     }
-    return (distanceMeters / 1000).toStringAsFixed(1) + ' kilometres';
+    return '${(distanceMeters / 1000).toStringAsFixed(1)} kilometres';
   }
 }
 
@@ -56,12 +56,7 @@ class PlaceVerificationService {
     final query = _cleanQuery(visibleText);
     if (query.length < 4 || _looksGeneric(query)) return null;
 
-    final cacheKey =
-        query.toLowerCase() +
-        '|' +
-        location.latitude.toStringAsFixed(3) +
-        '|' +
-        location.longitude.toStringAsFixed(3);
+    final cacheKey = '${query.toLowerCase()}|${location.latitude.toStringAsFixed(3)}|${location.longitude.toStringAsFixed(3)}';
 
     final cached = _cache[cacheKey];
     if (cached != null &&
@@ -84,8 +79,7 @@ class PlaceVerificationService {
     HttpClient? client;
     try {
       final city = location.city?.trim() ?? '';
-      final searchQuery =
-          city.isEmpty ? query : query + ', ' + city;
+      final searchQuery = city.isEmpty ? query : '$query, $city';
 
       client = HttpClient()
         ..connectionTimeout = const Duration(seconds: 3);
