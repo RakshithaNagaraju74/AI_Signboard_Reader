@@ -61,13 +61,18 @@ class PlaceVerificationService {
 
   String spokenContext(PlaceVerification verification) {
     final distance = verification.shortDistance;
+    final mappedAddress = verification.displayName.trim();
+    final addressPart = mappedAddress.isEmpty
+        ? ''
+        : ' Mapped address: ${verification.displayName}.';
+
     switch (verification.relation) {
       case PlaceRelation.onSite:
-        return 'The sign appears to refer to ${verification.matchedName}, and the location is about $distance from you.';
+        return 'VERIFIED SIGN-RELATED PLACE. ${verification.matchedName} is mapped about $distance from the user.$addressPart This is a map location for the named place, not proof of the exact physical sign position.';
       case PlaceRelation.nearby:
-        return '${verification.matchedName} appears to be nearby, about $distance from you.';
+        return 'VERIFIED NEARBY SIGN-RELATED PLACE. ${verification.matchedName} is mapped about $distance from the user.$addressPart This is a map location for the named place, not proof of the exact physical sign position.';
       case PlaceRelation.elsewhere:
-        return 'The sign refers to ${verification.matchedName}, which appears to be about $distance from your current location. The sign does not mean the place is here.';
+        return 'The sign refers to ${verification.matchedName}, mapped about $distance from the user.$addressPart This appears to be a different location, not the current sign position.';
       case PlaceRelation.uncertain:
         return '';
     }
