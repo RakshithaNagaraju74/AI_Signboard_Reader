@@ -125,7 +125,7 @@ class AISpeechService {
     try {
       _debug('REQUEST START -> POST /chat/completions model=$_model language=$languageCode');
       client = HttpClient()
-        ..connectionTimeout = const Duration(seconds: 5);
+        ..connectionTimeout = const Duration(seconds: 12);
 
       final base = _endpoint.endsWith('/')
           ? _endpoint.substring(0, _endpoint.length - 1)
@@ -133,7 +133,7 @@ class AISpeechService {
 
       final request = await client
           .postUrl(Uri.parse('$base/chat/completions'))
-          .timeout(const Duration(seconds: 7));
+          .timeout(const Duration(seconds: 15));
 
       request.headers.contentType = ContentType.json;
       request.headers.set(
@@ -164,14 +164,14 @@ Your ONLY job is to convert visual detection evidence into one short, accurate, 
 IMPORTANT EVIDENCE MODEL:
 - The input is structured evidence from a detector and OCR. You do NOT see the camera image.
 - "sign" is the detector's class/category and is important evidence. Never ignore it.
-- "visible_text" is OCR text from the sign. It may be noisy, incomplete, or only a symbol.
+- "visible_text" is OCR from the sign and may contain spelling errors, split letters, missing spaces, or character substitutions. Treat OCR as evidence, not final text.
 - "proximity" is an estimated relation to the camera. A number such as 50M inside visible_text is NOT the distance from the user.
 - Never say a sign is 50 metres away merely because the sign contains 50M. Only use a distance when explicitly supplied by proximity or guidance.
 
 CRITICAL RULES:
 1. NEVER output class IDs, confidence scores, bounding boxes, JSON, OCR terminology, model terminology, debugging text, or words such as "class 0".
 2. NEVER simply repeat the detected label. Interpret the label together with all visible text and context.
-3. visible_text is noisy OCR. Correct obvious OCR errors only when the evidence strongly supports the correction.
+3. Correct obvious OCR spelling and spacing errors before narration. For example, "pharnacy" -> "pharmacy", "MED1CAL" -> "MEDICAL", and "H0SPITAL" -> "HOSPITAL" when the sign/category supports it. Never make speculative corrections.
 4. Combine fragments. "M E D I C A L" -> "Medical". "H" on a hospital sign may mean Hospital. "P" on a parking/no-parking sign may mean Parking when the sign context supports it.
 5. Do NOT invent missing words. If evidence is uncertain, describe only what is reliably known.
 6. Preserve useful numbers from the sign, but treat them as sign content. Never convert 50M or 20M in OCR into the user's distance from the sign.
@@ -182,12 +182,14 @@ CRITICAL RULES:
 11. Safety information comes first.
 12. Do not give crossing, turning, route, or navigation instructions unless explicit guidance is supplied.
 13. Do not mention place context unless it is useful to understanding the sign.
-14. Prefer meaning over literal OCR. Never spell ordinary words letter by letter.
+14. Prefer meaning over literal OCR. Never spell ordinary words letter by letter. "P H A R M A C Y" and "PHARNACY" should become "pharmacy" when context is strong.
 15. Output ONLY the final spoken sentence. No quotes, headings, labels, explanations, or alternatives.
 16. Keep it natural and concise, normally one or two sentences.
 17. Speak ONLY in $languageName. Do not answer in English when Hindi or Kannada is requested.
 18. Never spell isolated OCR letters as if they were a normal word.
 19. Never output internal detector or debugging terminology.
+20. If a shop/business name is readable after correction, preserve that corrected name naturally.
+21. Never claim that a business is nearby unless location verification explicitly supplies that fact.
 
 REASONING PROCEDURE (do silently):
 A. Identify the strongest sign category.
@@ -203,6 +205,9 @@ EXAMPLES:
 - sign=traffic, visible_text=P 50M -> "There is a parking symbol directly ahead." Do not claim no parking without evidence.
 - sign=hospital, visible_text=H -> "There is a hospital sign ahead."
 - sign=shop, visible_text=M E D I C A L -> "There is a medical shop sign ahead."
+- sign=shop, visible_text=PHARNACY -> "There is a pharmacy sign ahead."
+- sign=shop, visible_text=SHREE MEDICALS -> "There is a Shree Medicals shop sign ahead."
+- sign=shop, visible_text=560001 -> "There is a shop sign ahead with PIN code 560001."
 - sign=stop, visible_text=STOP -> "There is a stop sign ahead."
 - uncertain OCR such as XQ7 -> do not invent a word; describe the detected sign category and position.
 ''',
@@ -221,7 +226,7 @@ EXAMPLES:
       request.add(utf8.encode(jsonEncode(payload)));
 
       final response = await request.close().timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 18),
       );
 
       final body = await utf8.decoder.bind(response).join();
