@@ -1,5 +1,6 @@
-import 'dart:async';\n\nimport 'package:flutter/foundation.dart';
+import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 class VoiceCommandService {
@@ -46,14 +47,23 @@ class VoiceCommandService {
 
       for (final locale in locales) {
         final id = locale.localeId.toLowerCase().replaceAll('_', '-');
-        if (id == requested) { effectiveLocale = locale.localeId; break; }
+        if (id == requested) {
+          effectiveLocale = locale.localeId;
+          break;
+        }
       }
+
       effectiveLocale ??= locales
-          .where((l) => l.localeId.toLowerCase().replaceAll('_', '-').startsWith('$base-'))
+          .where((l) => l.localeId
+              .toLowerCase()
+              .replaceAll('_', '-')
+              .startsWith('$base-'))
           .map((l) => l.localeId)
           .cast<String?>()
           .firstWhere((_) => true, orElse: () => null);
-      effectiveLocale ??= locales.isNotEmpty ? locales.first.localeId : localeId;
+
+      effectiveLocale ??=
+          locales.isNotEmpty ? locales.first.localeId : localeId;
 
       debugPrint('STT requested=$localeId effective=$effectiveLocale');
 
@@ -64,6 +74,7 @@ class VoiceCommandService {
             latestWords = words;
             debugPrint('STT recognized: $latestWords');
           }
+
           if (result.finalResult && !completer.isCompleted) {
             completer.complete(latestWords.isEmpty ? null : latestWords);
           }
@@ -86,14 +97,24 @@ class VoiceCommandService {
       debugPrint('STT listen failed: $e');
       return latestWords.isEmpty ? null : latestWords;
     } finally {
-      try { await _speech.stop(); } catch (_) {}
-      if (identical(_activeCompleter, completer)) _activeCompleter = null;
+      try {
+        await _speech.stop();
+      } catch (_) {}
+
+      if (identical(_activeCompleter, completer)) {
+        _activeCompleter = null;
+      }
     }
   }
 
   Future<void> stop() async {
     final completer = _activeCompleter;
-    if (completer != null && !completer.isCompleted) completer.complete(null);
-    try { await _speech.stop(); } catch (_) {}
+    if (completer != null && !completer.isCompleted) {
+      completer.complete(null);
+    }
+
+    try {
+      await _speech.stop();
+    } catch (_) {}
   }
 }
