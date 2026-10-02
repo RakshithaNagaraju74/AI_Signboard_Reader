@@ -41,40 +41,29 @@ class SpeechDetectionInput {
 
 class AISpeechService {
   String get _endpoint {
-    final value = dotenv.env['NARA_BASE_URL']?.trim();
-
-    if (value != null && value.isNotEmpty) {
-      return value;
-    }
-
-    return 'https://router.bynara.id/v1';
+    final value = dotenv.env['GROQ_BASE_URL']?.trim();
+    return value != null && value.isNotEmpty
+        ? value
+        : 'https://api.groq.com/openai/v1';
   }
 
   String get _apiKey {
-    return dotenv.env['NARA_API_KEY']?.trim() ?? '';
+    return dotenv.env['GROQ_API_KEY']?.trim() ?? '';
   }
 
   String get _model {
-    final value = dotenv.env['NARA_MODEL']?.trim();
-
-    if (value != null && value.isNotEmpty) {
-      // NaraRouter's documented stable router alias.
-      // Normalize the older Agnes alias used by previous .env files.
-      if (value == 'agnes-2.5-flash') {
-        return 'auto/bynara';
-      }
-      return value;
-    }
-
-    return 'auto/bynara';
+    final value = dotenv.env['GROQ_MODEL']?.trim();
+    return value != null && value.isNotEmpty
+        ? value
+        : 'llama-3.3-70b-versatile';
   }
 
-  bool get naraEnabled => _apiKey.isNotEmpty;
+  bool get groqEnabled => _apiKey.isNotEmpty;
 
   void _debug(String message) {
     // Safe diagnostics: never print the API key or Authorization header.
     // ignore: avoid_print
-    print('[NaraRouter] $message');
+    print('[Groq] $message');
   }
 
   Future<String> compose({
@@ -94,8 +83,8 @@ class AISpeechService {
       return _fallback(detections, languageCode, place);
     }
 
-    if (useNara && naraEnabled) {
-      final generated = await _composeWithNara(
+    if (useNara && groqEnabled) {
+      final generated = await _composeWithGroq(
         detections: detections,
         languageCode: languageCode,
         place: place,
@@ -104,14 +93,14 @@ class AISpeechService {
       if (generated != null && generated.trim().isNotEmpty) {
         final cleaned = _clean(generated);
         if (_matchesRequestedLanguage(cleaned, languageCode)) {
-          _debug('NaraRouter response ACCEPTED -> language=$languageCode, chars=${cleaned.length}');
+          _debug('Groq response ACCEPTED -> language=$languageCode, chars=${cleaned.length}');
           _debug('FINAL SPOKEN RESULT -> $cleaned');
           return cleaned;
         }
-        _debug('NaraRouter response REJECTED -> wrong language/script for $languageCode');
+        _debug('Groq response REJECTED -> wrong language/script for $languageCode');
       }
     } else if (useNara) {
-      _debug('NaraRouter requested but API key is missing -> local fallback.');
+      _debug('Groq requested but API key is missing -> local fallback.');
     }
 
     final fallback = _fallback(
@@ -123,7 +112,7 @@ class AISpeechService {
     return fallback;
   }
 
-  Future<String?> _composeWithNara({
+  Future<String?> _composeWithGroq({
     required List<SpeechDetectionInput> detections,
     required String languageCode,
     String? place,
@@ -241,7 +230,7 @@ EXAMPLES:
       _debug('HTTP STATUS = ${response.statusCode}');
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        var detail = body.replaceAll(RegExp(r'\\s+'), ' ').trim();
+        var detail = body.replaceAll(RegExp(r'[Groq]s+'), ' ').trim();
         if (detail.length > 500) {
           detail = detail.substring(0, 500);
         }
@@ -604,8 +593,8 @@ EXAMPLES:
 
   bool _matchesRequestedLanguage(String text, String languageCode) {
     if (text.trim().isEmpty) return false;
-    if (languageCode == 'kn') return RegExp(r'[\u0C80-\u0CFF]').hasMatch(text);
-    if (languageCode == 'hi') return RegExp(r'[\u0900-\u097F]').hasMatch(text);
+    if (languageCode == 'kn') return RegExp(r'[[Groq]0C80-[Groq]0CFF]').hasMatch(text);
+    if (languageCode == 'hi') return RegExp(r'[[Groq]0900-[Groq]097F]').hasMatch(text);
     return true;
   }
 
