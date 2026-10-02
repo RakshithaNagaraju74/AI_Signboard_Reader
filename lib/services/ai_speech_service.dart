@@ -105,6 +105,7 @@ class AISpeechService {
         final cleaned = _clean(generated);
         if (_matchesRequestedLanguage(cleaned, languageCode)) {
           _debug('NaraRouter response ACCEPTED -> language=$languageCode, chars=${cleaned.length}');
+          _debug('FINAL SPOKEN RESULT -> $cleaned');
           return cleaned;
         }
         _debug('NaraRouter response REJECTED -> wrong language/script for $languageCode');
@@ -273,6 +274,7 @@ EXAMPLES:
       }
 
       _debug('RESPONSE CONTENT RECEIVED -> ${content.length} characters');
+      _debug('NARA RESULT -> $content');
       return content;
     } catch (e) {
       _debug('REQUEST EXCEPTION -> $e');
