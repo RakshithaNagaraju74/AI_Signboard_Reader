@@ -10,21 +10,20 @@ class VoiceCommandService {
 
   Future<bool> initialize() async {
     if (_available) return true;
-
     try {
       _available = await _speech.initialize(
         onError: (error) {
-          if (error.permanent && _activeCompleter != null) {
-            final completer = _activeCompleter!;
-            if (!completer.isCompleted) completer.complete(null);
+          final completer = _activeCompleter;
+          if (completer != null && !completer.isCompleted && error.permanent) {
+            completer.complete(null);
           }
         },
-        onStatus: (_) {},
+        onStatus: (status) => print('STT status: $status'),
       );
-    } catch (_) {
+    } catch (e) {
+      print('STT initialization failed: $e');
       _available = false;
     }
-
     return _available;
   }
 
@@ -33,7 +32,6 @@ class VoiceCommandService {
     Duration timeout = const Duration(seconds: 8),
   }) async {
     if (!await initialize()) return null;
-
     await stop();
 
     final completer = Completer<String?>();
@@ -42,71 +40,60 @@ class VoiceCommandService {
 
     try {
       final locales = await _speech.locales();
-      final supportedIds = locales.map((locale) => locale.localeId).toSet();
+      final requested = localeId.toLowerCase().replaceAll('_', '-');
+      final base = requested.split('-').first;
+      String? effectiveLocale;
 
-      var effectiveLocale = localeId;
-      if (!supportedIds.contains(effectiveLocale)) {
-        final base = localeId.split(RegExp(r'[-_]')).first.toLowerCase();
-        final matching = locales.where(
-          (locale) =>
-              locale.localeId.toLowerCase() == base ||
-              locale.localeId.toLowerCase().startsWith('${base}-') ||
-              locale.localeId.toLowerCase().startsWith('${base}_'),
-        );
-
-        if (matching.isNotEmpty) {
-          effectiveLocale = matching.first.localeId;
-        } else if (locales.isNotEmpty) {
-          effectiveLocale = locales.first.localeId;
-        }
+      for (final locale in locales) {
+        final id = locale.localeId.toLowerCase().replaceAll('_', '-');
+        if (id == requested) { effectiveLocale = locale.localeId; break; }
       }
+      effectiveLocale ??= locales
+          .where((l) => l.localeId.toLowerCase().replaceAll('_', '-').startsWith('$base-'))
+          .map((l) => l.localeId)
+          .cast<String?>()
+          .firstWhere((_) => true, orElse: () => null);
+      effectiveLocale ??= locales.isNotEmpty ? locales.first.localeId : localeId;
+
+      print('STT requested=$localeId effective=$effectiveLocale');
 
       await _speech.listen(
         onResult: (result) {
           final words = result.recognizedWords.trim();
-          if (words.isNotEmpty) latestWords = words;
-
-          if (result.finalResult &&
-              latestWords.isNotEmpty &&
-              !completer.isCompleted) {
-            completer.complete(latestWords);
+          if (words.isNotEmpty) {
+            latestWords = words;
+            print('STT recognized: $latestWords');
+          }
+          if (result.finalResult && !completer.isCompleted) {
+            completer.complete(latestWords.isEmpty ? null : latestWords);
           }
         },
         listenOptions: SpeechListenOptions(
           localeId: effectiveLocale,
           listenFor: timeout,
-          pauseFor: const Duration(seconds: 3),
+          pauseFor: const Duration(seconds: 2),
           partialResults: true,
           cancelOnError: false,
           autoPunctuation: false,
         ),
       );
 
-      final result = await completer.future.timeout(
+      return await completer.future.timeout(
         timeout + const Duration(seconds: 1),
         onTimeout: () => latestWords.isEmpty ? null : latestWords,
       );
-
-      await stop();
-      return result;
-    } catch (_) {
-      await stop();
+    } catch (e) {
+      print('STT listen failed: $e');
       return latestWords.isEmpty ? null : latestWords;
     } finally {
-      if (identical(_activeCompleter, completer)) {
-        _activeCompleter = null;
-      }
+      try { await _speech.stop(); } catch (_) {}
+      if (identical(_activeCompleter, completer)) _activeCompleter = null;
     }
   }
 
   Future<void> stop() async {
     final completer = _activeCompleter;
-    if (completer != null && !completer.isCompleted) {
-      completer.complete(null);
-    }
-
-    try {
-      await _speech.stop();
-    } catch (_) {}
+    if (completer != null && !completer.isCompleted) completer.complete(null);
+    try { await _speech.stop(); } catch (_) {}
   }
 }
