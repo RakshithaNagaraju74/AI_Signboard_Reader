@@ -39,8 +39,7 @@ class OCRService {
 
       for (var i = 0; i < variants.length; i++) {
         final tempFile = File(
-          Directory.systemTemp.path + '/s2s_ocr_'
-          DateTime.now().microsecondsSinceEpoch.toString() + '_$i.jpg',
+          '${Directory.systemTemp.path}/s2s_ocr_${DateTime.now().microsecondsSinceEpoch}_$i.jpg',
         );
 
         try {
@@ -97,8 +96,7 @@ class OCRService {
 
     for (var i = 0; i < variants.length; i++) {
       final tempFile = File(
-        Directory.systemTemp.path + '/s2s_full_' +
-            DateTime.now().microsecondsSinceEpoch.toString() + '_$i.jpg',
+        '${Directory.systemTemp.path}/s2s_full_${DateTime.now().microsecondsSinceEpoch}_$i.jpg',
       );
       try {
         await tempFile.writeAsBytes(
