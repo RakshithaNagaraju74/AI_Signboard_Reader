@@ -2081,29 +2081,32 @@ class _LiveCameraScreenState
                     ),
                   ),
                 const Spacer(),
-                Flexible(
+                SizedBox(
+                  height: 96,
+                  width: double.infinity,
                   child: Semantics(
                     liveRegion: true,
                     child: Container(
-                    width:
-                        double.infinity,
-                    padding:
-                        const EdgeInsets.all(
-                      16,
-                    ),
-                    color: Colors.black87,
-                    child: Text(
-                      status,
-                      style:
-                          const TextStyle(
-                        fontSize: 18,
-                        fontWeight:
-                            FontWeight.bold,
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      color: Colors.black87,
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: Text(
+                          status,
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                  ),
-                ),
                 ),
                 Padding(
                   padding:
