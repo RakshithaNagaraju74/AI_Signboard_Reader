@@ -41,10 +41,14 @@ class SpeechDetectionInput {
 
 class AISpeechService {
   String get _endpoint {
-    final value = dotenv.env['GROQ_BASE_URL']?.trim();
-    return value != null && value.isNotEmpty
+    var value = dotenv.env['GROQ_BASE_URL']?.trim();
+    value = value != null && value.isNotEmpty
         ? value
         : 'https://api.groq.com/openai/v1';
+
+    // Accept an older/mistyped base URL that contains /api.
+    value = value.replaceFirst('/api/openai/v1', '/openai/v1');
+    return value;
   }
 
   String get _apiKey {
@@ -53,9 +57,17 @@ class AISpeechService {
 
   String get _model {
     final value = dotenv.env['GROQ_MODEL']?.trim();
+
+    // Groq removed llama-3.1-8b-instant and llama-3.3-70b-versatile.
+    // Normalize older .env values so the app keeps working.
+    if (value == 'llama-3.1-8b-instant' ||
+        value == 'llama-3.3-70b-versatile') {
+      return 'openai/gpt-oss-20b';
+    }
+
     return value != null && value.isNotEmpty
         ? value
-        : 'llama-3.3-70b-versatile';
+        : 'openai/gpt-oss-20b';
   }
 
   bool get groqEnabled => _apiKey.isNotEmpty;
