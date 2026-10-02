@@ -61,7 +61,7 @@ class AISpeechService {
       return value;
     }
 
-    return 'openai/gpt-oss-20b';
+    return 'openai/gpt-oss-120b';
   }
 
   bool get groqEnabled => _apiKey.isNotEmpty;
@@ -146,8 +146,9 @@ class AISpeechService {
 
       final payload = {
         'model': _model,
-        'temperature': 0.2,
-        'max_completion_tokens': 140,
+        'temperature': 0.1,
+        'reasoning_effort': 'high',
+        'max_completion_tokens': 180,
         'messages': [
           {
             'role': 'system',
@@ -158,7 +159,13 @@ class AISpeechService {
                 'Treat visible_text as noisy OCR, not as ground truth. First silently correct obvious OCR spelling and spacing mistakes when the intended word is clear. ' +
                 'For letter-spaced text such as M E D I C A L, combine it into a normal word when context makes that clear. ' +
                 'Do not blindly preserve OCR errors, but never invent or guess a word when the evidence is insufficient. ' +
-                'Prioritize the corrected readable sign text over the generic sign category. If OCR text exists, say what the sign says. '
+                'Use the sign category, OCR text, visible letters, numbers, position, and place context together as evidence. Do not treat a single OCR character literally when it is clearly a sign abbreviation. ' +
+                'Context examples: P or a partial P on a parking/no-parking sign can mean Parking or No Parking when the sign category and surrounding evidence support it; H on a hospital/medical sign can mean Hospital; a single B, M, S, etc. may be a shortened word only when the sign context strongly supports it. ' +
+                'If OCR returns only one or two characters, first ask what real-world sign meaning best explains those characters together with the detected sign class and other OCR fragments. ' +
+                'For a No Parking sign, combine fragments such as P, NO, 50 M, and vehicle/type markings into one useful meaning instead of reading them as separate letters and numbers. ' +
+                'If the sign contains a distance such as 50M, interpret it as a distance and say "50 metres" rather than reading each character. ' +
+                'If vehicle classes or counts such as 2, 4, 6, or 8 appear, treat them as sign restrictions or vehicle categories when the sign context indicates that, and explain the meaning naturally without inventing a rule that is not supported by the sign. ' +
+                'Prioritize the corrected readable sign meaning over the generic sign category. If OCR text exists, say what the sign means in context. '
                 'Example style: There is a shop sign directly ahead. It says Medical Store. '
                 'If there is no readable text, briefly describe the sign category and where it is. '
                 'Use position words such as left, slightly left, ahead, slightly right, and right exactly as supplied. '
@@ -171,6 +178,7 @@ class AISpeechService {
                 'Read words as normal human language, never as a sequence of letters unless the sign genuinely contains an acronym or initials. ' +
                 'Treat phone numbers, PIN codes, OTPs, house numbers, route numbers, prices, dates, and other numeric strings as meaningful numbers, not arithmetic. ' +
                 'For phone numbers and PIN codes, preserve every digit and present them in small natural groups so text-to-speech reads the digits clearly. ' +
+                'Never pronounce a word letter-by-letter merely because OCR supplied isolated characters. Prefer the complete human-readable word or meaning whenever context makes it reliable. ' +
                 'Do not drop, reorder, merge, or invent digits. For ordinary numbers, use natural spoken-number wording when appropriate. ' +
                 'Avoid repetitive wording and combine related information into a short natural sentence. '
                 'Keep the narration concise, ideally one or two sentences. Return only the spoken narration, with no quotation marks, labels, bullet points, markdown, or explanations.',
