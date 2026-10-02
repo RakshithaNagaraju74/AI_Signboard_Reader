@@ -528,7 +528,14 @@ class _LiveCameraScreenState
 
         if (verification != null && verification.reliable) {
           lastVerifiedPlace = verification;
-          placeContext = placeVerifier.spokenContext(verification);
+
+          // Only expose a mapped place as a signboard-location candidate when
+          // it is on-site or genuinely nearby. An "elsewhere" match can be an
+          // advertisement or a destination mentioned by the sign.
+          if (verification.relation == PlaceRelation.onSite ||
+              verification.relation == PlaceRelation.nearby) {
+            placeContext = placeVerifier.spokenContext(verification);
+          }
         }
       }
 
@@ -555,7 +562,7 @@ class _LiveCameraScreenState
       '[Groq] live_camera -> sending detection(s): '
       + inputs.length.toString()
       + ', language=' + language.code
-      + ', currentPlace=' + (currentLocation?.displayPlace ?? 'unknown')
+      + ', currentPlace=' + (currentLocation?.displayAddress ?? 'unknown')
       + ', gpsAccuracy=' + (currentLocation?.accuracy.toStringAsFixed(1) ?? 'unknown')
       + ', useGroq=' + useNara.toString()
       + ', keyLoaded=' + aiSpeech.groqEnabled.toString(),
@@ -566,7 +573,12 @@ class _LiveCameraScreenState
       languageCode: language.code,
       place: currentLocation == null
           ? ''
-          : currentLocation!.displayPlace + ' (GPS accuracy about ' + currentLocation!.accuracy.toStringAsFixed(0) + ' metres)',
+          : 'CURRENT USER LOCATION: ' +
+              currentLocation!.displayAddress +
+              ' (GPS accuracy about ' +
+              currentLocation!.accuracy.toStringAsFixed(0) +
+              ' metres). ' +
+              'This is the user\'s current GPS-derived address context, not the signboard location.',
       useNara: useNara,
     );
   }
