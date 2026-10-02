@@ -43,14 +43,26 @@ class VoiceCommandService {
       final locales = await _speech.locales();
       final requested = localeId.toLowerCase().replaceAll('_', '-');
       final base = requested.split('-').first;
+      final preferredIds = <String>{
+        requested,
+        if (base == 'en') 'en-IN',
+        if (base == 'hi') 'hi-IN',
+        if (base == 'kn') 'kn-IN',
+        if (base == 'en') 'en-US',
+        if (base == 'hi') 'hi',
+        if (base == 'kn') 'kn',
+      };
       String? effectiveLocale;
 
-      for (final locale in locales) {
-        final id = locale.localeId.toLowerCase().replaceAll('_', '-');
-        if (id == requested) {
-          effectiveLocale = locale.localeId;
-          break;
+      for (final preferred in preferredIds) {
+        for (final locale in locales) {
+          final id = locale.localeId.toLowerCase().replaceAll('_', '-');
+          if (id == preferred) {
+            effectiveLocale = locale.localeId;
+            break;
+          }
         }
+        if (effectiveLocale != null) break;
       }
 
       effectiveLocale ??= locales
