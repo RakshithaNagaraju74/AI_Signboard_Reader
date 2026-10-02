@@ -1,6 +1,6 @@
 name: signboard_reader
-description: AI Signboard Reader for visually impaired users
-version: 2.4.0+8
+description: SightToSound - AI accessibility assistant that transforms visual information into spoken guidance
+version: 2.5.0+9
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
