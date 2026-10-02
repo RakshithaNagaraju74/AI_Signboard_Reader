@@ -30,7 +30,7 @@ class OCRService {
       if (decoded == null) return '';
       final image = img.bakeOrientation(decoded);
       final crop = _safeCrop(image, bbox);
-      if (crop == null) return '';
+      if (crop == null) return _recognizeFullImage(image, script);
 
       final variants = _buildVariants(crop);
       final recognizer = _recognizerFor(script);
@@ -67,7 +67,9 @@ class OCRService {
         }
       }
 
-      if (candidates.isEmpty) return '';
+      if (candidates.isEmpty) {
+        return _recognizeFullImage(image, script);
+      }
       candidates.sort((a, b) => b.score.compareTo(a.score));
       final best = candidates.first;
 
@@ -81,6 +83,43 @@ class OCRService {
       debugPrint('OCR error: $e');
       return '';
     }
+  }
+
+  Future<String> _recognizeFullImage(
+    img.Image image,
+    TextRecognitionScript script,
+  ) async {
+    final recognizer = _recognizerFor(script);
+    final variants = _buildVariants(_upscaleForText(image));
+    final candidates = <_OCRCandidate>[];
+
+    for (var i = 0; i < variants.length; i++) {
+      final tempFile = File(
+        Directory.systemTemp.path + '/s2s_full_' +
+            DateTime.now().microsecondsSinceEpoch.toString() + '_$i.jpg',
+      );
+      try {
+        await tempFile.writeAsBytes(
+          img.encodeJpg(variants[i], quality: 96),
+          flush: true,
+        );
+        final result = await recognizer.processImage(InputImage.fromFile(tempFile));
+        final text = _cleanText(result.text);
+        if (text.isNotEmpty) {
+          candidates.add(_OCRCandidate(text: text, variant: i, score: _score(text)));
+        }
+      } catch (e) {
+        debugPrint('Full-image OCR variant ' + i.toString() + ' failed: ' + e.toString());
+      } finally {
+        try {
+          if (await tempFile.exists()) await tempFile.delete();
+        } catch (_) {}
+      }
+    }
+
+    if (candidates.isEmpty) return '';
+    candidates.sort((a, b) => b.score.compareTo(a.score));
+    return candidates.first.text;
   }
 
   img.Image? _safeCrop(img.Image image, List<double> bbox) {
