@@ -114,11 +114,13 @@ class AISpeechService {
       _debug('NaraRouter requested but API key is missing -> local fallback.');
     }
 
-    return _fallback(
+    final fallback = _fallback(
       detections,
       languageCode,
       place,
     );
+    _debug('LOCAL FALLBACK RESULT -> $fallback');
+    return fallback;
   }
 
   Future<String?> _composeWithNara({
