@@ -2081,9 +2081,10 @@ class _LiveCameraScreenState
                     ),
                   ),
                 const Spacer(),
-                Semantics(
-                  liveRegion: true,
-                  child: Container(
+                Flexible(
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Container(
                     width:
                         double.infinity,
                     padding:
@@ -2101,6 +2102,8 @@ class _LiveCameraScreenState
                       ),
                     ),
                   ),
+                  ),
+                ),
                 ),
                 Padding(
                   padding:
