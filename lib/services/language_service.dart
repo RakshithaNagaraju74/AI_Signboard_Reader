@@ -60,9 +60,9 @@ class LanguageService {
 
     // Speech recognition often adds extra words. Detect the language choice
     // from anywhere in the short response instead of requiring an exact phrase.
-    if (RegExp(r'(^|\\s)(one|1|first|english|inglish)(\\s|$)').hasMatch(value)) return 'en';
-    if (RegExp(r'(^|\\s)(two|2|second|hindi|hindee|hindy|indi)(\\s|$)').hasMatch(value) || value.contains('हिंदी') || value.contains('हिन्दी')) return 'hi';
-    if (RegExp(r'(^|\\s)(three|3|third|kannada|kanada|kannad|canada)(\\s|$)').hasMatch(value) || value.contains('ಕನ್ನಡ')) return 'kn';
+    if (RegExp(r'(^|\s)(one|1|first|english|inglish)(\s|$)').hasMatch(value)) return 'en';
+    if (RegExp(r'(^|\s)(two|2|second|hindi|hindee|hindy|indi)(\s|$)').hasMatch(value) || value.contains('हिंदी') || value.contains('हिन्दी')) return 'hi';
+    if (RegExp(r'(^|\s)(three|3|third|kannada|kanada|kannad|canada)(\s|$)').hasMatch(value) || value.contains('ಕನ್ನಡ')) return 'kn';
 
     // Common Android STT phonetic outputs for the numbers.
     if (value.contains('won') || value.contains('wan')) return 'en';
