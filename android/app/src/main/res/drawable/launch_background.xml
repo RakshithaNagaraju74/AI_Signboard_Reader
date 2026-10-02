@@ -1,9 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="#10131A" />
-    <item
-        android:gravity="center"
-        android:width="180dp"
-        android:height="180dp"
-        android:drawable="@drawable/ic_sighttosound" />
 </layer-list>
