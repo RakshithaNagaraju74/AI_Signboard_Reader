@@ -110,3 +110,36 @@ The live reader treats a detected sign as **visual evidence**, not automatically
 Map and place verification is supporting evidence, not ground truth. OpenStreetMap data can be incomplete or outdated, and OCR can misread business names. The app therefore uses language such as “map data suggests” rather than claiming that a sign proves the exact physical location.
 
 OpenStreetMap attribution is shown in the result panel when map-derived place verification is used.
+
+## SightToSound branding
+
+The app is now branded as **SightToSound** with the slogan:
+
+> **From Sight to Sound. From Sound to Freedom.**
+
+### Add the app logo
+
+1. Create a square PNG logo with no unnecessary small details. A transparent-background logo works best.
+2. Save the final file as:
+   `assets/images/app_logo.png`
+3. The Flutter app already loads this file on the branded launch screen.
+4. The launcher configuration already points to the same file:
+   `flutter_launcher_icons.image_path: assets/images/app_logo.png`
+5. From the project root, run:
+   `flutter pub get`
+6. Generate Android/iOS launcher icons:
+   `dart run flutter_launcher_icons`
+7. Rebuild the app:
+   `flutter clean`
+   `flutter pub get`
+   `flutter run`
+
+The logo should ideally be at least 1024×1024 px. Keep the central symbol inside the safe area so Android adaptive icon cropping does not cut it off.
+
+### Voice-first language onboarding
+
+The first-run flow uses short numbered choices, waits for TTS to finish before opening speech recognition, confirms the detected language, and falls back to large accessible language buttons. This reduces accidental language selection caused by speaker echo or noisy recognition.
+
+### OCR quality improvements
+
+OCR now uses a larger YOLO crop, generous padding, cubic upscaling, grayscale/contrast preprocessing, and multiple recognition passes before selecting the strongest readable result. Live camera capture was also moved from the lowest camera preset to medium resolution to provide better source images while keeping processing practical on-device.
