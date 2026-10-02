@@ -19,7 +19,8 @@ class OCRService {
     List<double> bbox, {
     String languageCode = 'en',
   }) async {
-    final script = languageCode.toLowerCase() == 'hi'
+    final normalizedLanguage = languageCode.toLowerCase();
+    final script = normalizedLanguage == 'hi'
         ? TextRecognitionScript.devanagiri
         : TextRecognitionScript.latin;
 
@@ -38,8 +39,8 @@ class OCRService {
 
       for (var i = 0; i < variants.length; i++) {
         final tempFile = File(
-          '\${Directory.systemTemp.path}/s2s_ocr_'
-          '\${DateTime.now().microsecondsSinceEpoch}_$i.jpg',
+          Directory.systemTemp.path + '/s2s_ocr_'
+          DateTime.now().microsecondsSinceEpoch.toString() + '_$i.jpg',
         );
 
         try {
@@ -68,6 +69,7 @@ class OCRService {
       }
 
       if (candidates.isEmpty) {
+        debugPrint('OCR: sign crop returned no text; trying full frame.');
         return _recognizeFullImage(image, script);
       }
       candidates.sort((a, b) => b.score.compareTo(a.score));
