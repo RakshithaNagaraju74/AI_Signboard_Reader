@@ -10,7 +10,15 @@ Future<void> main() async {
 
   try {
     await dotenv.load(fileName: '.env', isOptional: true);
-  } catch (_) {}
+    final keyLoaded = (dotenv.env['NARA_API_KEY'] ?? '').trim().isNotEmpty;
+    debugPrint(
+      '[NaraRouter] .env loaded. API key loaded=' + keyLoaded.toString()
+      + ', model=' + (dotenv.env['NARA_MODEL'] ?? 'auto/bynara')
+      + ', baseUrl=' + (dotenv.env['NARA_BASE_URL'] ?? 'https://router.bynara.id/v1'),
+    );
+  } catch (e) {
+    debugPrint('[NaraRouter] .env load FAILED: ' + e.toString());
+  }
 
   runApp(const SignboardReaderApp());
 }
