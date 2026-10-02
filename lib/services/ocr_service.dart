@@ -50,7 +50,7 @@ class OCRService {
           final recognized = await recognizer.processImage(
             InputImage.fromFile(tempFile),
           );
-          final cleaned = _cleanText(recognized.text);
+          final cleaned = _normalizeOCRText(recognized.text);
           if (cleaned.isNotEmpty) {
             candidates.add(_OCRCandidate(
               text: cleaned,
@@ -104,7 +104,7 @@ class OCRService {
           flush: true,
         );
         final result = await recognizer.processImage(InputImage.fromFile(tempFile));
-        final text = _cleanText(result.text);
+        final text = _normalizeOCRText(result.text);
         if (text.isNotEmpty) {
           candidates.add(_OCRCandidate(text: text, variant: i, score: _score(text)));
         }
@@ -236,6 +236,70 @@ class OCRService {
     return _cleanText(text)
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9\u0900-\u0CFF]'), '');
+  }
+
+  String _normalizeOCRText(String text) {
+    var value = _cleanText(text);
+    if (value.isEmpty) return '';
+
+    // Repair common ML OCR substitutions without trying to invent text.
+    final replacements = <String, String>{
+      'pharnacy': 'pharmacy',
+      'pharmasy': 'pharmacy',
+      'pharmecy': 'pharmacy',
+      'pharmcy': 'pharmacy',
+      'med1cal': 'medical',
+      'medlcal': 'medical',
+      'h0spital': 'hospital',
+      'hospita1': 'hospital',
+      'restarunt': 'restaurant',
+      'resturant': 'restaurant',
+      'restraunt': 'restaurant',
+      'bakary': 'bakery',
+      'bakkery': 'bakery',
+      'supermarke': 'supermarket',
+      'martket': 'market',
+      'park1ng': 'parking',
+      'parklng': 'parking',
+      'sch00l': 'school',
+    };
+
+    final words = value.split(RegExp(r'\\s+'));
+    for (var i = 0; i < words.length; i++) {
+      final key = words[i].toLowerCase();
+      final corrected = replacements[key];
+      if (corrected != null) {
+        words[i] = corrected;
+      }
+    }
+    value = words.join(' ');
+
+    // ML OCR often separates letters in a sign name.
+    final parts = value.split(' ');
+    if (parts.length >= 4 && parts.every(_isSingleAsciiLetter)) {
+      final compact = parts.join().toLowerCase();
+      const knownWords = <String, String>{
+        'pharmacy': 'pharmacy',
+        'hospital': 'hospital',
+        'medical': 'medical',
+        'parking': 'parking',
+        'school': 'school',
+        'restaurant': 'restaurant',
+        'bakery': 'bakery',
+        'market': 'market',
+        'railway': 'railway',
+      };
+      value = knownWords[compact] ?? value;
+    }
+
+    return value;
+  }
+
+  bool _isSingleAsciiLetter(String value) {
+    if (value.length != 1) return false;
+    final code = value.codeUnitAt(0);
+    return (code >= 65 && code <= 90) ||
+        (code >= 97 && code <= 122);
   }
 
   String _cleanText(String text) {
