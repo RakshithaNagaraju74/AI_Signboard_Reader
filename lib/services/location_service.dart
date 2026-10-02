@@ -40,6 +40,28 @@ class LocationSnapshot {
     if (placeName != null && placeName!.trim().isNotEmpty) return placeName!.trim();
     return 'GPS location available';
   }
+
+  // More useful for spoken orientation than coordinates. This is still an
+  // address derived from reverse geocoding, so the spoken accuracy is always
+  // paired with the phone's measured GPS accuracy.
+  String get displayAddress {
+    final parts = <String>[];
+    if (addressLine != null && addressLine!.trim().isNotEmpty) {
+      parts.add(addressLine!.trim());
+    }
+    if (area != null &&
+        area!.trim().isNotEmpty &&
+        !parts.any((item) => item.contains(area!.trim()))) {
+      parts.add(area!.trim());
+    }
+    if (city != null &&
+        city!.trim().isNotEmpty &&
+        !parts.any((item) => item.contains(city!.trim()))) {
+      parts.add(city!.trim());
+    }
+    if (parts.isNotEmpty) return parts.join(', ');
+    return displayPlace;
+  }
 }
 
 class LocationService {
