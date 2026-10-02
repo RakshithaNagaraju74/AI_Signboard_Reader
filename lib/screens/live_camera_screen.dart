@@ -355,33 +355,6 @@ class _LiveCameraScreenState
     }
   }
 
-  bool _containsLanguageAnswer(
-    String? text,
-    String expected,
-  ) {
-    if (text == null || text.trim().isEmpty) {
-      return false;
-    }
-
-    final detected =
-        LanguageService.detectCommand(text);
-
-    return detected == expected;
-  }
-
-  bool _affirmative(String? value, String code) {
-    final v = LanguageService.normalize(value ?? '');
-    if (code == 'hi') {
-      return v.contains('hindi') || v.contains('हिंदी') ||
-          v.contains('haan') || v.contains('हाँ') || v.contains('हां');
-    }
-    if (code == 'kn') {
-      return v.contains('kannada') || v.contains('ಕನ್ನಡ') ||
-          v.contains('howdu') || v.contains('ಹೌದು') || v.contains('ಹೌದ');
-    }
-    return false;
-  }
-
   Future<void> setLanguage(String code) async {
     final selected = LanguageService.fromCode(code);
     if (selected == null) return;
@@ -706,42 +679,33 @@ class _LiveCameraScreenState
 
     if (language.code == 'hi') {
       if (value.relation == PlaceRelation.onSite) {
-        return 'मानचित्र के अनुसार ' + name + ' लगभग ' + distance +
-            ' दूर है। फिर भी यह बोर्ड उस जगह के प्रवेश द्वार का प्रमाण नहीं है।';
+        return 'मानचित्र के अनुसार $name लगभग $distance दूर है। फिर भी यह बोर्ड उस जगह के प्रवेश द्वार का प्रमाण नहीं है।';
       }
       if (value.relation == PlaceRelation.nearby) {
-        return 'मानचित्र में ' + name + ' लगभग ' + distance +
-            ' दूर है। यह बोर्ड उस जगह की ओर संकेत या विज्ञापन हो सकता है।';
+        return 'मानचित्र में $name लगभग $distance दूर है। यह बोर्ड उस जगह की ओर संकेत या विज्ञापन हो सकता है।';
       }
-      return 'मानचित्र में ' + name + ' लगभग ' + distance +
-          ' दूर मिला। इसलिए यह बोर्ड किसी दूसरी जगह का विज्ञापन हो सकता है, यहाँ की जगह का नहीं।';
+      return 'मानचित्र में $name लगभग $distance दूर मिला। इसलिए यह बोर्ड किसी दूसरी जगह का विज्ञापन हो सकता है, यहाँ की जगह का नहीं।';
     }
 
     if (language.code == 'kn') {
       if (value.relation == PlaceRelation.onSite) {
-        return 'ನಕ್ಷೆಯ ಪ್ರಕಾರ ' + name + ' ಸುಮಾರು ' + distance +
-            ' ದೂರದಲ್ಲಿದೆ. ಆದರೂ ಈ ಫಲಕವೇ ಆ ಸ್ಥಳದ ಪ್ರವೇಶದ್ವಾರ ಎಂದು ಖಚಿತಪಡಿಸುವುದಿಲ್ಲ.';
+        return 'ನಕ್ಷೆಯ ಪ್ರಕಾರ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಆದರೂ ಈ ಫಲಕವೇ ಆ ಸ್ಥಳದ ಪ್ರವೇಶದ್ವಾರ ಎಂದು ಖಚಿತಪಡಿಸುವುದಿಲ್ಲ.';
       }
       if (value.relation == PlaceRelation.nearby) {
-        return 'ನಕ್ಷೆಯಲ್ಲಿ ' + name + ' ಸುಮಾರು ' + distance +
-            ' ದೂರದಲ್ಲಿದೆ. ಈ ಫಲಕ ಆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಅಥವಾ ದಿಕ್ಕು ಸೂಚನೆ ಆಗಿರಬಹುದು.';
+        return 'ನಕ್ಷೆಯಲ್ಲಿ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಈ ಫಲಕ ಆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಅಥವಾ ದಿಕ್ಕು ಸೂಚನೆ ಆಗಿರಬಹುದು.';
       }
-      return 'ನಕ್ಷೆಯಲ್ಲಿ ' + name + ' ಸುಮಾರು ' + distance +
-          ' ದೂರದಲ್ಲಿದೆ. ಆದ್ದರಿಂದ ಈ ಫಲಕ ಇಲ್ಲಿನ ಸ್ಥಳವಲ್ಲ, ಬೇರೆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಆಗಿರಬಹುದು.';
+      return 'ನಕ್ಷೆಯಲ್ಲಿ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಆದ್ದರಿಂದ ಈ ಫಲಕ ಇಲ್ಲಿನ ಸ್ಥಳವಲ್ಲ, ಬೇರೆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಆಗಿರಬಹುದು.';
     }
 
     if (value.relation == PlaceRelation.onSite) {
-      return 'Map data suggests ' + name + ' is about ' + distance +
-          ' away. The sign itself does not prove that this is the entrance.';
+      return 'Map data suggests $name is about $distance away. The sign itself does not prove that this is the entrance.';
     }
 
     if (value.relation == PlaceRelation.nearby) {
-      return 'Map data places ' + name + ' about ' + distance +
-          ' away. This sign may advertise or point to that place.';
+      return 'Map data places $name about $distance away. This sign may advertise or point to that place.';
     }
 
-    return 'Map data found ' + name + ' about ' + distance +
-        ' away. This sign may advertise a different location rather than this exact place.';
+    return 'Map data found $name about $distance away. This sign may advertise a different location rather than this exact place.';
   }
 
   String buildSpeech(DetectionContext context) {
@@ -1545,14 +1509,10 @@ class _LiveCameraScreenState
       return;
     }
 
-    final destination =
-        place.latitude.toString() + ',' +
-        place.longitude.toString();
+    final destination = '${place.latitude},${place.longitude}';
 
     final uri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=' +
-      Uri.encodeQueryComponent(destination) +
-      '&travelmode=walking&dir_action=navigate',
+      'https://www.google.com/maps/dir/?api=1&destination=${Uri.encodeQueryComponent(destination)}&travelmode=walking&dir_action=navigate',
     );
 
     final opened = await launchUrl(
@@ -1563,10 +1523,10 @@ class _LiveCameraScreenState
     if (opened) {
       await speak(
         language.code == 'hi'
-            ? 'मैंने ' + place.matchedName + ' के लिए पैदल नेविगेशन खोला है।'
+? 'मैंने ${place.matchedName} के लिए पैदल नेविगेशन खोला है।'
             : language.code == 'kn'
                 ? place.matchedName + ' ಗೆ ನಡೆದುಹೋಗುವ ನ್ಯಾವಿಗೇಶನ್ ತೆರೆಯಲಾಗಿದೆ.'
-                : 'I opened walking navigation to ' + place.matchedName + '.',
+: 'I opened walking navigation to ${place.matchedName}.',
       );
     } else {
       await speak(copy('navigationLimit'));
@@ -2057,8 +2017,7 @@ class _LiveCameraScreenState
                           Text(
                             stopped
                                 ? 'Paused'
-                                : 'Live • ' + language.name +
-                                    (focusMode ? ' • Focus' : ''),
+                                : 'Live • ${language.name}${focusMode ? ' • Focus' : ''},
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                             ),
