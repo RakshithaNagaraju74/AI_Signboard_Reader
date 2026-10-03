@@ -155,7 +155,6 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ),
                       ),
-                      const SizedBox(height: 30),
                       const SizedBox(height: 28),
                       Text(
                         'SightToSound',
@@ -234,7 +233,6 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                 ),
               ),
-            ),
             ),
           ],
         ),
