@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
@@ -75,18 +76,40 @@ class _SplashScreenState extends State<SplashScreen>
         width: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
             colors: [
+              theme.colorScheme.primaryContainer,
               theme.colorScheme.surface,
-              theme.colorScheme.surfaceContainerHighest,
-              theme.colorScheme.surface,
+              theme.colorScheme.secondaryContainer,
             ],
           ),
         ),
-        child: SafeArea(
-          child: Center(
-            child: FadeTransition(
+        child: Stack(
+          children: [
+            Positioned(
+              top: -90,
+              right: -70,
+              child: _GlowOrb(
+                size: 240,
+                color: theme.colorScheme.primary.withValues(alpha: 0.18),
+              ),
+            ),
+            Positioned(
+              bottom: -110,
+              left: -90,
+              child: _GlowOrb(
+                size: 280,
+                color: theme.colorScheme.secondary.withValues(alpha: 0.16),
+              ),
+            ),
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
+              child: const SizedBox.expand(),
+            ),
+            SafeArea(
+              child: Center(
+                child: FadeTransition(
               opacity: _fade,
               child: ScaleTransition(
                 scale: _scale,
@@ -96,59 +119,115 @@ class _SplashScreenState extends State<SplashScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        width: 190,
-                        height: 190,
-                        padding: const EdgeInsets.all(18),
+                        width: 204,
+                        height: 204,
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(44),
+                          color: Colors.white.withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(52),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            width: 2,
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              blurRadius: 32,
+                              blurRadius: 40,
                               spreadRadius: 2,
-                              offset: const Offset(0, 14),
-                              color: Colors.black.withValues(alpha: 0.28),
+                              offset: const Offset(0, 18),
+                              color: theme.colorScheme.primary
+                                  .withValues(alpha: 0.20),
                             ),
                           ],
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(30),
-                          child: Image.asset(
-                            'assets/images/app_logo.png',
-                            fit: BoxFit.contain,
-                            filterQuality: FilterQuality.high,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(42),
+                            color: theme.colorScheme.surface,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(32),
+                            child: Image.asset(
+                              'assets/images/app_logo.png',
+                              fit: BoxFit.contain,
+                              filterQuality: FilterQuality.high,
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(height: 30),
+                      const SizedBox(height: 28),
                       Text(
                         'SightToSound',
                         style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.4,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'From Sight to Sound,\nFrom Sound to Freedom.',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          height: 1.4,
+                          fontWeight: FontWeight.w600,
                           letterSpacing: 0.2,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'From Sight to Sound,\nFrom Sound to Freedom.',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          height: 1.45,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.3,
+                      const SizedBox(height: 18),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 9,
                         ),
-                        textAlign: TextAlign.center,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface.withValues(alpha: 0.72),
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(
+                            color: theme.colorScheme.outline.withValues(alpha: 0.18),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.record_voice_over_rounded,
+                              size: 18,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Voice-first accessibility',
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 30),
                       Semantics(
                         label: 'Starting SightToSound accessibility assistant',
-                        child: SizedBox(
-                          width: 34,
-                          height: 34,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 3,
-                            color: theme.colorScheme.primary,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Preparing your camera...',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -156,7 +235,32 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
               ),
             ),
-          ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GlowOrb extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _GlowOrb({
+    required this.size,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color,
         ),
       ),
     );
