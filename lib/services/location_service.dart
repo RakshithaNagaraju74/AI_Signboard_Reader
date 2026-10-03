@@ -134,6 +134,13 @@ class LocationService {
           final p = placemarks.first;
           placeName = _firstNonEmpty([p.name, p.subLocality, p.locality]);
           addressLine = _firstNonEmpty([
+            _joinAddressParts([
+              p.name,
+              p.street,
+              p.subLocality,
+              p.locality,
+              p.administrativeArea,
+            ]),
             p.street,
             p.subLocality,
             p.locality,
@@ -168,6 +175,18 @@ class LocationService {
     final parts = identifier.split('_');
     if (parts.length == 2) return Locale(parts[0], parts[1]);
     return Locale(parts.first);
+  }
+
+  String? _joinAddressParts(List<String?> values) {
+    final parts = <String>[];
+    for (final value in values) {
+      final cleaned = value?.trim();
+      if (cleaned == null || cleaned.isEmpty) continue;
+      if (!parts.any((part) => part.toLowerCase() == cleaned.toLowerCase())) {
+        parts.add(cleaned);
+      }
+    }
+    return parts.isEmpty ? null : parts.join(', ');
   }
 
   String? _firstNonEmpty(List<String?> values) {
