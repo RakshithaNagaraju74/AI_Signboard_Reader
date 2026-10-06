@@ -42,7 +42,6 @@ class _LiveCameraScreenState
   bool focusMode = false;
   bool sceneScanMode = false;
   bool onboarding = true;
-  bool showBrandIntro = true;
   bool demoMode = false;
   bool languageChosen = false;
   File? pendingRecoveredImage;
@@ -53,6 +52,7 @@ class _LiveCameraScreenState
 
   String status = 'Starting camera';
   String last = '';
+  DateTime? _lastNoSignAnnouncement;
 
   AppLanguage language =
       LanguageService.languages.first;
@@ -98,12 +98,6 @@ class _LiveCameraScreenState
     try {
       status = 'Starting SightToSound';
       if (mounted) setState(() {});
-
-      // Give the branded launch screen time to be perceived before asking
-      // the user for speech input. This is intentionally short so the app
-      // still feels immediate.
-      await Future<void>.delayed(const Duration(milliseconds: 2600));
-      if (mounted) setState(() => showBrandIntro = false);
 
       final saved = await lang.load();
       if (saved == null) {
@@ -221,13 +215,18 @@ class _LiveCameraScreenState
         state == AppLifecycleState.paused) {
       timer?.cancel();
       timer = null;
+      final controller = camera;
+      camera = null;
+      ready = false;
+      if (controller != null) {
+        unawaited(controller.dispose());
+      }
       return;
     }
 
     if (state == AppLifecycleState.resumed &&
         !onboarding &&
-        !demoMode &&
-        camera == null) {
+        !demoMode) {
       unawaited(_resumeCameraSafely());
     }
   }
@@ -237,11 +236,14 @@ class _LiveCameraScreenState
 
     try {
       await _initializeCamera();
-      timer?.cancel();
-      timer = Timer.periodic(
-        const Duration(milliseconds: 1800),
-        (_) => scan(),
-      );
+      if (!mounted) return;
+      if (!stopped) {
+        timer?.cancel();
+        timer = Timer.periodic(
+          const Duration(milliseconds: 2000),
+          (_) => scan(),
+        );
+      }
     } catch (e) {
       debugPrint('Camera resume error: $e');
       if (mounted) setState(() => status = copy('cameraError'));
@@ -321,13 +323,13 @@ class _LiveCameraScreenState
 
     languageChosen = true;
     await voice.stop();
-
     language = selected;
     await lang.save(language);
     await tts.setLanguage(language.speechLocale);
 
     if (mounted) {
       setState(() {
+        onboarding = false;
         status = copy('languageSelected');
       });
     }
@@ -456,7 +458,19 @@ class _LiveCameraScreenState
 
       if (mounted) setState(() {});
 
-      if (contexts.isEmpty) return;
+      if (contexts.isEmpty) {
+        final now = DateTime.now();
+        final canAnnounce = _lastNoSignAnnouncement == null ||
+            now.difference(_lastNoSignAnnouncement!) >=
+                const Duration(seconds: 12);
+        if (canAnnounce) {
+          _lastNoSignAnnouncement = now;
+          await speak(copy('noSigns'));
+        }
+        return;
+      }
+
+      _lastNoSignAnnouncement = null;
 
       if (sceneScanMode) {
         await speakScene(contexts);
@@ -1843,23 +1857,8 @@ class _LiveCameraScreenState
   }
 
   Future<void> _selectLanguageFromButton(String code) async {
+    // start() owns camera startup. Do not initialize another controller here.
     await setLanguage(code);
-    if (!mounted) return;
-
-    onboarding = false;
-    await _initializeCamera();
-    if (!mounted) return;
-
-    unawaited(_refreshLocationInBackground());
-    unawaited(TFLiteService().initialize());
-
-    await speak(copy('scanning'));
-
-    timer?.cancel();
-    timer = Timer.periodic(
-      const Duration(milliseconds: 2500),
-      (_) => scan(),
-    );
   }
 
   Widget _languageButton(String label, String code) {
