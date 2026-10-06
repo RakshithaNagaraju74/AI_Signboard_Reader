@@ -1703,26 +1703,19 @@ class _LiveCameraScreenState
   }
 
   Widget _resultPanel() {
-    if (visibleContexts.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    final hasDetections = visibleContexts.isNotEmpty;
+    final headline = status.trim().isEmpty ? copy('waitingForScan') : status.trim();
 
     return Container(
-      constraints: const BoxConstraints(
-        maxHeight: 155,
-        minHeight: 70,
-      ),
-      padding:
-          const EdgeInsets.all(14),
-      decoration:
-          BoxDecoration(
-        color: Colors.black
-            .withValues(alpha: 0.90),
-        borderRadius:
-            BorderRadius.circular(18),
-        border: Border.all(
-          color: Colors.white24,
-        ),
+      constraints: const BoxConstraints(minHeight: 118, maxHeight: 330),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        boxShadow: const [
+          BoxShadow(blurRadius: 20, offset: Offset(0, 8), color: Colors.black54),
+        ],
       ),
       child: ListView(
         shrinkWrap: true,
@@ -1731,126 +1724,89 @@ class _LiveCameraScreenState
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.analytics_outlined,
-                size: 20,
+              Icon(
+                hasDetections ? Icons.record_voice_over_rounded : Icons.radar_rounded,
+                size: 22,
               ),
-              const SizedBox(
-                width: 8,
-              ),
+              const SizedBox(width: 9),
               Expanded(
                 child: Text(
-                  demoMode
-                      ? copy(
-                          'demoResults',
-                        )
-                      : copy(
-                          'detected',
-                        ),
-                  style:
-                      const TextStyle(
-                    fontWeight:
-                        FontWeight.bold,
-                    fontSize: 17,
-                  ),
+                  hasDetections ? copy('result') : copy('scanningNow'),
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
                 ),
               ),
-              const Icon(
-                Icons.location_on,
-                size: 18,
-              ),
+              if (currentLocation != null)
+                const Icon(Icons.location_on_rounded, size: 18),
             ],
           ),
-          const SizedBox(
-            height: 8,
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              headline,
+              style: const TextStyle(fontSize: 17, height: 1.35, fontWeight: FontWeight.w700),
+            ),
           ),
-          ...visibleContexts
-              .map(
-            (context) {
-              final d =
-                  context.detection;
-
+          if (hasDetections) ...[
+            const SizedBox(height: 10),
+            ...visibleContexts.take(8).map((context) {
+              final d = context.detection;
+              final text = d.ocrText.trim();
               var detail =
-                  '${localizedClass(d.className)}'
-                  ' • '
-                  '${localizedPosition(context.position)}';
-
-              if (d.ocrText.trim().isNotEmpty) {
-                detail +=
-                    '\n${copy('text')}: '
-                    '${d.ocrText.trim()}';
+                  '${localizedClass(d.className)} • ${localizedPosition(context.position)}';
+              if (text.isNotEmpty) {
+                detail += '\n${copy('text')}: $text';
               }
-
               if (context.movement.isNotEmpty) {
-                detail +=
-                    '\n${localizedMovement(context.movement)}';
+                detail += '\n${localizedMovement(context.movement)}';
               } else {
-                detail +=
-                    '\n${localizedProximity(context.proximity)}';
+                detail += '\n${localizedProximity(context.proximity)}';
               }
-
               return Container(
-                margin:
-                    const EdgeInsets.only(
-                  bottom: 7,
-                ),
-                padding:
-                    const EdgeInsets.all(9),
-                decoration:
-                    BoxDecoration(
-                  color: Colors.white
-                      .withValues(
-                    alpha: 0.08,
-                  ),
-                  borderRadius:
-                      BorderRadius.circular(
-                    10,
-                  ),
+                margin: const EdgeInsets.only(bottom: 7),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   detail,
-                  style:
-                      const TextStyle(
-                    fontSize: 12.5,
-                  ),
+                  style: const TextStyle(fontSize: 13.5, height: 1.3),
                 ),
               );
-            },
-          ),
-          const Divider(
-            color: Colors.white24,
-          ),
-          Text(
-            currentLocation == null
-                ? copy('locationUnavailable')
-                : currentLocation!.displayPlace,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          if (lastVerifiedPlace != null) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.indigo.withValues(alpha: 0.20),
+            }),
+            if (currentLocation != null) ...[
+              const Divider(color: Colors.white24),
+              Text(
+                localizedLocationSentence(),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               ),
-              child: Text(
-                localizedPlaceContext(lastVerifiedPlace!),
-                style: const TextStyle(fontSize: 12.5),
+            ],
+            if (lastVerifiedPlace != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.indigo.withValues(alpha: 0.20),
+                ),
+                child: Text(
+                  localizedPlaceContext(lastVerifiedPlace!),
+                  style: const TextStyle(fontSize: 13, height: 1.3),
+                ),
               ),
-            ),
+            ],
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 7),
           Text(
             '© OpenStreetMap contributors',
-            style: TextStyle(
-              fontSize: 10.5,
-              color: Colors.white.withValues(alpha: 0.65),
-            ),
-          )
+            style: TextStyle(fontSize: 10.5, color: Colors.white.withValues(alpha: 0.65)),
+          ),
         ],
       ),
     );
@@ -1876,85 +1832,38 @@ class _LiveCameraScreenState
   Widget build(
     BuildContext context,
   ) {
-    if (showBrandIntro) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: Semantics(
-          label: 'SightToSound. From sight to sound. From sound to freedom.',
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 132,
-                    height: 132,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white24, width: 2),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Image.asset(
-                      'assets/images/app_logo.png',
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(
-                        Icons.graphic_eq_rounded,
-                        size: 72,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  const Text(
-                    'SightToSound',
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'From Sight to Sound.\nFrom Sound to Freedom.',
-                    style: TextStyle(fontSize: 19, height: 1.45),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 26),
-                  const CircularProgressIndicator(),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
     if (onboarding) {
       return Scaffold(
         backgroundColor: Colors.black,
         body: SafeArea(
           child: Center(
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.record_voice_over, size: 72),
+                  const CircleAvatar(
+                    radius: 42,
+                    child: Icon(Icons.record_voice_over_rounded, size: 42),
+                  ),
                   const SizedBox(height: 20),
                   const Text(
-                    'SightToSound',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                    'Choose your language',
+                    style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
                   Text(
                     status,
-                    style: const TextStyle(fontSize: 18),
+                    style: const TextStyle(fontSize: 17, height: 1.4),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 28),
-                  _languageButton('Hindi', 'hi'),
-                  const SizedBox(height: 12),
-                  _languageButton('Kannada', 'kn'),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 26),
                   _languageButton('English', 'en'),
+                  const SizedBox(height: 12),
+                  _languageButton('हिन्दी  •  Hindi', 'hi'),
+                  const SizedBox(height: 12),
+                  _languageButton('ಕನ್ನಡ  •  Kannada', 'kn'),
                 ],
               ),
             ),
@@ -1963,16 +1872,32 @@ class _LiveCameraScreenState
       );
     }
 
-    if (!ready ||
-        camera == null) {
+    if (!ready || camera == null) {
       return Scaffold(
-        backgroundColor:
-            Colors.black,
-        body: Center(
-          child: Text(
-            status,
-            textAlign:
-                TextAlign.center,
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(width: 42, height: 42, child: CircularProgressIndicator()),
+                  const SizedBox(height: 20),
+                  Text(
+                    status,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    onPressed: _resumeCameraSafely,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: Text(copy('retryCamera')),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       );
@@ -1994,14 +1919,16 @@ class _LiveCameraScreenState
                     camera!,
                   ),
           ),
-          if (visibleContexts
-              .isNotEmpty)
-            Positioned(
-              left: 10,
-              right: 10,
-              bottom: 160,
+          Positioned(
+            left: 10,
+            right: 10,
+            bottom: 150,
+            child: Semantics(
+              liveRegion: true,
+              label: status,
               child: _resultPanel(),
             ),
+          ),
           SafeArea(
             child: Column(
               children: [
@@ -2106,33 +2033,6 @@ class _LiveCameraScreenState
                     ),
                   ),
                 const Spacer(),
-                SizedBox(
-                  height: 96,
-                  width: double.infinity,
-                  child: Semantics(
-                    liveRegion: true,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      color: Colors.black87,
-                      child: SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        child: Text(
-                          status,
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
                 Padding(
                   padding:
                       const EdgeInsets.all(
