@@ -2116,6 +2116,34 @@ class _LiveCameraScreenState
                     const Spacer(),
                     Semantics(
                       button: true,
+                      label: safetyMode ? copy('safetyOff') : copy('safetyOn'),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          color: safetyMode
+                              ? Colors.orange.shade800
+                              : Colors.black54,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: IconButton(
+                          tooltip: safetyMode ? copy('safetyOff') : copy('safetyOn'),
+                          onPressed: () async {
+                            setState(() => safetyMode = !safetyMode);
+                            await speak(
+                              safetyMode ? copy('safetyOn') : copy('safetyOff'),
+                              priority: true,
+                            );
+                          },
+                          icon: Icon(
+                            safetyMode
+                                ? Icons.health_and_safety_rounded
+                                : Icons.shield_outlined,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Semantics(
+                      button: true,
                       label: copy(
                         'upload',
                       ),
