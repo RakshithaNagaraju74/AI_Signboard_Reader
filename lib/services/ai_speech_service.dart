@@ -391,7 +391,6 @@ EXAMPLES:
               : ' आप अभी $place के पास हैं।';
 
       return '$prefix'
-          'मुझे $count संकेत दिखाई दे रहे हैं। '
           '$parts।'
           '$placePart';
     }
@@ -409,29 +408,17 @@ EXAMPLES:
               : ' ನೀವು ಈಗ $place ಬಳಿ ಇದ್ದೀರಿ.';
 
       return '$prefix'
-          'ನನಗೆ $count ಫಲಕಗಳು ಕಾಣುತ್ತಿವೆ. '
           '$parts.'
           '$placePart';
     }
 
     final selected = _selectFallbackDetections(detections);
     final parts = selected.map(_englishItem).join('. ');
-
-    final prefix =
-        safety ? 'Warning. ' : '';
-
-    final placePart =
-        place == null || place.isEmpty
-            ? ''
-            : ' You are near $place.';
-
-    final signWord =
-        count == 1 ? 'sign' : 'signs';
-
-    return '$prefix'
-        'I can see $count $signWord. '
-        '$parts.'
-        '$placePart';
+    final prefix = safety ? 'Warning. ' : '';
+    final placePart = place == null || place.isEmpty
+        ? ''
+        : ' Current location context: $place.';
+    return '$prefix$parts.$placePart';
   }
 
 
