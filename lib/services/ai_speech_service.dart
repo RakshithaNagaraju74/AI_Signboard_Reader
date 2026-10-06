@@ -85,7 +85,7 @@ class AISpeechService {
     bool useGroq = true,
   }) async {
     _debug(
-      'compose() called: useNara=$useNara, keyLoaded=${_apiKey.isNotEmpty}, '
+      'compose() called: useGroq=$useGroq, keyLoaded=${_apiKey.isNotEmpty}, '
       'model=$_model, endpoint=$_endpoint, language=$languageCode, '
       'detections=${detections.length}',
     );
@@ -95,7 +95,7 @@ class AISpeechService {
       return _fallback(detections, languageCode, place);
     }
 
-    if (useNara && groqEnabled) {
+    if (useGroq && groqEnabled) {
       final generated = await _composeWithGroq(
         detections: detections,
         languageCode: languageCode,
@@ -111,7 +111,7 @@ class AISpeechService {
         }
         _debug('Groq response REJECTED -> wrong language/script for $languageCode');
       }
-    } else if (useNara) {
+    } else if (useGroq) {
       _debug('Groq requested but API key is missing -> local fallback.');
     }
 
