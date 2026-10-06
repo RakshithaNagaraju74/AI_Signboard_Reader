@@ -559,7 +559,7 @@ class _LiveCameraScreenState
 
       inputs.add(
         SpeechDetectionInput(
-          // Preserve the detector's semantic class for NaraRouter.
+          // Preserve the detector's semantic class for Groq.
           label: context.detection.className,
           position: localizedPosition(context.position),
           text: text,
