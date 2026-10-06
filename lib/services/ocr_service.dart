@@ -11,6 +11,9 @@ class OCRService {
   OCRService._internal();
 
   final Map<TextRecognitionScript, TextRecognizer> _recognizers = {};
+  String? _fullFrameCachePath;
+  TextRecognitionScript? _fullFrameCacheScript;
+  List<_OCRBlock> _fullFrameCacheBlocks = [];
 
   TextRecognizer _recognizerFor(TextRecognitionScript script) =>
       _recognizers.putIfAbsent(script, () => TextRecognizer(script: script));
@@ -37,6 +40,7 @@ class OCRService {
       // Let ML Kit's text detector inspect the whole oriented frame first.
       // We then keep only blocks that overlap this sign's YOLO box.
       final fullFrameText = await _recognizeBlocksNearBox(
+        imageFile.path,
         image,
         bbox,
         script,
@@ -165,34 +169,53 @@ class OCRService {
   }
 
   Future<String> _recognizeBlocksNearBox(
+    String sourcePath,
     img.Image image,
     List<double> bbox,
     TextRecognitionScript script,
   ) async {
-    final recognizer = _recognizerFor(script);
-    final tempFile = File(
-      Directory.systemTemp.path + '/s2s_ocr_full_' +
-          DateTime.now().microsecondsSinceEpoch.toString() + '.jpg',
-    );
-
     try {
-      await tempFile.writeAsBytes(
-        img.encodeJpg(image, quality: 98),
-        flush: true,
-      );
-      final result = await recognizer.processImage(
-        InputImage.fromFile(tempFile),
-      );
+      if (_fullFrameCachePath != sourcePath ||
+          _fullFrameCacheScript != script) {
+        final recognizer = _recognizerFor(script);
+        final tempFile = File(
+          Directory.systemTemp.path + '/s2s_ocr_full_' +
+              DateTime.now().microsecondsSinceEpoch.toString() + '.jpg',
+        );
 
-      if (result.blocks.isEmpty) return '';
+        try {
+          await tempFile.writeAsBytes(
+            img.encodeJpg(image, quality: 98),
+            flush: true,
+          );
+          final result = await recognizer.processImage(
+            InputImage.fromFile(tempFile),
+          );
+
+          _fullFrameCacheBlocks = result.blocks
+              .map(
+                (block) => _OCRBlock(
+                  text: _normalizeOCRText(block.text),
+                  box: block.boundingBox,
+                ),
+              )
+              .where((block) => block.text.isNotEmpty)
+              .toList();
+          _fullFrameCachePath = sourcePath;
+          _fullFrameCacheScript = script;
+        } finally {
+          try {
+            if (await tempFile.exists()) await tempFile.delete();
+          } catch (_) {}
+        }
+      }
 
       final target = ui.Rect.fromLTRB(
         bbox[0], bbox[1], bbox[2], bbox[3],
       );
       final matching = <String>[];
-      for (final block in result.blocks) {
-        final box = block.boundingBox;
-        final intersection = target.intersect(box);
+      for (final block in _fullFrameCacheBlocks) {
+        final intersection = target.intersect(block.box);
         final targetArea = target.width * target.height;
         final intersectionArea =
             intersection.width > 0 && intersection.height > 0
@@ -201,19 +224,14 @@ class OCRService {
         final overlap = targetArea <= 0
             ? 0.0
             : intersectionArea / targetArea;
-        if (overlap >= 0.08 || target.contains(box.center)) {
-          final text = _normalizeOCRText(block.text);
-          if (text.isNotEmpty) matching.add(text);
+        if (overlap >= 0.08 || target.contains(block.box.center)) {
+          matching.add(block.text);
         }
       }
       return _normalizeOCRText(matching.join(' '));
     } catch (e) {
       debugPrint('OCR full-frame block matching failed: ' + e.toString());
       return '';
-    } finally {
-      try {
-        if (await tempFile.exists()) await tempFile.delete();
-      } catch (_) {}
     }
   }
 
@@ -389,6 +407,16 @@ class OCRService {
     }
     _recognizers.clear();
   }
+}
+
+class _OCRBlock {
+  final String text;
+  final ui.Rect box;
+
+  const _OCRBlock({
+    required this.text,
+    required this.box,
+  });
 }
 
 class _OCRCandidate {
