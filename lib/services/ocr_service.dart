@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
@@ -32,6 +33,18 @@ class OCRService {
       final image = img.bakeOrientation(decoded);
       final crop = _safeCrop(image, bbox);
       if (crop == null) return await _recognizeFullImage(image, script);
+
+      // Let ML Kit's text detector inspect the whole oriented frame first.
+      // We then keep only blocks that overlap this sign's YOLO box.
+      final fullFrameText = await _recognizeBlocksNearBox(
+        image,
+        bbox,
+        script,
+      );
+      if (fullFrameText.isNotEmpty) {
+        debugPrint('OCR: matched full-frame text block(s): ' + fullFrameText);
+        return fullFrameText;
+      }
 
       final variants = _buildVariants(crop);
       final recognizer = _recognizerFor(script);
@@ -151,6 +164,59 @@ class OCRService {
     );
   }
 
+  Future<String> _recognizeBlocksNearBox(
+    img.Image image,
+    List<double> bbox,
+    TextRecognitionScript script,
+  ) async {
+    final recognizer = _recognizerFor(script);
+    final tempFile = File(
+      Directory.systemTemp.path + '/s2s_ocr_full_' +
+          DateTime.now().microsecondsSinceEpoch.toString() + '.jpg',
+    );
+
+    try {
+      await tempFile.writeAsBytes(
+        img.encodeJpg(image, quality: 98),
+        flush: true,
+      );
+      final result = await recognizer.processImage(
+        InputImage.fromFile(tempFile),
+      );
+
+      if (result.blocks.isEmpty) return '';
+
+      final target = ui.Rect.fromLTRB(
+        bbox[0], bbox[1], bbox[2], bbox[3],
+      );
+      final matching = <String>[];
+      for (final block in result.blocks) {
+        final box = block.boundingBox;
+        final intersection = target.intersect(box);
+        final targetArea = target.width * target.height;
+        final intersectionArea =
+            intersection.width > 0 && intersection.height > 0
+                ? intersection.width * intersection.height
+                : 0.0;
+        final overlap = targetArea <= 0
+            ? 0.0
+            : intersectionArea / targetArea;
+        if (overlap >= 0.08 || target.contains(box.center)) {
+          final text = _normalizeOCRText(block.text);
+          if (text.isNotEmpty) matching.add(text);
+        }
+      }
+      return _normalizeOCRText(matching.join(' '));
+    } catch (e) {
+      debugPrint('OCR full-frame block matching failed: ' + e.toString());
+      return '';
+    } finally {
+      try {
+        if (await tempFile.exists()) await tempFile.delete();
+      } catch (_) {}
+    }
+  }
+
   img.Image _upscaleForText(img.Image source) {
     final targetHeight = source.height < 180
         ? 600
@@ -170,12 +236,18 @@ class OCRService {
 
   List<img.Image> _buildVariants(img.Image crop) {
     final gray = img.grayscale(crop);
+    final low = img.adjustColor(gray, contrast: 1.35, brightness: 1.02);
+    final high = img.adjustColor(gray, contrast: 2.15, brightness: 1.05);
+
+    // Multi-pass OCR for difficult signboards: original colour, grayscale,
+    // two contrast levels, and an inverted high-contrast pass.
     return [
       crop,
       gray,
-      img.adjustColor(gray, contrast: 1.35, brightness: 1.02),
+      low,
       img.adjustColor(gray, contrast: 1.75, brightness: 1.00),
-      img.adjustColor(gray, contrast: 2.15, brightness: 1.05),
+      high,
+      img.invert(high),
     ];
   }
 
