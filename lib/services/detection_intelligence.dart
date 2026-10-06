@@ -299,6 +299,18 @@ class DetectionIntelligence {
         detectionKey(context.detection);
   }
 
+  bool isFocused(DetectionContext context) {
+    final key = focusedKey;
+    if (key == null) return false;
+    final exact = detectionKey(context.detection) == key;
+    if (exact) return true;
+
+    // Position changes are expected while focusing. Keep the same semantic
+    // sign focused even when it moves from left to center/right.
+    final prefix = context.detection.className + '|';
+    return key.startsWith(prefix);
+  }
+
   void clearFocus() {
     focusedKey = null;
   }
