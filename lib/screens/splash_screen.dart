@@ -123,8 +123,8 @@ class _SplashScreenState extends State<SplashScreen>
                         height: 204,
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
+                          shape: BoxShape.circle,
                           color: Colors.white.withValues(alpha: 0.92),
-                          borderRadius: BorderRadius.circular(52),
                           border: Border.all(
                             color: Colors.white.withValues(alpha: 0.85),
                             width: 2,
@@ -139,18 +139,16 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                           ],
                         ),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(42),
+                        child: ClipOval(
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
                             color: theme.colorScheme.surface,
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(32),
-                            child: Image.asset(
-                              'assets/images/app_logo.png',
-                              fit: BoxFit.contain,
-                              filterQuality: FilterQuality.high,
+                            child: ClipOval(
+                              child: Image.asset(
+                                'assets/images/app_logo.png',
+                                fit: BoxFit.cover,
+                                filterQuality: FilterQuality.high,
+                              ),
                             ),
                           ),
                         ),
