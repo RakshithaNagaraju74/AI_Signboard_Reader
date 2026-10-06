@@ -1209,6 +1209,10 @@ class _LiveCameraScreenState
             'संकेत को बीच में लाने के लिए कैमरा धीरे से घुमाएँ।',
         'focusStopped':
             'फोकस मोड बंद है।',
+        'safetyOn':
+            'सुरक्षा मोड चालू है। महत्वपूर्ण चेतावनियों को पहले बताया जाएगा।',
+        'safetyOff':
+            'सुरक्षा प्राथमिकता बंद है। सामान्य संकेत भी बताए जाएंगे।',
         'scanningSurroundings':
             'आसपास के संकेत स्कैन किए जा रहे हैं।',
         'noHistory':
@@ -1283,6 +1287,10 @@ class _LiveCameraScreenState
             'ಫಲಕವನ್ನು ಮಧ್ಯದಲ್ಲಿ ತರಲು ಕ್ಯಾಮೆರಾವನ್ನು ನಿಧಾನವಾಗಿ ಸರಿಸಿ.',
         'focusStopped':
             'ಫೋಕಸ್ ಮೋಡ್ ನಿಲ್ಲಿಸಲಾಗಿದೆ.',
+        'safetyOn':
+            'ಸುರಕ್ಷತಾ ಮೋಡ್ ಆನ್ ಆಗಿದೆ. ಪ್ರಮುಖ ಎಚ್ಚರಿಕೆಗಳನ್ನು ಮೊದಲು ತಿಳಿಸಲಾಗುತ್ತದೆ.',
+        'safetyOff':
+            'ಸುರಕ್ಷತಾ ಆದ್ಯತೆ ಆಫ್ ಆಗಿದೆ. ಸಾಮಾನ್ಯ ಫಲಕ ಮಾಹಿತಿಯನ್ನೂ ತಿಳಿಸಲಾಗುತ್ತದೆ.',
         'scanningSurroundings':
             'ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳನ್ನು ಸ್ಕ್ಯಾನ್ ಮಾಡಲಾಗುತ್ತಿದೆ.',
         'noHistory':
@@ -1363,6 +1371,10 @@ class _LiveCameraScreenState
           'Move the camera slowly until the sign is centered.',
       'focusStopped':
           'Focus mode stopped.',
+      'safetyOn':
+          'Safety mode is on. Important warnings will be prioritized.',
+      'safetyOff':
+          'Safety priority is off. Normal sign information will be announced.',
       'scanningSurroundings':
           'Scanning the surroundings.',
       'noHistory':
@@ -1403,11 +1415,10 @@ class _LiveCameraScreenState
 
     listening = true;
 
+    await announcements.stopAndClear();
     await tts.stop();
 
-    await speak(
-      copy('voicePrompt'),
-    );
+    await speakRaw(copy('voicePrompt'));
 
     final result =
         await voice.listen(
@@ -1431,16 +1442,39 @@ class _LiveCameraScreenState
     final speech =
         LanguageService.normalize(raw);
 
+    if (speech.contains('stop focus') ||
+        speech.contains('release focus') ||
+        speech.contains('unfocus')) {
+      focusMode = false;
+      intel.clearFocus();
+      await speak(copy('focusStopped'), priority: true);
+      return;
+    }
+
+    if (speech.contains('safety mode') ||
+        speech.contains('safety on') ||
+        speech.contains('सुरक्षा') ||
+        speech.contains('ಸುರಕ್ಷತೆ')) {
+      safetyMode = true;
+      await speak(copy('safetyOn'), priority: true);
+      return;
+    }
+
+    if (speech.contains('normal mode') ||
+        speech.contains('safety off') ||
+        speech.contains('सामान्य मोड') ||
+        speech.contains('ಸಾಮಾನ್ಯ')) {
+      safetyMode = false;
+      await speak(copy('safetyOff'), priority: true);
+      return;
+    }
+
     if (speech.contains('stop') ||
         speech.contains('रुको') ||
         speech.contains('निल्') ||
         speech.contains('ನಿಲ್ಲಿಸು')) {
       stopped = true;
-
-      await speak(
-        copy('stopDone'),
-      );
-
+      await speak(copy('stopDone'), priority: true);
       return;
     }
 
@@ -1465,20 +1499,6 @@ class _LiveCameraScreenState
         last.isEmpty
             ? copy('nothingToRepeat')
             : last,
-      );
-
-      return;
-    }
-
-    if (speech.contains('release focus') ||
-        speech.contains('stop focus') ||
-        speech.contains('unfocus')) {
-      focusMode = false;
-
-      intel.clearFocus();
-
-      await speak(
-        copy('focusStopped'),
       );
 
       return;
@@ -2083,7 +2103,7 @@ class _LiveCameraScreenState
                           Text(
                             stopped
                                 ? 'Paused'
-                                : 'Live • ${language.name}${focusMode ? ' • Focus' : ''}',
+                                : 'Live • ${language.name}${focusMode ? ' • Focus' : ''}${safetyMode ? ' • Safety' : ''}',
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                             ),
@@ -2235,6 +2255,7 @@ class _LiveCameraScreenState
     timer?.cancel();
     camera?.dispose();
     voice.stop();
+    announcements.clear();
     tts.stop();
     super.dispose();
   }
