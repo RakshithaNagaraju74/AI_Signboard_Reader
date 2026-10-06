@@ -517,7 +517,7 @@ class _LiveCameraScreenState
       }
 
       // Announce every newly useful sign in the frame, not just the top one.
-      final announceable = contexts
+      var announceable = contexts
           .where(
             (context) => intel.shouldAnnounce(
               context,
@@ -528,14 +528,42 @@ class _LiveCameraScreenState
           )
           .toList();
 
+      // Safety information always outranks ordinary shop/business narration.
+      if (safetyMode) {
+        final safety = contexts.where(_isSafetyContext).toList();
+        if (safety.isNotEmpty) {
+          announceable = safety;
+        }
+      }
+
+      // Scene memory: suppress an unchanged scene for a short period.
+      final fingerprint = contexts.take(5).map((c) {
+        return '${c.detection.className}|${c.detection.ocrText.trim().toLowerCase()}|${c.position.name}';
+      }).join('||');
+      final now = DateTime.now();
+      final unchangedScene = fingerprint.isNotEmpty &&
+          fingerprint == _lastSceneFingerprint &&
+          _lastSceneNarration != null &&
+          now.difference(_lastSceneNarration!) < const Duration(seconds: 12);
+
+      if (unchangedScene && !announceable.any(_isSafetyContext)) {
+        announceable = [];
+      }
+
       if (announceable.isEmpty) return;
+
+      _lastSceneFingerprint = fingerprint;
+      _lastSceneNarration = now;
 
       final speech = await composeDetectionSpeech(
         announceable,
         useGroq: true,
       );
 
-      await speak(speech);
+      await speak(
+        speech,
+        priority: announceable.any(_isSafetyContext),
+      );
 
       for (final context in announceable) {
         intel.markAnnounced(context);
@@ -786,6 +814,27 @@ class _LiveCameraScreenState
     return text.isEmpty
         ? '$label is $position.'
         : '$label is $position, with the text "$text".';
+  }
+
+  bool _isSafetyContext(DetectionContext context) {
+    if (_isSafetyClass(context.detection.className)) return true;
+    final text = context.detection.ocrText.toLowerCase();
+    const words = [
+      'no parking',
+      'no entry',
+      'road closed',
+      'road block',
+      'do not enter',
+      'stop',
+      'danger',
+      'warning',
+      'construction',
+      'speed limit',
+      'pedestrian crossing',
+      'keep left',
+      'keep right',
+    ];
+    return words.any(text.contains);
   }
 
   bool _isSafetyClass(
