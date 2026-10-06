@@ -103,131 +103,123 @@ class _SplashScreenState extends State<SplashScreen>
                 color: theme.colorScheme.secondary.withValues(alpha: 0.16),
               ),
             ),
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
-              child: const SizedBox.expand(),
-            ),
             SafeArea(
               child: Center(
                 child: FadeTransition(
-              opacity: _fade,
-              child: ScaleTransition(
-                scale: _scale,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 204,
-                        height: 204,
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.92),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.85),
-                            width: 2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              blurRadius: 40,
-                              spreadRadius: 2,
-                              offset: const Offset(0, 18),
-                              color: theme.colorScheme.primary
-                                  .withValues(alpha: 0.20),
+                  opacity: _fade,
+                  child: ScaleTransition(
+                    scale: _scale,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 204,
+                            height: 204,
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withValues(alpha: 0.94),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.88),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  blurRadius: 40,
+                                  spreadRadius: 2,
+                                  offset: const Offset(0, 18),
+                                  color: theme.colorScheme.primary.withValues(alpha: 0.20),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: ClipOval(
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            color: theme.colorScheme.surface,
                             child: ClipOval(
-                              child: Image.asset(
-                                'assets/images/app_logo.png',
-                                fit: BoxFit.cover,
-                                filterQuality: FilterQuality.high,
+                              child: Container(
+                                color: theme.colorScheme.surface,
+                                padding: const EdgeInsets.all(14),
+                                child: Image.asset(
+                                  'assets/images/app_logo.png',
+                                  fit: BoxFit.cover,
+                                  filterQuality: FilterQuality.high,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-                      Text(
-                        'SightToSound',
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.4,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'From Sight to Sound,\nFrom Sound to Freedom.',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          height: 1.4,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.2,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 18),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 9,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surface.withValues(alpha: 0.72),
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(
-                            color: theme.colorScheme.outline.withValues(alpha: 0.18),
+                          const SizedBox(height: 28),
+                          Text(
+                            'SightToSound',
+                            style: theme.textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.4,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.record_voice_over_rounded,
-                              size: 18,
-                              color: theme.colorScheme.primary,
+                          const SizedBox(height: 8),
+                          Text(
+                            'From Sight to Sound,\nFrom Sound to Freedom.',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              height: 1.4,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.2,
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Voice-first accessibility',
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 18),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surface.withValues(alpha: 0.72),
+                              borderRadius: BorderRadius.circular(30),
+                              border: Border.all(
+                                color: theme.colorScheme.outline.withValues(alpha: 0.18),
                               ),
                             ),
-                          ],
-                        ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.record_voice_over_rounded,
+                                  size: 18,
+                                  color: theme.colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Voice-first accessibility',
+                                  style: theme.textTheme.labelLarge?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+                          Semantics(
+                            label: 'Starting SightToSound accessibility assistant',
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 28,
+                                  height: 28,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Preparing your camera...',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 30),
-                      Semantics(
-                        label: 'Starting SightToSound accessibility assistant',
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 28,
-                              height: 28,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 3,
-                                color: theme.colorScheme.primary,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Preparing your camera...',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -237,6 +229,7 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
   }
+
 }
 
 class _GlowOrb extends StatelessWidget {
