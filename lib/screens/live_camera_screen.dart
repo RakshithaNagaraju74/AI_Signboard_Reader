@@ -1312,7 +1312,7 @@ class _LiveCameraScreenState
         'visible':
             'ನನಗೆ ಕಾಣುತ್ತಿರುವುದು',
         'help':
-            'ಸ್ಕ್ಯಾನ್, ನಿಲ್ಲಿಸು, ಮತ್ತೆ ಹೇಳು, ಫೋಕಸ್, ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳು, ಇತಿಹಾಸ, ಭಾಷೆ ಬದಲಾಯಿಸು ಅಥವಾ ನ್ಯಾವಿಗೇಟ್ ಎಂದು ಹೇಳಿ.',
+            'ಸ್ಕ್ಯಾನ್, ನಿಲ್ಲಿಸು, ಮತ್ತೆ ಹೇಳು, ಫೋಕಸ್, ಫೋಕಸ್ ನಿಲ್ಲಿಸು, ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳು, ಸುರಕ್ಷತಾ ಮೋಡ್, ಇತಿಹಾಸ, ಭಾಷೆ ಬದಲಾಯಿಸು ಅಥವಾ ನ್ಯಾವಿಗೇಟ್ ಎಂದು ಹೇಳಿ.',
         'upload':
             'ಚಿತ್ರ ಆಯ್ಕೆಮಾಡಿ',
         'backCamera':
@@ -1397,7 +1397,7 @@ class _LiveCameraScreenState
       'visible':
           'I can see',
       'help':
-          'Say scan, stop, repeat, find sign, stop focus, scan surroundings, what signs, where, change language, history, or navigate.',
+          'Say scan, stop, repeat, find sign, stop focus, scan surroundings, what signs, where, safety mode, normal mode, change language, history, or navigate.',
       'upload':
           'Upload image',
       'backCamera':
