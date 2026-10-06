@@ -379,7 +379,20 @@ class _LiveCameraScreenState
     final ocrLimit = demo ? 6 : 4;
     final ocrKeys = preliminary
         .take(ocrLimit)
-        .where((context) => context.detection.confidence >= 0.45)
+        .where((context) {
+          final label = context.detection.className.toLowerCase();
+          final textRich = label.contains('shop') ||
+              label.contains('signboard') ||
+              label.contains('public_info') ||
+              label.contains('notice') ||
+              label.contains('bus') ||
+              label.contains('mrt') ||
+              label.contains('speed_limit');
+          // Text-rich signs are valuable even when the detector confidence
+          // is a little lower; OCR can turn a generic category into useful
+          // information for the blind user.
+          return context.detection.confidence >= (textRich ? 0.35 : 0.45);
+        })
         .map((context) => intel.detectionKey(context.detection))
         .toSet();
 
