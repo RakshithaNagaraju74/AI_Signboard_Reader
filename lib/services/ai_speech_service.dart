@@ -82,7 +82,7 @@ class AISpeechService {
     required List<SpeechDetectionInput> detections,
     required String languageCode,
     String? place,
-    bool useNara = true,
+    bool useGroq = true,
   }) async {
     _debug(
       'compose() called: useNara=$useNara, keyLoaded=${_apiKey.isNotEmpty}, '
@@ -182,6 +182,17 @@ IMPORTANT EVIDENCE MODEL:
 - "proximity" is an estimated relation to the camera. A number such as 50M inside visible_text is NOT the distance from the user.
 - Never say a sign is 50 metres away merely because the sign contains 50M. Only use a distance when explicitly supplied by proximity or guidance.
 
+REAL-WORLD NARRATION PRIORITY:
+- The user needs useful information, not merely a detector category.
+- When readable text is available, tell the user what the sign actually says or means. Do not stop at "there is a shop sign ahead" when OCR contains meaningful words.
+- For a business sign, preserve the readable business or service name: "There is a Shree Medicals sign slightly left."
+- For a generic service sign such as MEDICALS, PHARMACY, BAKERY, HOTEL, SCHOOL, HOSPITAL, or MARKET, state that service explicitly.
+- For warnings, restrictions, directions, destinations, routes, bus numbers, road names, or instructions, explain the useful meaning of the text.
+- If OCR contains an action or restriction, say the action naturally: "No parking", "Road closed", "Keep left", "Pedestrian crossing", or "Speed limit 40".
+- Do not say "with text" when the text can be meaningfully interpreted.
+- If OCR is empty or unreliable, use the detector category and position as the minimum useful description; never invent missing text.
+- For a blind pedestrian, prioritize: safety/restriction, useful sign wording/name, position, movement/proximity, then reliable location context.
+
 REAL-WORLD INTERPRETATION:
 - Think like a human accessibility assistant standing beside the user, not like an OCR debugger.
 - For a business sign, say the corrected business/place name naturally: "There is a pharmacy sign on your left."
@@ -189,7 +200,7 @@ REAL-WORLD INTERPRETATION:
 - For a directional sign, preserve the destination and direction if the evidence contains them.
 - For a number-only sign, report the number only when it is useful to the pedestrian.
 - Treat numbers according to their real-world signboard meaning, not as generic quantities.
-- INDIAN PIN CODE: when a six-digit numeric string is clearly a PIN/postal code, preserve all six digits exactly. Say it as a PIN code, for example "The PIN code is 560001." Do NOT convert it into a spoken quantity such as "five hundred sixty thousand one", do not reorder digits, and do not guess missing digits.
+- INDIAN PIN CODE: when a six-digit numeric string is clearly a PIN/postal code, preserve all six digits exactly as an identifier. Say "PIN code 560001" or the natural Hindi/Kannada equivalent. Never reinterpret 560001 as the quantity five hundred sixty thousand one.
 - PHONE NUMBER: when a long digit string is clearly a phone/mobile/contact number, preserve every digit exactly and introduce it as a phone number. Do not interpret it as a large numerical quantity. Natural digit grouping is allowed for speech clarity, but the digit sequence must never change.
 - BUS/ROUTE NUMBER: keep identifiers such as 500K together. Say "Bus number 500K", not "five hundred thousand".
 - HOUSE/SHOP/BUILDING NUMBER: keep the number as an address identifier, such as "Shop number 24".
@@ -197,6 +208,7 @@ REAL-WORLD INTERPRETATION:
 - SIGN DISTANCE: a number followed by M, metre, metres, km, or kilometres on the printed sign is sign content. It is NOT the measured distance from the user.
 - DATE/TIME: preserve clearly labelled dates and times as dates/times.
 - GENERAL NUMBERS: when the meaning is uncertain, preserve the original digits and nearby label rather than converting them into a large spoken quantity.
+- NUMERIC INTEGRITY: never drop, reorder, merge, or invent digits from a clearly readable identifier. Keep the exact digit sequence for PIN codes, phone numbers, bus/route numbers, house/shop numbers, prices, dates, and times.
 - Do not turn OCR fragments into a place name unless the fragments support that interpretation.
 - Do not invent street names, businesses, distances, directions, or navigation instructions.
 - If current_location contains the user's current street, area, city, or address with good GPS accuracy, use that current location explicitly when it helps orient the user.
@@ -315,7 +327,7 @@ EXAMPLES:
       if (usage is Map<String, dynamic>) {
         _debug('TOKEN USAGE -> prompt=${usage['prompt_tokens']}, completion=${usage['completion_tokens']}, total=${usage['total_tokens']}');
       } else {
-        _debug('TOKEN USAGE -> not returned by router');
+        _debug('TOKEN USAGE -> not returned by Groq API');
       }
       _debug('ROUTER RESPONSE -> model=${decoded['model'] ?? 'unknown'}, requestId=${decoded['id'] ?? 'unknown'}');
 
@@ -334,7 +346,7 @@ EXAMPLES:
       }
 
       _debug('RESPONSE CONTENT RECEIVED -> ${content.length} characters');
-      _debug('NARA RESULT -> $content');
+      _debug('GROQ RESULT -> $content');
       return content;
     } catch (e) {
       _debug('REQUEST EXCEPTION -> $e');
