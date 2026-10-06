@@ -336,7 +336,7 @@ class OCRService {
       'sch00l': 'school',
     };
 
-    final words = value.split(RegExp(r'\\s+'));
+    final words = value.split(RegExp(r'\s+'));
     for (var i = 0; i < words.length; i++) {
       final key = words[i].toLowerCase();
       final corrected = replacements[key];
