@@ -1474,7 +1474,9 @@ class _LiveCameraScreenState
         speech.contains('निल्') ||
         speech.contains('ನಿಲ್ಲಿಸು')) {
       stopped = true;
-      await speak(copy('stopDone'), priority: true);
+      await announcements.stopAndClear();
+      await tts.stop();
+      await speakRaw(copy('stopDone'));
       return;
     }
 
@@ -1484,23 +1486,18 @@ class _LiveCameraScreenState
         speech.contains('ಮುಂದುವರ') ||
         speech.contains('ಸ್ಕ್ಯಾನ್')) {
       stopped = false;
-
-      await speak(
-        copy('scanning'),
-      );
-
+      await announcements.stopAndClear();
+      await speak(copy('scanning'), priority: true);
       return;
     }
 
     if (speech.contains('repeat') ||
         speech.contains('दोहर') ||
         speech.contains('ಮತ್ತೆ')) {
-      await speak(
-        last.isEmpty
-            ? copy('nothingToRepeat')
-            : last,
-      );
-
+      final repeatText = last.isEmpty ? copy('nothingToRepeat') : last;
+      await announcements.stopAndClear();
+      await tts.stop();
+      await speakRaw(repeatText);
       return;
     }
 
