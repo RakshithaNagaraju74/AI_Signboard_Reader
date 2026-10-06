@@ -311,7 +311,7 @@ EXAMPLES:
       _debug('HTTP STATUS = ${response.statusCode}');
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        var detail = body.replaceAll(RegExp(r'[Groq]s+'), ' ').trim();
+        var detail = body.replaceAll(RegExp(r'\s+'), ' ').trim();
         if (detail.length > 500) {
           detail = detail.substring(0, 500);
         }
