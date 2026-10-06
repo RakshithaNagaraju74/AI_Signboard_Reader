@@ -292,6 +292,11 @@ class _LiveCameraScreenState
         timeout: const Duration(seconds: 12),
       );
 
+      // A large language button can be pressed while speech recognition is
+      // still waiting. In that case the button choice wins and onboarding
+      // must not start another prompt cycle.
+      if (languageChosen) return;
+
       final detected = LanguageService.detectCommand(answer ?? '');
       if (detected == null) continue;
 
