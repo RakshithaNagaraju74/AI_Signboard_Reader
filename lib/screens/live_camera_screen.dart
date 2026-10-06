@@ -649,7 +649,7 @@ class _LiveCameraScreenState
           proximity: context.proximity,
           guidance: localizedGuidance(context.position),
           placeContext: placeContext,
-          safety: _isSafetyClass(context.detection.className),
+          safety: _isSafetyContext(context),
         ),
       );
     }
