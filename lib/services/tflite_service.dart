@@ -27,7 +27,7 @@ class TFLiteService {
   static const int inputSize = 416;
 
   // Do NOT accept extremely tiny predictions.
-  static const double confidenceThreshold = 0.40;
+  static const double confidenceThreshold = 0.30;
 
   static const double nmsThreshold = 0.45;
 
@@ -338,7 +338,7 @@ class TFLiteService {
       return [];
     }
 
-    const numClasses = 21;
+    final numClasses = _labels.length;
 
     Logger.log(
       'YOLO layout: '
