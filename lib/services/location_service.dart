@@ -74,15 +74,500 @@ class LocationService {
       Geocoding(locale: _toLocale(localeIdentifier));
 
   Future<bool> ensurePermission() async {
-    if (!await Geolocator.isLocationServiceEnabled()) return false;
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    debugPrint('[GPS] location service enabled=
 
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+  Future<LocationSnapshot?> current({
+    String localeIdentifier = 'en_US',
+    bool refreshPlace = false,
+  }) async {
+    if (!await ensurePermission()) return _cached;
+
+    final now = DateTime.now();
+    final locationIsFresh = _cached != null &&
+        _lastLocationFetch != null &&
+        now.difference(_lastLocationFetch!) < const Duration(seconds: 5);
+
+    if (locationIsFresh && !refreshPlace) {
+      return _cached;
     }
 
-    return permission != LocationPermission.denied &&
+    Position? lastKnown;
+    try {
+      lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        debugPrint('[GPS] last-known accuracy=' +
+            lastKnown.accuracy.toStringAsFixed(1) + 'm');
+      }
+    } catch (e) {
+      debugPrint('[GPS] last-known lookup failed: ' + e.toString());
+    }
+
+    Position position;
+    try {
+      position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 5,
+        ),
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw TimeoutException('Location request timed out'),
+      );
+      debugPrint('[GPS] fresh position accuracy=' +
+          position.accuracy.toStringAsFixed(1) + 'm');
+    } catch (e) {
+      if (lastKnown != null) {
+        debugPrint('[GPS] current fix failed; using last-known position: ' + e.toString());
+        position = lastKnown;
+      } else if (_cached != null) {
+        debugPrint('[GPS] current fix failed; using cached snapshot: ' + e.toString());
+        return _cached;
+      } else {
+        rethrow;
+      }
+    }
+
+    _lastLocationFetch = now;
+    final shouldGeocode = refreshPlace ||
+        _lastGeocoded == null ||
+        now.difference(_lastGeocoded!) > const Duration(seconds: 30) ||
+        _cached == null;
+
+    String? placeName = _cached?.placeName;
+    String? addressLine = _cached?.addressLine;
+    String? street = _cached?.street;
+    String? area = _cached?.area;
+    String? city = _cached?.city;
+
+    if (shouldGeocode) {
+      try {
+        final placemarks = await _geocodingFor(localeIdentifier)
+            .placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+
+        if (placemarks.isNotEmpty) {
+          final p = placemarks.first;
+          placeName = _firstNonEmpty([p.name, p.subLocality, p.locality]);
+          addressLine = _firstNonEmpty([
+            _joinAddressParts([
+              p.name,
+              p.street,
+              p.subLocality,
+              p.locality,
+              p.administrativeArea,
+            ]),
+            p.street,
+            p.subLocality,
+            p.locality,
+            p.administrativeArea,
+          ]);
+          street = _firstNonEmpty([p.street, p.thoroughfare]);
+          area = _firstNonEmpty([p.subLocality, p.subAdministrativeArea]);
+          city = _firstNonEmpty([p.locality, p.administrativeArea]);
+        }
+        _lastGeocoded = now;
+      } catch (_) {
+        // GPS should still work when native reverse geocoding is unavailable.
+      }
+    }
+
+    _cached = LocationSnapshot(
+      latitude: position.latitude,
+      longitude: position.longitude,
+      accuracy: position.accuracy,
+      timestamp: position.timestamp,
+      placeName: placeName,
+      addressLine: addressLine,
+      street: street,
+      area: area,
+      city: city,
+    );
+
+    return _cached;
+  }
+
+  Locale _toLocale(String identifier) {
+    final parts = identifier.split('_');
+    if (parts.length == 2) return Locale(parts[0], parts[1]);
+    return Locale(parts.first);
+  }
+
+  String? _joinAddressParts(List<String?> values) {
+    final parts = <String>[];
+    for (final value in values) {
+      final cleaned = value?.trim();
+      if (cleaned == null || cleaned.isEmpty) continue;
+      if (!parts.any((part) => part.toLowerCase() == cleaned.toLowerCase())) {
+        parts.add(cleaned);
+      }
+    }
+    return parts.isEmpty ? null : parts.join(', ');
+  }
+
+  String? _firstNonEmpty(List<String?> values) {
+    for (final value in values) {
+      if (value != null && value.trim().isNotEmpty) return value.trim();
+    }
+    return null;
+  }
+}
+ + serviceEnabled.toString());
+    if (!serviceEnabled) return false;
+
+    var permission = await Geolocator.checkPermission();
+    debugPrint('[GPS] permission before request=
+
+  Future<LocationSnapshot?> current({
+    String localeIdentifier = 'en_US',
+    bool refreshPlace = false,
+  }) async {
+    if (!await ensurePermission()) return _cached;
+
+    final now = DateTime.now();
+    final locationIsFresh = _cached != null &&
+        _lastLocationFetch != null &&
+        now.difference(_lastLocationFetch!) < const Duration(seconds: 5);
+
+    if (locationIsFresh && !refreshPlace) {
+      return _cached;
+    }
+
+    final position = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+      ),
+    ).timeout(
+      const Duration(seconds: 6),
+      onTimeout: () => throw TimeoutException('Location request timed out'),
+    );
+
+    _lastLocationFetch = now;
+    final shouldGeocode = refreshPlace ||
+        _lastGeocoded == null ||
+        now.difference(_lastGeocoded!) > const Duration(seconds: 30) ||
+        _cached == null;
+
+    String? placeName = _cached?.placeName;
+    String? addressLine = _cached?.addressLine;
+    String? street = _cached?.street;
+    String? area = _cached?.area;
+    String? city = _cached?.city;
+
+    if (shouldGeocode) {
+      try {
+        final placemarks = await _geocodingFor(localeIdentifier)
+            .placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+
+        if (placemarks.isNotEmpty) {
+          final p = placemarks.first;
+          placeName = _firstNonEmpty([p.name, p.subLocality, p.locality]);
+          addressLine = _firstNonEmpty([
+            _joinAddressParts([
+              p.name,
+              p.street,
+              p.subLocality,
+              p.locality,
+              p.administrativeArea,
+            ]),
+            p.street,
+            p.subLocality,
+            p.locality,
+            p.administrativeArea,
+          ]);
+          street = _firstNonEmpty([p.street, p.thoroughfare]);
+          area = _firstNonEmpty([p.subLocality, p.subAdministrativeArea]);
+          city = _firstNonEmpty([p.locality, p.administrativeArea]);
+        }
+        _lastGeocoded = now;
+      } catch (_) {
+        // GPS should still work when native reverse geocoding is unavailable.
+      }
+    }
+
+    _cached = LocationSnapshot(
+      latitude: position.latitude,
+      longitude: position.longitude,
+      accuracy: position.accuracy,
+      timestamp: position.timestamp,
+      placeName: placeName,
+      addressLine: addressLine,
+      street: street,
+      area: area,
+      city: city,
+    );
+
+    return _cached;
+  }
+
+  Locale _toLocale(String identifier) {
+    final parts = identifier.split('_');
+    if (parts.length == 2) return Locale(parts[0], parts[1]);
+    return Locale(parts.first);
+  }
+
+  String? _joinAddressParts(List<String?> values) {
+    final parts = <String>[];
+    for (final value in values) {
+      final cleaned = value?.trim();
+      if (cleaned == null || cleaned.isEmpty) continue;
+      if (!parts.any((part) => part.toLowerCase() == cleaned.toLowerCase())) {
+        parts.add(cleaned);
+      }
+    }
+    return parts.isEmpty ? null : parts.join(', ');
+  }
+
+  String? _firstNonEmpty(List<String?> values) {
+    for (final value in values) {
+      if (value != null && value.trim().isNotEmpty) return value.trim();
+    }
+    return null;
+  }
+}
+ + permission.toString());
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      debugPrint('[GPS] permission after request=
+
+  Future<LocationSnapshot?> current({
+    String localeIdentifier = 'en_US',
+    bool refreshPlace = false,
+  }) async {
+    if (!await ensurePermission()) return _cached;
+
+    final now = DateTime.now();
+    final locationIsFresh = _cached != null &&
+        _lastLocationFetch != null &&
+        now.difference(_lastLocationFetch!) < const Duration(seconds: 5);
+
+    if (locationIsFresh && !refreshPlace) {
+      return _cached;
+    }
+
+    final position = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+      ),
+    ).timeout(
+      const Duration(seconds: 6),
+      onTimeout: () => throw TimeoutException('Location request timed out'),
+    );
+
+    _lastLocationFetch = now;
+    final shouldGeocode = refreshPlace ||
+        _lastGeocoded == null ||
+        now.difference(_lastGeocoded!) > const Duration(seconds: 30) ||
+        _cached == null;
+
+    String? placeName = _cached?.placeName;
+    String? addressLine = _cached?.addressLine;
+    String? street = _cached?.street;
+    String? area = _cached?.area;
+    String? city = _cached?.city;
+
+    if (shouldGeocode) {
+      try {
+        final placemarks = await _geocodingFor(localeIdentifier)
+            .placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+
+        if (placemarks.isNotEmpty) {
+          final p = placemarks.first;
+          placeName = _firstNonEmpty([p.name, p.subLocality, p.locality]);
+          addressLine = _firstNonEmpty([
+            _joinAddressParts([
+              p.name,
+              p.street,
+              p.subLocality,
+              p.locality,
+              p.administrativeArea,
+            ]),
+            p.street,
+            p.subLocality,
+            p.locality,
+            p.administrativeArea,
+          ]);
+          street = _firstNonEmpty([p.street, p.thoroughfare]);
+          area = _firstNonEmpty([p.subLocality, p.subAdministrativeArea]);
+          city = _firstNonEmpty([p.locality, p.administrativeArea]);
+        }
+        _lastGeocoded = now;
+      } catch (_) {
+        // GPS should still work when native reverse geocoding is unavailable.
+      }
+    }
+
+    _cached = LocationSnapshot(
+      latitude: position.latitude,
+      longitude: position.longitude,
+      accuracy: position.accuracy,
+      timestamp: position.timestamp,
+      placeName: placeName,
+      addressLine: addressLine,
+      street: street,
+      area: area,
+      city: city,
+    );
+
+    return _cached;
+  }
+
+  Locale _toLocale(String identifier) {
+    final parts = identifier.split('_');
+    if (parts.length == 2) return Locale(parts[0], parts[1]);
+    return Locale(parts.first);
+  }
+
+  String? _joinAddressParts(List<String?> values) {
+    final parts = <String>[];
+    for (final value in values) {
+      final cleaned = value?.trim();
+      if (cleaned == null || cleaned.isEmpty) continue;
+      if (!parts.any((part) => part.toLowerCase() == cleaned.toLowerCase())) {
+        parts.add(cleaned);
+      }
+    }
+    return parts.isEmpty ? null : parts.join(', ');
+  }
+
+  String? _firstNonEmpty(List<String?> values) {
+    for (final value in values) {
+      if (value != null && value.trim().isNotEmpty) return value.trim();
+    }
+    return null;
+  }
+}
+ + permission.toString());
+    }
+
+    final allowed = permission != LocationPermission.denied &&
         permission != LocationPermission.deniedForever;
+    debugPrint('[GPS] permission allowed=
+
+  Future<LocationSnapshot?> current({
+    String localeIdentifier = 'en_US',
+    bool refreshPlace = false,
+  }) async {
+    if (!await ensurePermission()) return _cached;
+
+    final now = DateTime.now();
+    final locationIsFresh = _cached != null &&
+        _lastLocationFetch != null &&
+        now.difference(_lastLocationFetch!) < const Duration(seconds: 5);
+
+    if (locationIsFresh && !refreshPlace) {
+      return _cached;
+    }
+
+    final position = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+      ),
+    ).timeout(
+      const Duration(seconds: 6),
+      onTimeout: () => throw TimeoutException('Location request timed out'),
+    );
+
+    _lastLocationFetch = now;
+    final shouldGeocode = refreshPlace ||
+        _lastGeocoded == null ||
+        now.difference(_lastGeocoded!) > const Duration(seconds: 30) ||
+        _cached == null;
+
+    String? placeName = _cached?.placeName;
+    String? addressLine = _cached?.addressLine;
+    String? street = _cached?.street;
+    String? area = _cached?.area;
+    String? city = _cached?.city;
+
+    if (shouldGeocode) {
+      try {
+        final placemarks = await _geocodingFor(localeIdentifier)
+            .placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+
+        if (placemarks.isNotEmpty) {
+          final p = placemarks.first;
+          placeName = _firstNonEmpty([p.name, p.subLocality, p.locality]);
+          addressLine = _firstNonEmpty([
+            _joinAddressParts([
+              p.name,
+              p.street,
+              p.subLocality,
+              p.locality,
+              p.administrativeArea,
+            ]),
+            p.street,
+            p.subLocality,
+            p.locality,
+            p.administrativeArea,
+          ]);
+          street = _firstNonEmpty([p.street, p.thoroughfare]);
+          area = _firstNonEmpty([p.subLocality, p.subAdministrativeArea]);
+          city = _firstNonEmpty([p.locality, p.administrativeArea]);
+        }
+        _lastGeocoded = now;
+      } catch (_) {
+        // GPS should still work when native reverse geocoding is unavailable.
+      }
+    }
+
+    _cached = LocationSnapshot(
+      latitude: position.latitude,
+      longitude: position.longitude,
+      accuracy: position.accuracy,
+      timestamp: position.timestamp,
+      placeName: placeName,
+      addressLine: addressLine,
+      street: street,
+      area: area,
+      city: city,
+    );
+
+    return _cached;
+  }
+
+  Locale _toLocale(String identifier) {
+    final parts = identifier.split('_');
+    if (parts.length == 2) return Locale(parts[0], parts[1]);
+    return Locale(parts.first);
+  }
+
+  String? _joinAddressParts(List<String?> values) {
+    final parts = <String>[];
+    for (final value in values) {
+      final cleaned = value?.trim();
+      if (cleaned == null || cleaned.isEmpty) continue;
+      if (!parts.any((part) => part.toLowerCase() == cleaned.toLowerCase())) {
+        parts.add(cleaned);
+      }
+    }
+    return parts.isEmpty ? null : parts.join(', ');
+  }
+
+  String? _firstNonEmpty(List<String?> values) {
+    for (final value in values) {
+      if (value != null && value.trim().isNotEmpty) return value.trim();
+    }
+    return null;
+  }
+}
+ + allowed.toString());
+    return allowed;
   }
 
   Future<LocationSnapshot?> current({
