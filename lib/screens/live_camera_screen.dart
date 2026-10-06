@@ -1078,6 +1078,10 @@ class _LiveCameraScreenState
         'languageSelected':
             'भाषा चुन ली गई है। अब से सभी ऐप निर्देश इसी भाषा में होंगे।',
         'detected': 'पहचाना गया',
+        'result': 'अभी का परिणाम',
+        'scanningNow': 'स्कैन किया जा रहा है',
+        'waitingForScan': 'कैमरा तैयार है। संकेत के सामने रखें।',
+        'retryCamera': 'कैमरा फिर शुरू करें',
         'position': 'स्थिति',
         'class': 'क्लास',
         'confidence': 'विश्वास',
@@ -1146,6 +1150,10 @@ class _LiveCameraScreenState
         'languageSelected':
             'ಭಾಷೆಯನ್ನು ಆಯ್ಕೆ ಮಾಡಲಾಗಿದೆ. ಇನ್ನು ಮುಂದೆ ಎಲ್ಲಾ ಆಪ್ ಸೂಚನೆಗಳು ಇದೇ ಭಾಷೆಯಲ್ಲಿ ಇರುತ್ತವೆ.',
         'detected': 'ಗುರುತಿಸಲಾಗಿದೆ',
+        'result': 'ಈಗಿನ ಫಲಿತಾಂಶ',
+        'scanningNow': 'ಸ್ಕ್ಯಾನ್ ಮಾಡಲಾಗುತ್ತಿದೆ',
+        'waitingForScan': 'ಕ್ಯಾಮೆರಾ ಸಿದ್ಧವಾಗಿದೆ. ಫಲಕವನ್ನು ಮುಂದೆ ಹಿಡಿಯಿರಿ.',
+        'retryCamera': 'ಕ್ಯಾಮೆರಾ ಮತ್ತೆ ಪ್ರಾರಂಭಿಸಿ',
         'position': 'ಸ್ಥಾನ',
         'class': 'ವರ್ಗ',
         'confidence': 'ವಿಶ್ವಾಸ',
@@ -1217,6 +1225,14 @@ class _LiveCameraScreenState
           'Language selected. From now on, all app guidance will use this language.',
       'detected':
           'Detected',
+      'result':
+          'Current result',
+      'scanningNow':
+          'Scanning',
+      'waitingForScan':
+          'Camera is ready. Hold a signboard in front of it.',
+      'retryCamera':
+          'Restart camera',
       'position':
           'Position',
       'text':
