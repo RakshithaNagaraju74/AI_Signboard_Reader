@@ -13,6 +13,7 @@ class SpeechDetectionInput {
   final String guidance;
   final String placeContext;
   final bool safety;
+  final double confidence;
 
   const SpeechDetectionInput({
     required this.label,
@@ -23,6 +24,7 @@ class SpeechDetectionInput {
     this.guidance = '',
     this.placeContext = '',
     this.safety = false,
+    this.confidence = 0.0,
   });
 
   Map<String, dynamic> toJson() {
@@ -30,6 +32,7 @@ class SpeechDetectionInput {
       'sign': label,
       'position': position,
       if (text.isNotEmpty) 'visible_text': text,
+      'detector_confidence': confidence,
       if (movement.isNotEmpty) 'movement': movement,
       if (proximity.isNotEmpty) 'proximity': proximity,
       if (guidance.isNotEmpty) 'guidance': guidance,
@@ -174,13 +177,26 @@ Your ONLY job is to produce the final spoken narration for a blind pedestrian. T
 
 IMPORTANT EVIDENCE MODEL:
 - The input is structured evidence from a detector and OCR. You do NOT see the camera image.
-- "sign" is the detector's class/category and is important evidence. Never ignore it.
+- "sign" is the detector's class/category and is important evidence, but it can be wrong.
+- "detector_confidence" is the detector confidence. Treat labels below about 0.65 as tentative and use OCR/context to re-evaluate them.
 - "visible_text" is OCR from the sign and may contain spelling errors, split letters, missing spaces, or character substitutions. Treat OCR as evidence, not final text.
 - When visible_text contains a recognizable real-world word, business name, warning, restriction, direction, or number, preserve its meaning and correct only obvious OCR mistakes.
 - If OCR is noisy or contradictory, prefer the detector category plus the reliable OCR fragments instead of inventing a complete sentence from uncertain text.
 - Read the sign as a whole. For example, "P", "NO", "PARKING", "50M", arrows, and restriction symbols can change the meaning when they occur together.
 - "proximity" is an estimated relation to the camera. A number such as 50M inside visible_text is NOT the distance from the user.
 - Never say a sign is 50 metres away merely because the sign contains 50M. Only use a distance when explicitly supplied by proximity or guidance.
+
+ALLOWED DETECTOR CLASSES:
+warning_sign, construction_sign, turn_left_sign, turn_right_sign, junction_or_merge_sign, school_zone_sign, speed_limit_sign, bus_stop_sign, shop_sign, public_info_sign, mrt_sign, tra_sign, bicycle_sign, stop_request_bell_sign, wet_floor_sign, pedestrian_crossing_sign, accessibility_sign, restroom_sign_ladies, restroom_sign_men, pedestrian_dont_walk_sign, tactile_paving.
+
+These are the 21 classes currently defined by this app's TFLite model. Never invent another detector class. If a detector label has low confidence and OCR strongly indicates a different class, interpret the sign using the most suitable class from this allowed list for narration. A highway or road instruction board generally fits tra_sign or public_info_sign; a business/store/service name fits shop_sign; bus wording or a route number fits bus_stop_sign; metro/MRT wording fits mrt_sign.
+
+LOW-CONFIDENCE CLASS RECONCILIATION:
+- When detector_confidence is below 0.65, do not blindly trust the detector label.
+- Match readable OCR meaning against the allowed class list before speaking.
+- If OCR says a highway, road instruction, direction, route, junction, traffic instruction or road-name board, do NOT call it a shop merely because a weak detector label says shop_sign.
+- If OCR contains a business/service name, shop_sign is appropriate; if it contains road directions, route/highway instructions, junction information or traffic instructions, prefer tra_sign or public_info_sign as appropriate.
+- If OCR is too weak to establish a better class, retain the detector category but phrase the narration conservatively.
 
 REAL-WORLD NARRATION PRIORITY:
 - The user needs useful information, not merely a detector category.
