@@ -231,6 +231,22 @@ class _LiveCameraScreenState
     }
   }
 
+  Future<void> _restartCamera() async {
+    if (!mounted || onboarding || demoMode) return;
+    timer?.cancel();
+    timer = null;
+    final controller = camera;
+    camera = null;
+    ready = false;
+    if (controller != null) {
+      try {
+        await controller.dispose();
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    await _resumeCameraSafely();
+  }
+
   Future<void> _resumeCameraSafely() async {
     if (!mounted || onboarding || demoMode || camera != null) return;
 
@@ -307,7 +323,6 @@ class _LiveCameraScreenState
       // second confirmation: requiring another speech turn can trap a blind
       // user in onboarding when Android STT misses the confirmation.
       await setLanguage(selected.code);
-      await speak(copy('languageSelected'));
       return;
     }
 
@@ -523,6 +538,17 @@ class _LiveCameraScreenState
       await HapticFeedback.mediumImpact();
     } catch (e) {
       debugPrint('scan error: $e');
+
+      // A camera plugin failure can leave the controller present but unable
+      // to render frames. Recover it instead of leaving the user with a
+      // silent/blank camera surface.
+      if (camera != null &&
+          camera!.value.hasError &&
+          mounted &&
+          !onboarding &&
+          !demoMode) {
+        unawaited(_restartCamera());
+      }
     } finally {
       processing = false;
       if (mounted) setState(() {});
@@ -1912,7 +1938,7 @@ class _LiveCameraScreenState
                   ),
                   const SizedBox(height: 18),
                   FilledButton.icon(
-                    onPressed: _resumeCameraSafely,
+                    onPressed: _restartCamera,
                     icon: const Icon(Icons.refresh_rounded),
                     label: Text(copy('retryCamera')),
                   ),
