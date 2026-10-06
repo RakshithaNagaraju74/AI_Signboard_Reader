@@ -528,6 +528,11 @@ class _LiveCameraScreenState
           )
           .toList();
 
+      // Focus mode follows only the selected sign while it moves.
+      if (focusMode && announceable.isNotEmpty) {
+        announceable = announceable.where(intel.isFocused).toList();
+      }
+
       // Safety information always outranks ordinary shop/business narration.
       if (safetyMode) {
         final safety = contexts.where(_isSafetyContext).toList();
