@@ -494,7 +494,7 @@ class _LiveCameraScreenState
 
       final speech = await composeDetectionSpeech(
         announceable,
-        useNara: true,
+        useGroq: true,
       );
 
       await speak(speech);
@@ -526,7 +526,7 @@ class _LiveCameraScreenState
 
   Future<String> composeDetectionSpeech(
     List<DetectionContext> contexts, {
-    bool useNara = true,
+    bool useGroq = true,
   }) async {
     final inputs = <SpeechDetectionInput>[];
 
@@ -578,7 +578,7 @@ class _LiveCameraScreenState
       + ', language=' + language.code
       + ', currentPlace=' + (currentLocation?.displayAddress ?? 'unknown')
       + ', gpsAccuracy=' + (currentLocation?.accuracy.toStringAsFixed(1) ?? 'unknown')
-      + ', useGroq=' + useNara.toString()
+      + ', useGroq=' + useGroq.toString()
       + ', keyLoaded=' + aiSpeech.groqEnabled.toString(),
     );
 
@@ -593,7 +593,7 @@ class _LiveCameraScreenState
               currentLocation!.accuracy.toStringAsFixed(0) +
               ' metres). ' +
               'This is the user\'s current GPS-derived address context, not the signboard location.',
-      useNara: useNara,
+      useGroq: useGroq,
     );
   }
 
@@ -764,7 +764,7 @@ class _LiveCameraScreenState
 
     final speech = await composeDetectionSpeech(
       visible,
-      useNara: true,
+      useGroq: true,
     );
 
     await speak(speech);
@@ -827,7 +827,7 @@ class _LiveCameraScreenState
 
       final speech = await composeDetectionSpeech(
         contexts.toList(),
-        useNara: true,
+        useGroq: true,
       );
 
       await speak(speech);
