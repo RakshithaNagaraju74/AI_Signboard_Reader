@@ -106,13 +106,22 @@ class _LiveCameraScreenState
 
       final saved = await lang.load();
       if (saved == null) {
+        // First-run onboarding only.
+        onboarding = true;
+        if (mounted) setState(() {});
         await chooseLanguage();
         final selected = await lang.load();
         if (selected == null) return;
         language = selected;
+        onboarding = false;
         await tts.setLanguage(language.speechLocale);
       } else {
+        // A saved language must never flash the onboarding screen during
+        // normal startup. It is shown again only after an explicit
+        // "change language" command.
         language = saved;
+        onboarding = false;
+        if (mounted) setState(() {});
         await tts.setLanguage(language.speechLocale);
       }
 
@@ -146,6 +155,8 @@ class _LiveCameraScreenState
       await _initializeCamera();
       if (!mounted) return;
 
+      // Start GPS immediately after camera initialization so the first
+      // useful detection can already carry location context.
       unawaited(_refreshLocationInBackground());
 
       TFLiteService().initialize().then(
@@ -285,6 +296,8 @@ class _LiveCameraScreenState
 
   Future<void> chooseLanguage() async {
     languageChosen = false;
+    onboarding = true;
+    if (mounted) setState(() {});
 
     await voice.initialize();
     await voice.stop();
