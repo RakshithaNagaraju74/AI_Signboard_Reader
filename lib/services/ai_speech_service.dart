@@ -392,8 +392,6 @@ EXAMPLES:
     final safety =
         detections.any((e) => e.safety);
 
-    final count = detections.length;
-
     if (languageCode == 'hi') {
       final selected = _selectFallbackDetections(detections);
       final parts = selected.map(_hindiItem).join('। ');
