@@ -18,6 +18,7 @@ import '../services/tts_service.dart';
 import '../services/voice_command_service.dart';
 import '../services/tflite_service.dart';
 import '../services/ai_speech_service.dart';
+import '../services/announcement_queue_service.dart';
 import '../services/place_verification_service.dart';
 
 class LiveCameraScreen extends StatefulWidget {
@@ -41,6 +42,9 @@ class _LiveCameraScreenState
   bool listening = false;
   bool focusMode = false;
   bool sceneScanMode = false;
+  bool safetyMode = true;
+  String _lastSceneFingerprint = '';
+  DateTime? _lastSceneNarration;
   bool onboarding = true;
   bool demoMode = false;
   bool languageChosen = false;
@@ -70,6 +74,7 @@ class _LiveCameraScreenState
   final intel = DetectionIntelligence();
   final picker = ImagePicker();
   final aiSpeech = AISpeechService();
+  late final AnnouncementQueueService announcements = AnnouncementQueueService(_speakQueued);
   final placeVerifier = PlaceVerificationService();
 
   PlaceVerification? lastVerifiedPlace;
@@ -1743,8 +1748,9 @@ class _LiveCameraScreenState
   }
 
   Future<void> speak(
-    String speech,
-  ) async {
+    String speech, {
+    bool priority = false,
+  }) async {
     last = speech;
 
     final localizedSpeech =
@@ -1757,9 +1763,17 @@ class _LiveCameraScreenState
       });
     }
 
-    await tts.speak(
+    await announcements.enqueue(
       localizedSpeech,
+      priority: priority,
     );
+  }
+
+  Future<void> _speakQueued(
+    String text, {
+    bool interrupt = false,
+  }) async {
+    await tts.speak(text, interrupt: interrupt);
   }
 
   Widget _resultPanel() {
