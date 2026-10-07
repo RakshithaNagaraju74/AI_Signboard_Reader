@@ -9,11 +9,16 @@ Future<void> main() async {
 
   try {
     await dotenv.load(fileName: '.env', isOptional: true);
-    final keyLoaded = (dotenv.env['GROQ_API_KEY'] ?? '').trim().isNotEmpty;
+    final keyLoaded =
+        (dotenv.env['GROQ_API_KEY'] ?? '').trim().isNotEmpty;
+    final model =
+        dotenv.env['GROQ_MODEL'] ?? 'openai/gpt-oss-20b';
+    final baseUrl =
+        dotenv.env['GROQ_BASE_URL'] ?? 'https://api.groq.com/openai/v1';
+
     debugPrint(
-      '[Groq] .env loaded. API key loaded=\$keyLoaded, '
-      'model=\${dotenv.env['GROQ_MODEL'] ?? 'openai/gpt-oss-20b'}, '
-      'baseUrl=\${dotenv.env['GROQ_BASE_URL'] ?? 'https://api.groq.com/openai/v1'}',
+      '[Groq] .env loaded. API key loaded=$keyLoaded, '
+      'model=$model, baseUrl=$baseUrl',
     );
   } catch (e) {
     debugPrint('[Groq] .env load FAILED: ' + e.toString());
