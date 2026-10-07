@@ -294,7 +294,20 @@ class _LiveCameraScreenState
     return 'en_US';
   }
 
-  Future<void> chooseLanguage() async {
+  Future<void> chooseLanguage({bool force = false}) async {
+    // A saved language is the normal startup state. Only an explicit
+    // "change language" command may reopen this screen.
+    if (!force) {
+      final saved = await lang.load();
+      if (saved != null) {
+        language = saved;
+        languageChosen = true;
+        onboarding = false;
+        if (mounted) setState(() {});
+        return;
+      }
+    }
+
     languageChosen = false;
     onboarding = true;
     if (mounted) setState(() {});
@@ -359,19 +372,21 @@ class _LiveCameraScreenState
     final selected = LanguageService.fromCode(code);
     if (selected == null) return;
 
+    // Flip the UI state immediately. Do not wait for speech recognition
+    // or TTS cleanup before leaving onboarding.
     languageChosen = true;
-    await voice.stop();
+    onboarding = false;
     language = selected;
-    await lang.save(language);
-    await tts.setLanguage(language.speechLocale);
 
     if (mounted) {
       setState(() {
-        onboarding = false;
         status = copy('languageSelected');
       });
     }
 
+    await voice.stop();
+    await lang.save(language);
+    await tts.setLanguage(language.speechLocale);
     await speak(copy('languageSelected'));
   }
 
@@ -1619,7 +1634,7 @@ class _LiveCameraScreenState
         speech.contains('language') ||
         speech.contains('भाषा') ||
         speech.contains('ಭಾಷೆ')) {
-      await chooseLanguage();
+      await chooseLanguage(force: true);
 
       return;
     }
@@ -1987,6 +2002,75 @@ class _LiveCameraScreenState
     );
   }
 
+  Widget _demoResultView() {
+    final image = demoImage;
+    if (image == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.file(
+              image,
+              fit: BoxFit.contain,
+            ),
+          ),
+          Positioned(
+            left: 10,
+            right: 10,
+            bottom: 150,
+            child: Semantics(
+              liveRegion: true,
+              label: status,
+              child: _resultPanel(),
+            ),
+          ),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: processing ? null : pickDemoImage,
+                        icon: const Icon(Icons.image_search),
+                        label: Text(copy('upload')),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, 58),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: processing ? null : closeDemo,
+                        icon: const Icon(Icons.camera_alt_rounded),
+                        label: Text(copy('backCamera')),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, 58),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   @override
   Widget build(
     BuildContext context,
@@ -2029,6 +2113,13 @@ class _LiveCameraScreenState
           ),
         ),
       );
+    }
+
+    // Uploaded-image mode does not need a live camera controller.
+    // Render it before the camera-ready guard so the result remains visible
+    // and the user can upload a second image without a blank screen.
+    if (demoMode && demoImage != null) {
+      return _demoResultView();
     }
 
     if (!ready || camera == null) {
