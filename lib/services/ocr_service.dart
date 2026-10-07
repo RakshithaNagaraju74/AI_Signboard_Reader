@@ -45,9 +45,13 @@ class OCRService {
         bbox,
         script,
       );
-      if (fullFrameText.isNotEmpty) {
+      if (fullFrameText.isNotEmpty && _isPlausibleOCR(fullFrameText)) {
         debugPrint('OCR: matched full-frame text block(s): ' + fullFrameText);
         return fullFrameText;
+      }
+
+      if (fullFrameText.isNotEmpty) {
+        debugPrint('OCR: rejecting low-quality full-frame text; trying sign crop variants.');
       }
 
       final variants = _buildVariants(crop);
@@ -224,7 +228,10 @@ class OCRService {
         final overlap = targetArea <= 0
             ? 0.0
             : intersectionArea / targetArea;
-        if (overlap >= 0.08 || target.contains(block.box.center)) {
+        // Require meaningful overlap with the detected sign. A very
+        // small overlap can accidentally attach unrelated background text
+        // to the sign and is a common source of gibberish OCR.
+        if (overlap >= 0.20 || target.contains(block.box.center)) {
           matching.add(block.text);
         }
       }
@@ -385,6 +392,40 @@ class OCRService {
     return value;
   }
 
+  bool _isPlausibleOCR(String text) {
+    final value = _cleanText(text);
+    if (value.isEmpty) return false;
+
+    // Reject obvious OCR hallucinations with repeated mixed-case fragments
+    // while preserving normal business names, acronyms, numbers, and Indian
+    // script text.
+    final words = value.split(' ');
+    var suspicious = 0;
+    var asciiWords = 0;
+
+    for (final word in words) {
+      final cleaned = word.replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
+      if (cleaned.isEmpty) continue;
+      asciiWords++;
+
+      if (RegExp(r'[A-Z]{3,}[a-z]+[A-Z]{2,}').hasMatch(cleaned)) {
+        suspicious++;
+        continue;
+      }
+
+      if (cleaned.length >= 10) {
+        final letters = cleaned.replaceAll(RegExp(r'[^A-Za-z]'), '');
+        if (letters.length >= 8) {
+          final vowels = RegExp(r'[AEIOUaeiou]').allMatches(letters).length;
+          if (vowels == 0) suspicious++;
+        }
+      }
+    }
+
+    // One suspicious word may be a genuine brand. Reject only when the
+    // overall Latin OCR is dominated by suspicious fragments.
+    return asciiWords < 3 || suspicious < 2 || suspicious < (asciiWords / 2);
+  }
   bool _isSingleAsciiLetter(String value) {
     if (value.length != 1) return false;
     final code = value.codeUnitAt(0);
