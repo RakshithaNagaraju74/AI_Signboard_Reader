@@ -257,7 +257,8 @@ CRITICAL RULES:
 19. If the OCR is mostly noise, do not repeat the noise. Fall back to the reliable sign category and position.
 20. If several detections describe the same physical sign, merge them instead of repeating the same sign.
 21. Put the most useful information first: safety/restriction, readable sign meaning, position, then relevant proximity or guidance, then useful location context.
-22. Output ONLY the final spoken sentence. No quotes, headings, labels, explanations, or alternatives.
+22. When several different readable signs are present, do not omit useful distinct names or restrictions just because one item is safety-related. Include the safety item first, then the clearest one or two additional readable sign items, using one or two short sentences.
+23. Output ONLY the final spoken sentence. No quotes, headings, labels, explanations, or alternatives.
 23. Keep it very concise: normally one sentence, maximum two short sentences.
 24. Speak ONLY in $languageName. Do not answer in English when Hindi or Kannada is requested.
 25. Never spell isolated OCR letters as if they were a normal word.
@@ -274,7 +275,8 @@ CRITICAL RULES:
 36. If both current_location and verified_signboard_location are supplied, make the relationship clear: first where the user is now, then where the verified sign-related place is relative to them.
 37. When a VERIFIED SIGN-RELATED PLACE is supplied, do not omit it merely to make the sentence shorter. Use two short sentences if needed.
 38. Never replace a verified street/address with only a city name when the more detailed address is supplied.
-37. If a warning sign and a business sign are both present, mention the warning first.
+37. If a warning sign and a business sign are both present, mention the warning first, then retain the most useful clearly readable business/place name when supported.
+38. If current user location is supplied by the app, treat it as reliable orientation context and include it when the narration benefits from knowing where the user is. Never confuse it with the signboard location.
 REASONING PROCEDURE (do silently):
 A. Identify the strongest sign category.
 B. Collect every OCR fragment and number belonging to that detection.
