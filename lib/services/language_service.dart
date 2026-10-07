@@ -66,8 +66,8 @@ class LanguageService {
 
     // Common Android STT phonetic outputs for the numbers.
     if (value.contains('won') || value.contains('wan')) return 'en';
-    if (value.contains('to') && !value.contains('two')) return 'hi';
-    if (value.contains('tree') || value.contains('free')) return 'kn';
+    if (RegExp(r'(^|\\s)(too|tu|do)(\\s|$)').hasMatch(value)) return 'hi';
+    if (RegExp(r'(^|\\s)(tree|free|tri)(\\s|$)').hasMatch(value)) return 'kn';
     return null;
   }
 
