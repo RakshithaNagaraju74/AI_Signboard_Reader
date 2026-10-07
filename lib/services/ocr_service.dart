@@ -149,8 +149,12 @@ class OCRService {
 
     final width = x2 - x1;
     final height = y2 - y1;
-    final padX = width * 0.12;
-    final padY = height * 0.20;
+
+    // Give OCR a little more surrounding context. Signboards often have
+    // multiple lines and the detector box can clip the first/last letters.
+    // Keep the padding bounded so nearby background text is not pulled in.
+    final padX = (width * 0.18).clamp(8.0, 90.0);
+    final padY = (height * 0.30).clamp(10.0, 120.0);
 
     x1 = (x1 - padX).clamp(0.0, image.width.toDouble());
     y1 = (y1 - padY).clamp(0.0, image.height.toDouble());
@@ -243,12 +247,17 @@ class OCRService {
   }
 
   img.Image _upscaleForText(img.Image source) {
-    final targetHeight = source.height < 180
-        ? 600
-        : source.height < 320
-            ? 720
-            : source.height;
-    final scale = (targetHeight / source.height).clamp(1.0, 3.5).toDouble();
+    // ML Kit benefits when characters contain enough pixels. We upscale
+    // small sign crops more aggressively, while keeping a hard limit so
+    // mobile OCR does not become excessively slow or memory-heavy.
+    final targetHeight = source.height < 140
+        ? 720
+        : source.height < 220
+            ? 840
+            : source.height < 360
+                ? 960
+                : source.height;
+    final scale = (targetHeight / source.height).clamp(1.0, 4.0).toDouble();
     if (scale <= 1.01) return source;
 
     return img.copyResize(
@@ -261,18 +270,74 @@ class OCRService {
 
   List<img.Image> _buildVariants(img.Image crop) {
     final gray = img.grayscale(crop);
-    final low = img.adjustColor(gray, contrast: 1.35, brightness: 1.02);
-    final high = img.adjustColor(gray, contrast: 2.15, brightness: 1.05);
 
-    // Multi-pass OCR for difficult signboards: original colour, grayscale,
-    // two contrast levels, and an inverted high-contrast pass.
+    // Keep several independent preprocessing paths. Different signboards
+    // fail for different reasons: glare, shadows, low contrast, coloured
+    // backgrounds, small characters, or slightly soft focus.
+    final brighter = img.adjustColor(
+      img.grayscale(crop),
+      contrast: 1.25,
+      brightness: 1.14,
+      gamma: 0.82,
+    );
+
+    final darker = img.adjustColor(
+      img.grayscale(crop),
+      contrast: 1.35,
+      brightness: 0.90,
+      gamma: 1.18,
+    );
+
+    final mediumContrast = img.adjustColor(
+      img.grayscale(crop),
+      contrast: 1.60,
+      brightness: 1.02,
+    );
+
+    final strongContrast = img.adjustColor(
+      img.grayscale(crop),
+      contrast: 2.20,
+      brightness: 1.04,
+    );
+
+    // A mild 3x3 sharpening pass can restore character edges after camera
+    // compression/resizing without changing the actual words.
+    final sharpened = img.convolution(
+      img.grayscale(crop),
+      <num>[
+        0, -1, 0,
+        -1, 5, -1,
+        0, -1, 0,
+      ],
+      div: 1.0,
+    );
+
+    final sharpenedContrast = img.adjustColor(
+      img.convolution(
+        img.grayscale(crop),
+        <num>[
+          0, -1, 0,
+          -1, 5, -1,
+          0, -1, 0,
+        ],
+        div: 1.0,
+      ),
+      contrast: 1.70,
+      brightness: 1.03,
+    );
+
+    // Multi-pass OCR: preserve the original colour image, then try
+    // luminance/brightness/contrast/gamma/sharpened/inverted representations.
     return [
       crop,
       gray,
-      low,
-      img.adjustColor(gray, contrast: 1.75, brightness: 1.00),
-      high,
-      img.invert(high),
+      brighter,
+      darker,
+      mediumContrast,
+      strongContrast,
+      sharpened,
+      sharpenedContrast,
+      img.invert(strongContrast),
     ];
   }
 
