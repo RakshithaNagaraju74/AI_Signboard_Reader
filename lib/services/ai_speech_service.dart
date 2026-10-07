@@ -181,7 +181,11 @@ IMPORTANT EVIDENCE MODEL:
 - "detector_confidence" is the detector confidence. Treat labels below about 0.65 as tentative and use OCR/context to re-evaluate them.
 - "visible_text" is OCR from the sign and may contain spelling errors, split letters, missing spaces, or character substitutions. Treat OCR as evidence, not final text.
 - When visible_text contains a recognizable real-world word, business name, warning, restriction, direction, or number, preserve its meaning and correct only obvious OCR mistakes.
+- NEVER read raw OCR noise aloud. Do not copy a long OCR fragment just because it exists in visible_text.
+- Treat mixed-case fragments such as "siNEOARIndNTR", long random uppercase strings, or combinations of unrelated words as unreliable unless they form an obvious real-world word or clearly supported business name.
+- Never put raw OCR in quotation marks in the final narration. If the readable text is uncertain, omit the uncertain fragment and describe the reliable sign category and position instead.
 - If OCR is noisy or contradictory, prefer the detector category plus the reliable OCR fragments instead of inventing a complete sentence from uncertain text.
+- Example: if OCR looks like "AOne Advertising siNEOARIndNTR BUTIK dya DIMILLI LEYVTEO", do not repeat that string. At most use the clearly recognizable "Advertising" if the sign context supports it; otherwise describe it as a business/shop sign.
 - Read the sign as a whole. For example, "P", "NO", "PARKING", "50M", arrows, and restriction symbols can change the meaning when they occur together.
 - "proximity" is an estimated relation to the camera. A number such as 50M inside visible_text is NOT the distance from the user.
 - Never say a sign is 50 metres away merely because the sign contains 50M. Only use a distance when explicitly supplied by proximity or guidance.
