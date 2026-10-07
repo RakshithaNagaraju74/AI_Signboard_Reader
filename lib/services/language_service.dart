@@ -65,9 +65,9 @@ class LanguageService {
     if (RegExp(r'(^|\s)(three|3|third|kannada|kanada|kannad|canada)(\s|$)').hasMatch(value) || value.contains('ಕನ್ನಡ')) return 'kn';
 
     // Common Android STT phonetic outputs for the numbers.
-    if (value.contains('won') || value.contains('wan')) return 'en';
-    if (RegExp(r'(^|\\s)(too|tu|do)(\\s|$)').hasMatch(value)) return 'hi';
-    if (RegExp(r'(^|\\s)(tree|free|tri)(\\s|$)').hasMatch(value)) return 'kn';
+    if (RegExp(r'(^|\s)(won|wan)(\s|$)').hasMatch(value)) return 'en';
+    if (RegExp(r'(^|\s)(too|tu|do)(\s|$)').hasMatch(value)) return 'hi';
+    if (RegExp(r'(^|\s)(tree|free|tri)(\s|$)').hasMatch(value)) return 'kn';
     return null;
   }
 
