@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -74,22 +76,41 @@ class LocationService {
       Geocoding(locale: _toLocale(localeIdentifier));
 
   Future<bool> ensurePermission() async {
-    if (!await Geolocator.isLocationServiceEnabled()) return false;
-
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      debugPrint('[Location] location services are disabled');
+      return false;
     }
 
-    return permission != LocationPermission.denied &&
+    var permission = await Geolocator.checkPermission();
+    debugPrint('[Location] permission before request: $permission');
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      debugPrint('[Location] permission after request: $permission');
+    }
+
+    final allowed = permission != LocationPermission.denied &&
         permission != LocationPermission.deniedForever;
+
+    if (!allowed) {
+      debugPrint('[Location] location permission is not available');
+    }
+
+    return allowed;
   }
 
   Future<LocationSnapshot?> current({
     String localeIdentifier = 'en_US',
     bool refreshPlace = false,
   }) async {
-    if (!await ensurePermission()) return _cached;
+    if (!await ensurePermission()) {
+      debugPrint(
+        '[Location] unable to obtain permission; '
+        'returning cached location=' + (_cached != null).toString(),
+      );
+      return _cached;
+    }
 
     final now = DateTime.now();
     final locationIsFresh = _cached != null &&
@@ -100,15 +121,38 @@ class LocationService {
       return _cached;
     }
 
-    final position = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 5,
-      ),
-    ).timeout(
-      const Duration(seconds: 6),
-      onTimeout: () => throw TimeoutException('Location request timed out'),
-    );
+    Position? position;
+
+    try {
+      position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 5,
+        ),
+      ).timeout(
+        const Duration(seconds: 6),
+        onTimeout: () => throw TimeoutException('Location request timed out'),
+      );
+    } catch (error) {
+      debugPrint('[Location] high-accuracy fix failed: $error');
+
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        final age = DateTime.now().difference(lastKnown.timestamp);
+        if (age <= const Duration(minutes: 5)) {
+          position = lastKnown;
+          debugPrint(
+            '[Location] using last-known fix age=' + age.inSeconds.toString() +
+            's accuracy=' + lastKnown.accuracy.toStringAsFixed(1) + 'm',
+          );
+        }
+      }
+    }
+
+    if (position == null) {
+      debugPrint('[Location] no usable GPS fix');
+      return _cached;
+    }
 
     _lastLocationFetch = now;
     final shouldGeocode = refreshPlace ||
