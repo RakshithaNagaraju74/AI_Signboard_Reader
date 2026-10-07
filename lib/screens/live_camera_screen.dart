@@ -57,6 +57,7 @@ class _LiveCameraScreenState
   String status = 'Starting camera';
   String last = '';
   DateTime? _lastNoSignAnnouncement;
+  DateTime? _lastLocationAnnouncement;
 
   AppLanguage language =
       LanguageService.languages.first;
@@ -221,8 +222,43 @@ class _LiveCameraScreenState
       );
       if (mounted && value != null) {
         setState(() => currentLocation = value);
+        await _announceLocationIfNeeded(value);
       }
-    } catch (_) {}
+    } catch (error) {
+      debugPrint('[Location] background refresh failed: $error');
+    }
+  }
+
+  Future<void> _announceLocationIfNeeded(LocationSnapshot value) async {
+    final now = DateTime.now();
+    final shouldAnnounce = _lastLocationAnnouncement == null ||
+        now.difference(_lastLocationAnnouncement!) >=
+            const Duration(minutes: 2);
+
+    if (!shouldAnnounce) return;
+
+    _lastLocationAnnouncement = now;
+    await speak(
+      localizedLocationSentenceFor(value),
+      priority: true,
+    );
+  }
+
+  String localizedLocationSentenceFor(LocationSnapshot snapshot) {
+    final place = snapshot.displayPlace;
+
+    if (language.code == 'hi') {
+      return 'वर्तमान स्थान: ' + place + '। GPS सटीकता लगभग ' +
+          snapshot.accuracy.toStringAsFixed(0) + ' मीटर।';
+    }
+
+    if (language.code == 'kn') {
+      return 'ಪ್ರಸ್ತುತ ಸ್ಥಳ: ' + place + '. GPS ನಿಖರತೆ ಸುಮಾರು ' +
+          snapshot.accuracy.toStringAsFixed(0) + ' ಮೀಟರ್.';
+    }
+
+    return 'Current location: ' + place + '. GPS accuracy is about ' +
+        snapshot.accuracy.toStringAsFixed(0) + ' metres.';
   }
 
   @override
@@ -489,7 +525,10 @@ class _LiveCameraScreenState
           localeIdentifier: _locationLocale(),
           refreshPlace: false,
         );
-        if (refreshed != null) currentLocation = refreshed;
+        if (refreshed != null) {
+          currentLocation = refreshed;
+          await _announceLocationIfNeeded(refreshed);
+        }
       } catch (e) {
         debugPrint('Pre-scan location refresh failed: $e');
       }
@@ -516,6 +555,7 @@ class _LiveCameraScreenState
         );
         if (refreshed != null) {
           currentLocation = refreshed;
+          await _announceLocationIfNeeded(refreshed);
         }
       } catch (_) {}
 
@@ -565,7 +605,15 @@ class _LiveCameraScreenState
       if (safetyMode) {
         final safety = contexts.where(_isSafetyContext).toList();
         if (safety.isNotEmpty) {
-          announceable = safety;
+          // Safety information goes first, but do not throw away useful
+          // non-safety signs from the same frame.
+          final normal = announceable
+              .where((context) => !_isSafetyContext(context))
+              .toList();
+          announceable = <DetectionContext>[
+            ...safety,
+            ...normal,
+          ];
         }
       }
 
@@ -1166,6 +1214,37 @@ class _LiveCameraScreenState
     return 'The sign is nearby';
   }
 
+  Future<void> _speakCurrentLocationNow() async {
+    final snapshot = currentLocation;
+    if (snapshot != null) {
+      await speak(
+        localizedLocationSentenceFor(snapshot),
+        priority: true,
+      );
+      return;
+    }
+
+    try {
+      final refreshed = await location.current(
+        localeIdentifier: _locationLocale(),
+        refreshPlace: true,
+      );
+      if (refreshed != null) {
+        currentLocation = refreshed;
+        await speak(
+          localizedLocationSentenceFor(refreshed),
+          priority: true,
+        );
+        if (mounted) setState(() {});
+        return;
+      }
+    } catch (error) {
+      debugPrint('[Location] on-demand refresh failed: $error');
+    }
+
+    await speak(copy('locationUnavailable'), priority: true);
+  }
+
   String localizedLocationSentence() {
     final snapshot =
         currentLocation;
@@ -1600,9 +1679,7 @@ class _LiveCameraScreenState
         speech.contains('कहाँ') ||
         speech.contains('ಎಲ್ಲಿ')) {
       if (lastDetections.isEmpty) {
-        await speak(
-          copy('locationUnavailable'),
-        );
+        await _speakCurrentLocationNow();
       } else {
         final context =
             intel.select(
