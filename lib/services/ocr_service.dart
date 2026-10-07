@@ -14,6 +14,7 @@ class OCRService {
   String? _fullFrameCachePath;
   TextRecognitionScript? _fullFrameCacheScript;
   List<_OCRBlock> _fullFrameCacheBlocks = [];
+  List<List<_OCRBlock>> _fullFrameVariantBlocks = [];
 
   TextRecognizer _recognizerFor(TextRecognitionScript script) =>
       _recognizers.putIfAbsent(script, () => TextRecognizer(script: script));
@@ -196,18 +197,72 @@ class OCRService {
             img.encodeJpg(image, quality: 98),
             flush: true,
           );
-          final result = await recognizer.processImage(
-            InputImage.fromFile(tempFile),
-          );
+          // Run a small set of same-size full-frame preprocessing passes.
+          // Keeping the dimensions unchanged preserves ML Kit's bounding boxes,
+          // so we can still match OCR blocks to the YOLO sign box.
+          final fullFrameVariants = <img.Image>[
+            image,
+            img.adjustColor(
+              img.grayscale(image),
+              contrast: 1.45,
+              brightness: 1.04,
+              gamma: 0.90,
+            ),
+            img.convolution(
+              img.grayscale(image),
+              <num>[
+                0, -1, 0,
+                -1, 5, -1,
+                0, -1, 0,
+              ],
+              div: 1.0,
+            ),
+          ];
 
-          _fullFrameCacheBlocks = result.blocks
-              .map(
-                (block) => _OCRBlock(
-                  text: _normalizeOCRText(block.text),
-                  box: block.boundingBox,
-                ),
-              )
-              .where((block) => block.text.isNotEmpty)
+          _fullFrameVariantBlocks = [];
+
+          for (var variantIndex = 0;
+              variantIndex < fullFrameVariants.length;
+              variantIndex++) {
+            final variantFile = File(
+              Directory.systemTemp.path + '/s2s_ocr_full_' +
+                  DateTime.now().microsecondsSinceEpoch.toString() +
+                  '_v' +
+                  variantIndex.toString() +
+                  '.jpg',
+            );
+
+            try {
+              await variantFile.writeAsBytes(
+                img.encodeJpg(fullFrameVariants[variantIndex], quality: 98),
+                flush: true,
+              );
+              final result = await recognizer.processImage(
+                InputImage.fromFile(variantFile),
+              );
+
+              final blocks = result.blocks
+                  .map(
+                    (block) => _OCRBlock(
+                      text: _normalizeOCRText(block.text),
+                      box: block.boundingBox,
+                    ),
+                  )
+                  .where((block) => block.text.isNotEmpty)
+                  .toList();
+
+              _fullFrameVariantBlocks.add(blocks);
+            } finally {
+              try {
+                if (await variantFile.exists()) {
+                  await variantFile.delete();
+                }
+              } catch (_) {}
+            }
+          }
+
+          _fullFrameCacheBlocks = _fullFrameVariantBlocks
+              .expand((blocks) => blocks)
               .toList();
           _fullFrameCachePath = sourcePath;
           _fullFrameCacheScript = script;
@@ -221,25 +276,50 @@ class OCRService {
       final target = ui.Rect.fromLTRB(
         bbox[0], bbox[1], bbox[2], bbox[3],
       );
-      final matching = <String>[];
-      for (final block in _fullFrameCacheBlocks) {
-        final intersection = target.intersect(block.box);
-        final targetArea = target.width * target.height;
-        final intersectionArea =
-            intersection.width > 0 && intersection.height > 0
-                ? intersection.width * intersection.height
-                : 0.0;
-        final overlap = targetArea <= 0
-            ? 0.0
-            : intersectionArea / targetArea;
-        // Require meaningful overlap with the detected sign. A very
-        // small overlap can accidentally attach unrelated background text
-        // to the sign and is a common source of gibberish OCR.
-        if (overlap >= 0.20 || target.contains(block.box.center)) {
-          matching.add(block.text);
+      final candidates = <_OCRCandidate>[];
+
+      // Evaluate each full-frame preprocessing pass independently. This
+      // prevents a weak raw pass from dominating a clearer grayscale/sharp
+      // pass while still retaining the original image as a fallback.
+      for (var variantIndex = 0;
+          variantIndex < _fullFrameVariantBlocks.length;
+          variantIndex++) {
+        final matching = <String>[];
+
+        for (final block in _fullFrameVariantBlocks[variantIndex]) {
+          final intersection = target.intersect(block.box);
+          final targetArea = target.width * target.height;
+          final intersectionArea =
+              intersection.width > 0 && intersection.height > 0
+                  ? intersection.width * intersection.height
+                  : 0.0;
+          final overlap = targetArea <= 0
+              ? 0.0
+              : intersectionArea / targetArea;
+
+          // Require meaningful overlap with the detected sign. A very
+          // small overlap can accidentally attach unrelated background text
+          // to the sign and is a common source of gibberish OCR.
+          if (overlap >= 0.20 || target.contains(block.box.center)) {
+            matching.add(block.text);
+          }
+        }
+
+        final text = _normalizeOCRText(matching.join(' '));
+        if (text.isNotEmpty) {
+          candidates.add(
+            _OCRCandidate(
+              text: text,
+              variant: variantIndex,
+              score: _score(text),
+            ),
+          );
         }
       }
-      return _normalizeOCRText(matching.join(' '));
+
+      if (candidates.isEmpty) return '';
+      candidates.sort((a, b) => b.score.compareTo(a.score));
+      return candidates.first.text;
     } catch (e) {
       debugPrint('OCR full-frame block matching failed: ' + e.toString());
       return '';
