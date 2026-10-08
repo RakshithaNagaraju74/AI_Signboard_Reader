@@ -226,9 +226,9 @@ class TFLiteService {
         widthScale < heightScale ? widthScale : heightScale;
 
     final resizedWidth =
-        (image.width * letterboxScale).round().clamp(1, inputSize);
+        (image.width * letterboxScale).round().clamp(1, inputSize).toInt();
     final resizedHeight =
-        (image.height * letterboxScale).round().clamp(1, inputSize);
+        (image.height * letterboxScale).round().clamp(1, inputSize).toInt();
 
     final resized = img.copyResize(
       image,
