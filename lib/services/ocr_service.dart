@@ -568,7 +568,7 @@ class OCRService {
 
       final candidates = <_OCRCandidate>[];
       for (var i = 0; i < sources.length; i++) {
-        final tempFile = File('\${Directory.systemTemp.path}/s2s_tess_\${DateTime.now().microsecondsSinceEpoch}_\$i.jpg');
+        final tempFile = File('${Directory.systemTemp.path}/s2s_tess_${DateTime.now().microsecondsSinceEpoch}_$i.jpg');
         try {
           await tempFile.writeAsBytes(
             img.encodeJpg(sources[i], quality: 98),
@@ -594,7 +594,7 @@ class OCRService {
             );
           }
         } catch (e) {
-          debugPrint('Tesseract variant __I__ failed: \$e');
+          debugPrint('Tesseract variant __I__ failed: $e');
         } finally {
           try {
             if (await tempFile.exists()) await tempFile.delete();
@@ -604,11 +604,11 @@ class OCRService {
 
       candidates.sort((a, b) => b.score.compareTo(a.score));
       if (candidates.isNotEmpty) {
-        debugPrint('Tesseract OCR (\$languages): \${candidates.first.text}');
+        debugPrint('Tesseract OCR ($languages): ${candidates.first.text}');
       }
       return candidates.take(3).toList();
     } catch (e) {
-      debugPrint('Tesseract OCR unavailable: __E__');
+      debugPrint('Tesseract OCR unavailable: $e');
       return [];
     }
   }
@@ -638,14 +638,14 @@ class OCRService {
       httpClient.connectionTimeout = const Duration(seconds: 8);
       try {
         for (final language in languages) {
-          final file = File('\$tessdataPath/\$language.traineddata');
+          final file = File('$tessdataPath/\$language.traineddata');
           if (await file.exists() && await file.length() > 1024) continue;
-          debugPrint('Tesseract: downloading __LANGFILE__.traineddata');
-          final uri = Uri.parse('https://raw.githubusercontent.com/tesseract-ocr/tessdata/main/__LANGFILE__.traineddata');
+          debugPrint('Tesseract: downloading $language.traineddata');
+          final uri = Uri.parse('https://raw.githubusercontent.com/tesseract-ocr/tessdata/main/$language.traineddata');
           final request = await httpClient.getUrl(uri).timeout(const Duration(seconds: 12));
           final response = await request.close().timeout(const Duration(seconds: 20));
           if (response.statusCode != 200) {
-            debugPrint('Tesseract: __LANGFILE__ download failed with HTTP \${response.statusCode}');
+            debugPrint('Tesseract: $language download failed with HTTP \${response.statusCode}');
             return false;
           }
           final bytes = <int>[];
@@ -653,14 +653,14 @@ class OCRService {
           if (bytes.length < 1024) return false;
           await file.parent.create(recursive: true);
           await file.writeAsBytes(bytes, flush: true);
-          debugPrint('Tesseract: cached __LANGFILE__.traineddata (\${bytes.length} bytes)');
+          debugPrint('Tesseract: cached $language.traineddata (\${bytes.length} bytes)');
         }
       } finally {
         httpClient.close(force: true);
       }
       return true;
     } catch (e) {
-      debugPrint('Tesseract language setup failed: __E__');
+      debugPrint('Tesseract language setup failed: $e');
       return false;
     }
   }
