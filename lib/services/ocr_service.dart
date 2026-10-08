@@ -14,7 +14,6 @@ class OCRService {
   final Map<TextRecognitionScript, TextRecognizer> _recognizers = {};
   String? _fullFrameCachePath;
   TextRecognitionScript? _fullFrameCacheScript;
-  List<_OCRBlock> _fullFrameCacheBlocks = [];
   List<List<_OCRBlock>> _fullFrameVariantBlocks = [];
 
   TextRecognizer _recognizerFor(TextRecognitionScript script) =>
