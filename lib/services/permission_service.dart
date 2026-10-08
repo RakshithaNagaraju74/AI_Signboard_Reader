@@ -4,19 +4,19 @@ import 'package:permission_handler/permission_handler.dart';
 class PermissionService {
   Future<PermissionStatus> requestCamera() async {
     final status = await Permission.camera.status;
-    if (status.isGranted) return status;
+    if (status == PermissionStatus.granted) return status;
     return Permission.camera.request();
   }
 
   Future<PermissionStatus> requestMicrophone() async {
     final status = await Permission.microphone.status;
-    if (status.isGranted) return status;
+    if (status == PermissionStatus.granted) return status;
     return Permission.microphone.request();
   }
 
   Future<PermissionStatus> requestLocation() async {
     final status = await Permission.locationWhenInUse.status;
-    if (status.isGranted) return status;
+    if (status == PermissionStatus.granted) return status;
     return Permission.locationWhenInUse.request();
   }
 
@@ -39,12 +39,14 @@ class PermissionService {
       (await Permission.locationWhenInUse.status).isGranted;
 
   Future<bool> anyCorePermissionPermanentlyDenied() async {
-    final statuses = await [
+    final statuses = await Future.wait([
       Permission.camera.status,
       Permission.microphone.status,
       Permission.locationWhenInUse.status,
-    ];
+    ]);
 
-    return statuses.any((status) => status.isPermanentlyDenied);
+    return statuses.any(
+      (status) => status == PermissionStatus.permanentlyDenied,
+    );
   }
 }
