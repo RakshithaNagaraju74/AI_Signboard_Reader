@@ -46,18 +46,24 @@ class OCRService {
         bbox,
         script,
       );
-      if (fullFrameText.isNotEmpty && _isPlausibleOCR(fullFrameText)) {
-        debugPrint('OCR: matched full-frame text block(s): ' + fullFrameText);
-        return fullFrameText;
-      }
+      final recognizer = _recognizerFor(script);
+      final candidates = <_OCRCandidate>[];
 
+      // Do not return immediately from full-frame OCR. A full-frame block can
+      // be readable but still contain a typo while a dedicated crop is clearer.
       if (fullFrameText.isNotEmpty) {
-        debugPrint('OCR: rejecting low-quality full-frame text; trying sign crop variants.');
+        debugPrint('OCR: full-frame candidate: ' + fullFrameText);
+        candidates.add(
+          _OCRCandidate(
+            text: fullFrameText,
+            variant: -1,
+            score: _score(fullFrameText) +
+                (_isPlausibleOCR(fullFrameText) ? 4.0 : -12.0),
+          ),
+        );
       }
 
       final variants = _buildVariants(crop);
-      final recognizer = _recognizerFor(script);
-      final candidates = <_OCRCandidate>[];
 
       for (var i = 0; i < variants.length; i++) {
         final tempFile = File(
@@ -89,10 +95,62 @@ class OCRService {
         }
       }
 
+      // Also test a tighter crop. The wider crop captures multi-line boards;
+      // the tighter crop reduces interference from nearby storefront text.
+      final tightCrop = _cropWithPadding(
+        image,
+        bbox,
+        horizontalFactor: 0.12,
+        verticalFactor: 0.22,
+      );
+
+      if (tightCrop != null) {
+        final tightVariants = _buildVariants(tightCrop).take(4).toList();
+
+        for (var i = 0; i < tightVariants.length; i++) {
+          final tempFile = File(
+            Directory.systemTemp.path +
+                '/s2s_ocr_tight_' +
+                DateTime.now().microsecondsSinceEpoch.toString() +
+                '_' +
+                i.toString() +
+                '.jpg',
+          );
+
+          try {
+            await tempFile.writeAsBytes(
+              img.encodeJpg(tightVariants[i], quality: 97),
+              flush: true,
+            );
+            final recognized = await recognizer.processImage(
+              InputImage.fromFile(tempFile),
+            );
+            final cleaned = _normalizeOCRText(recognized.text);
+            if (cleaned.isNotEmpty) {
+              candidates.add(
+                _OCRCandidate(
+                  text: cleaned,
+                  variant: 100 + i,
+                  score: _score(cleaned) +
+                      (_isPlausibleOCR(cleaned) ? 2.0 : -8.0),
+                ),
+              );
+            }
+          } catch (e) {
+            debugPrint('OCR tight variant ' + i.toString() + ' failed: ' + e.toString());
+          } finally {
+            try {
+              if (await tempFile.exists()) await tempFile.delete();
+            } catch (_) {}
+          }
+        }
+      }
+
       if (candidates.isEmpty) {
-        debugPrint('OCR: sign crop returned no text; trying full frame.');
+        debugPrint('OCR: crop ensemble returned no text; trying full frame.');
         return await _recognizeFullImage(image, script);
       }
+
       candidates.sort((a, b) => b.score.compareTo(a.score));
       final best = candidates.first;
 
@@ -154,8 +212,8 @@ class OCRService {
     // Give OCR a little more surrounding context. Signboards often have
     // multiple lines and the detector box can clip the first/last letters.
     // Keep the padding bounded so nearby background text is not pulled in.
-    final padX = (width * 0.18).clamp(8.0, 90.0);
-    final padY = (height * 0.30).clamp(10.0, 120.0);
+    final padX = (width * 0.24).clamp(10.0, 120.0);
+    final padY = (height * 0.42).clamp(14.0, 150.0);
 
     x1 = (x1 - padX).clamp(0.0, image.width.toDouble());
     y1 = (y1 - padY).clamp(0.0, image.height.toDouble());
@@ -324,6 +382,46 @@ class OCRService {
       debugPrint('OCR full-frame block matching failed: ' + e.toString());
       return '';
     }
+  }
+
+  img.Image? _cropWithPadding(
+    img.Image image,
+    List<double> bbox, {
+    required double horizontalFactor,
+    required double verticalFactor,
+  }) {
+    if (bbox.length < 4) return null;
+
+    var x1 = bbox[0];
+    var y1 = bbox[1];
+    var x2 = bbox[2];
+    var y2 = bbox[3];
+
+    if (x2 <= x1 || y2 <= y1) return null;
+
+    final width = x2 - x1;
+    final height = y2 - y1;
+    final padX = (width * horizontalFactor).clamp(6.0, 100.0);
+    final padY = (height * verticalFactor).clamp(8.0, 130.0);
+
+    x1 = (x1 - padX).clamp(0.0, image.width.toDouble());
+    y1 = (y1 - padY).clamp(0.0, image.height.toDouble());
+    x2 = (x2 + padX).clamp(0.0, image.width.toDouble());
+    y2 = (y2 + padY).clamp(0.0, image.height.toDouble());
+
+    final cropWidth = (x2 - x1).round();
+    final cropHeight = (y2 - y1).round();
+    if (cropWidth < 12 || cropHeight < 12) return null;
+
+    return _upscaleForText(
+      img.copyCrop(
+        image,
+        x1.round(),
+        y1.round(),
+        cropWidth,
+        cropHeight,
+      ),
+    );
   }
 
   img.Image _upscaleForText(img.Image source) {
