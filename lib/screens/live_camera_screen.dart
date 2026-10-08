@@ -20,6 +20,7 @@ import '../services/tflite_service.dart';
 import '../services/ai_speech_service.dart';
 import '../services/announcement_queue_service.dart';
 import '../services/place_verification_service.dart';
+import '../services/permission_service.dart';
 
 class LiveCameraScreen extends StatefulWidget {
   const LiveCameraScreen({super.key});
@@ -48,6 +49,7 @@ class _LiveCameraScreenState
   bool onboarding = true;
   bool demoMode = false;
   bool languageChosen = false;
+  bool permissionsReady = false;
   File? pendingRecoveredImage;
 
   File? demoImage;
@@ -77,6 +79,7 @@ class _LiveCameraScreenState
   final aiSpeech = AISpeechService();
   late final AnnouncementQueueService announcements = AnnouncementQueueService(_speakQueued);
   final placeVerifier = PlaceVerificationService();
+  final permissions = PermissionService();
 
   PlaceVerification? lastVerifiedPlace;
 
@@ -124,6 +127,12 @@ class _LiveCameraScreenState
         onboarding = false;
         if (mounted) setState(() {});
         await tts.setLanguage(language.speechLocale);
+      }
+
+      permissionsReady = await _requestAccessibilityPermissions();
+      if (!permissionsReady) {
+        if (mounted) setState(() => status = copy('permissionsNeeded'));
+        return;
       }
 
       if (pendingRecoveredImage != null) {
@@ -184,6 +193,56 @@ class _LiveCameraScreenState
       }
       await speak(copy('cameraError'));
     }
+  }
+
+  Future<bool> _requestAccessibilityPermissions() async {
+    await speakRaw(copy('cameraPermissionGuide'));
+    final cameraStatus = await permissions.requestCamera();
+    if (!cameraStatus.isGranted) {
+      await speakRaw(
+        cameraStatus.isPermanentlyDenied
+            ? copy('cameraPermissionSettings')
+            : copy('cameraPermissionDenied'),
+      );
+      if (cameraStatus.isPermanentlyDenied) {
+        await permissions.openSettings();
+      }
+      return false;
+    }
+
+    await speakRaw(copy('microphonePermissionGuide'));
+    final microphoneStatus = await permissions.requestMicrophone();
+    if (!microphoneStatus.isGranted) {
+      await speakRaw(copy('microphonePermissionOptional'));
+    }
+
+    await speakRaw(copy('locationPermissionGuide'));
+    final locationStatus = await permissions.requestLocation();
+    if (!locationStatus.isGranted) {
+      await speakRaw(
+        locationStatus.isPermanentlyDenied
+            ? copy('locationPermissionSettings')
+            : copy('locationPermissionDenied'),
+      );
+      if (locationStatus.isPermanentlyDenied) {
+        await permissions.openSettings();
+      }
+    }
+
+    return true;
+  }
+
+  Future<void> _retryPermissions() async {
+    final granted = await _requestAccessibilityPermissions();
+    if (!mounted) return;
+
+    setState(() => permissionsReady = granted);
+    if (!granted) {
+      setState(() => status = copy('permissionsNeeded'));
+      return;
+    }
+
+    await _resumeCameraSafely();
   }
 
   Future<void> _initializeCamera() async {
@@ -279,7 +338,11 @@ class _LiveCameraScreenState
     if (state == AppLifecycleState.resumed &&
         !onboarding &&
         !demoMode) {
-      unawaited(_resumeCameraSafely());
+      if (!permissionsReady) {
+        unawaited(_retryPermissions());
+      } else {
+        unawaited(_resumeCameraSafely());
+      }
     }
   }
 
@@ -300,7 +363,7 @@ class _LiveCameraScreenState
   }
 
   Future<void> _resumeCameraSafely() async {
-    if (!mounted || onboarding || demoMode || camera != null) return;
+    if (!mounted || onboarding || demoMode || camera != null || !permissionsReady) return;
 
     try {
       await _initializeCamera();
@@ -1386,6 +1449,26 @@ class _LiveCameraScreenState
             'ಚಿತ್ರವನ್ನು ವಿಶ್ಲೇಷಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಮತ್ತೊಂದು ಚಿತ್ರ ಪ್ರಯತ್ನಿಸಿ.',
         'cameraError':
             'ಕ್ಯಾಮೆರಾ ಲಭ್ಯವಿಲ್ಲ. ಕ್ಯಾಮೆರಾ ಮತ್ತು ಮೈಕ್ರೋಫೋನ್ ಅನುಮತಿ ನೀಡಿ ಮತ್ತು ಆಪ್ ಅನ್ನು ಮತ್ತೆ ತೆರೆಯಿರಿ.',
+        'permissionsNeeded':
+            'ಕ್ಯಾಮೆರಾ ಅನುಮತಿ ಅಗತ್ಯವಿದೆ. ಮುಂದುವರಿಸಲು ಅನುಮತಿಗಳನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ.',
+        'enablePermissions':
+            'ಅನುಮತಿಗಳನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ',
+        'cameraPermissionGuide':
+            'SightToSound ಫಲಕಗಳನ್ನು ಓದಲು ಕ್ಯಾಮೆರಾ ಅನುಮತಿ ಅಗತ್ಯವಿದೆ. ಈಗ Android ಕ್ಯಾಮೆರಾ ಅನುಮತಿ ವಿಂಡೋ ತೋರಿಸುತ್ತದೆ. TalkBack ಬಳಸಿ Allow ಆಯ್ಕೆ ಮಾಡಿ ಮತ್ತು ಎರಡು ಬಾರಿ ಸ್ಪರ್ಶಿಸಿ.',
+        'cameraPermissionDenied':
+            'ಕ್ಯಾಮೆರಾ ಅನುಮತಿ ನೀಡಲಾಗಿಲ್ಲ. ಇದಿಲ್ಲದೆ ಫಲಕಗಳನ್ನು ಸ್ಕ್ಯಾನ್ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ.',
+        'cameraPermissionSettings':
+            'ಕ್ಯಾಮೆರಾ ಅನುಮತಿ ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ. ಅದನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಲು ಆಪ್ ಸೆಟ್ಟಿಂಗ್ಸ್ ತೆರೆಯುತ್ತಿದ್ದೇನೆ.',
+        'microphonePermissionGuide':
+            'ವಾಯ್ಸ್ ಕಮಾಂಡ್‌ಗಳಿಗೆ ಮೈಕ್ರೋಫೋನ್ ಅನುಮತಿ ಬೇಕು. ಈಗ Android ಅನುಮತಿ ಕೇಳುತ್ತದೆ. ಅನುಮತಿಸಬಹುದು ಅಥವಾ ವಾಯ್ಸ್ ಕಮಾಂಡ್ ಇಲ್ಲದೆ ಮುಂದುವರಿಯಬಹುದು.',
+        'microphonePermissionOptional':
+            'ಮೈಕ್ರೋಫೋನ್ ಅನುಮತಿ ನೀಡಲಾಗಿಲ್ಲ. ಕ್ಯಾಮೆರಾ ಸ್ಕ್ಯಾನಿಂಗ್ ಮುಂದುವರಿಯುತ್ತದೆ, ಆದರೆ ವಾಯ್ಸ್ ಕಮಾಂಡ್‌ಗಳು ಕೆಲಸ ಮಾಡದಿರಬಹುದು.',
+        'locationPermissionGuide':
+            'ನಿಮ್ಮ ಪ್ರಸ್ತುತ ಸ್ಥಳ ಮತ್ತು ಸುತ್ತಮುತ್ತಲಿನ ಮಾಹಿತಿಯನ್ನು ಹೇಳಲು ಸ್ಥಳ ಅನುಮತಿ ಸಹಾಯ ಮಾಡುತ್ತದೆ. ಈಗ Android ಸ್ಥಳ ಅನುಮತಿ ಕೇಳುತ್ತದೆ. While using the app ಆಯ್ಕೆ ಮಾಡಿ.',
+        'locationPermissionDenied':
+            'ಸ್ಥಳ ಅನುಮತಿ ನೀಡಲಾಗಿಲ್ಲ. ಫಲಕ ಓದುವಿಕೆ ಮುಂದುವರಿಯುತ್ತದೆ, ಆದರೆ ಪ್ರಸ್ತುತ ಸ್ಥಳ ಲಭ್ಯವಿರದಿರಬಹುದು.',
+        'locationPermissionSettings':
+            'ಸ್ಥಳ ಅನುಮತಿ ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ. ಅದನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಲು ಆಪ್ ಸೆಟ್ಟಿಂಗ್ಸ್ ತೆರೆಯುತ್ತಿದ್ದೇನೆ.',
         'voicePrompt':
             'ಆಜ್ಞೆಯನ್ನು ಹೇಳಿ.',
         'stopDone':
@@ -1470,6 +1553,26 @@ class _LiveCameraScreenState
           'I could not analyze that image. Please try another image.',
       'cameraError':
           'Camera is unavailable. Allow camera and microphone permissions and reopen the app.',
+        'permissionsNeeded':
+            'Camera permission is required. Use Enable permissions to continue.',
+        'enablePermissions':
+            'Enable permissions',
+        'cameraPermissionGuide':
+            'SightToSound needs camera access to read signs. Android will now show a camera permission window. Use TalkBack to move to Allow and double tap.',
+        'cameraPermissionDenied':
+            'Camera permission was not granted. I cannot scan signs without it.',
+        'cameraPermissionSettings':
+            'Camera permission is blocked. I am opening app settings so you can enable it.',
+        'microphonePermissionGuide':
+            'Voice commands need microphone access. Android will now ask for microphone permission. You may allow it, or continue without voice commands.',
+        'microphonePermissionOptional':
+            'Microphone permission was not granted. Camera scanning will continue, but voice commands may not work.',
+        'locationPermissionGuide':
+            'Location access helps me describe your current place and nearby context. Android will now ask for location permission. Choose While using the app.',
+        'locationPermissionDenied':
+            'Location permission was not granted. Sign reading will still work, but current location may be unavailable.',
+        'locationPermissionSettings':
+            'Location permission is blocked. I am opening app settings so you can enable it.',
       'voicePrompt':
           'Say a command.',
       'stopDone':
@@ -1704,6 +1807,15 @@ class _LiveCameraScreenState
         copy('help'),
       );
 
+      return;
+    }
+
+    if (speech.contains('enable permission') ||
+        speech.contains('allow permission') ||
+        speech.contains('permissions') ||
+        speech.contains('अनुमति') ||
+        speech.contains('ಅನುಮತಿ')) {
+      await _retryPermissions();
       return;
     }
 
@@ -2218,9 +2330,9 @@ class _LiveCameraScreenState
                   ),
                   const SizedBox(height: 18),
                   FilledButton.icon(
-                    onPressed: _restartCamera,
+                    onPressed: permissionsReady ? _restartCamera : _retryPermissions,
                     icon: const Icon(Icons.refresh_rounded),
-                    label: Text(copy('retryCamera')),
+                    label: Text(permissionsReady ? copy('retryCamera') : copy('enablePermissions')),
                   ),
                 ],
               ),
