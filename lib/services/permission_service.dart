@@ -30,13 +30,13 @@ class PermissionService {
   }
 
   Future<bool> cameraGranted() async =>
-      (await Permission.camera.status).isGranted;
+      (await Permission.camera.status) == PermissionStatus.granted;
 
   Future<bool> microphoneGranted() async =>
-      (await Permission.microphone.status).isGranted;
+      (await Permission.microphone.status) == PermissionStatus.granted;
 
   Future<bool> locationGranted() async =>
-      (await Permission.locationWhenInUse.status).isGranted;
+      (await Permission.locationWhenInUse.status) == PermissionStatus.granted;
 
   Future<bool> anyCorePermissionPermanentlyDenied() async {
     final statuses = await Future.wait([
