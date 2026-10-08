@@ -243,12 +243,17 @@ class TFLiteService {
     final padX = ((inputSize - resizedWidth) / 2).round();
     final padY = ((inputSize - resizedHeight) / 2).round();
 
-    img.compositeImage(
-      canvas,
-      resized,
-      dstX: padX,
-      dstY: padY,
-    );
+    // Copy the resized image manually because image 3.3.0 does not
+    // expose the newer compositeImage helper used by newer releases.
+    for (int y = 0; y < resized.height; y++) {
+      for (int x = 0; x < resized.width; x++) {
+        canvas.setPixel(
+          x + padX,
+          y + padY,
+          resized.getPixel(x, y),
+        );
+      }
+    }
 
     _lastLetterboxScale = letterboxScale;
     _lastLetterboxPadX = padX.toDouble();
