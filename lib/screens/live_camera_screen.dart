@@ -196,7 +196,9 @@ class _LiveCameraScreenState
   }
 
   Future<bool> _requestAccessibilityPermissions() async {
-    await speakRaw(copy('cameraPermissionGuide'));
+    if (!await permissions.cameraGranted()) {
+      await speakRaw(copy('cameraPermissionGuide'));
+    }
     final cameraStatus = await permissions.requestCamera();
     if (!cameraStatus.isGranted) {
       await speakRaw(
@@ -210,13 +212,17 @@ class _LiveCameraScreenState
       return false;
     }
 
-    await speakRaw(copy('microphonePermissionGuide'));
+    if (!await permissions.microphoneGranted()) {
+      await speakRaw(copy('microphonePermissionGuide'));
+    }
     final microphoneStatus = await permissions.requestMicrophone();
     if (!microphoneStatus.isGranted) {
       await speakRaw(copy('microphonePermissionOptional'));
     }
 
-    await speakRaw(copy('locationPermissionGuide'));
+    if (!await permissions.locationGranted()) {
+      await speakRaw(copy('locationPermissionGuide'));
+    }
     final locationStatus = await permissions.requestLocation();
     if (!locationStatus.isGranted) {
       await speakRaw(
