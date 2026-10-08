@@ -237,15 +237,8 @@ class TFLiteService {
       interpolation: img.Interpolation.cubic,
     );
 
-    final canvas = img.Image(
-      width: inputSize,
-      height: inputSize,
-    );
-
-    img.fill(
-      canvas,
-      color: img.ColorRgb8(114, 114, 114),
-    );
+    final canvas = img.Image(inputSize, inputSize);
+    img.fill(canvas, img.getColor(114, 114, 114));
 
     final padX = ((inputSize - resizedWidth) / 2).round();
     final padY = ((inputSize - resizedHeight) / 2).round();
