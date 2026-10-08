@@ -26,6 +26,7 @@ dependencies:
   flutter_svg: ^2.0.9
   shimmer: ^3.0.0
   flutter_dotenv: ^5.2.1
+  flutter_tesseract_ocr: ^0.4.31
 
 dev_dependencies:
   flutter_test:
