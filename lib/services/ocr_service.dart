@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image/image.dart' as img;
+import 'package:flutter_tesseract_ocr/flutter_tesseract_ocr.dart';
 
 class OCRService {
   static final OCRService _instance = OCRService._internal();
@@ -13,7 +14,6 @@ class OCRService {
   final Map<TextRecognitionScript, TextRecognizer> _recognizers = {};
   String? _fullFrameCachePath;
   TextRecognitionScript? _fullFrameCacheScript;
-  List<_OCRBlock> _fullFrameCacheBlocks = [];
   List<List<_OCRBlock>> _fullFrameVariantBlocks = [];
 
   TextRecognizer _recognizerFor(TextRecognitionScript script) =>
@@ -46,18 +46,24 @@ class OCRService {
         bbox,
         script,
       );
-      if (fullFrameText.isNotEmpty && _isPlausibleOCR(fullFrameText)) {
-        debugPrint('OCR: matched full-frame text block(s): ' + fullFrameText);
-        return fullFrameText;
-      }
+      final recognizer = _recognizerFor(script);
+      final candidates = <_OCRCandidate>[];
 
+      // Do not return immediately from full-frame OCR. A full-frame block can
+      // be readable but still contain a typo while a dedicated crop is clearer.
       if (fullFrameText.isNotEmpty) {
-        debugPrint('OCR: rejecting low-quality full-frame text; trying sign crop variants.');
+        debugPrint('OCR: full-frame candidate: ' + fullFrameText);
+        candidates.add(
+          _OCRCandidate(
+            text: fullFrameText,
+            variant: -1,
+            score: _score(fullFrameText) +
+                (_isPlausibleOCR(fullFrameText) ? 4.0 : -12.0),
+          ),
+        );
       }
 
       final variants = _buildVariants(crop);
-      final recognizer = _recognizerFor(script);
-      final candidates = <_OCRCandidate>[];
 
       for (var i = 0; i < variants.length; i++) {
         final tempFile = File(
@@ -89,10 +95,83 @@ class OCRService {
         }
       }
 
+      // Also test a tighter crop. The wider crop captures multi-line boards;
+      // the tighter crop reduces interference from nearby storefront text.
+      final tightCrop = _cropWithPadding(
+        image,
+        bbox,
+        horizontalFactor: 0.12,
+        verticalFactor: 0.22,
+      );
+
+      if (tightCrop != null) {
+        final tightVariants = _buildVariants(tightCrop).take(4).toList();
+
+        for (var i = 0; i < tightVariants.length; i++) {
+          final tempFile = File(
+            Directory.systemTemp.path +
+                '/s2s_ocr_tight_' +
+                DateTime.now().microsecondsSinceEpoch.toString() +
+                '_' +
+                i.toString() +
+                '.jpg',
+          );
+
+          try {
+            await tempFile.writeAsBytes(
+              img.encodeJpg(tightVariants[i], quality: 97),
+              flush: true,
+            );
+            final recognized = await recognizer.processImage(
+              InputImage.fromFile(tempFile),
+            );
+            final cleaned = _normalizeOCRText(recognized.text);
+            if (cleaned.isNotEmpty) {
+              candidates.add(
+                _OCRCandidate(
+                  text: cleaned,
+                  variant: 100 + i,
+                  score: _score(cleaned) +
+                      (_isPlausibleOCR(cleaned) ? 2.0 : -8.0),
+                ),
+              );
+            }
+          } catch (e) {
+            debugPrint('OCR tight variant ' + i.toString() + ' failed: ' + e.toString());
+          } finally {
+            try {
+              if (await tempFile.exists()) await tempFile.delete();
+            } catch (_) {}
+          }
+        }
+      }
+
+      // Multilingual fallback: Tesseract is used for Kannada and whenever
+      // ML Kit produced little/low-quality text. It runs on the same strong
+      // crop variants, so decorative fonts and non-Latin scripts get a second
+      // recognition path without replacing the fast ML Kit path.
+      final currentBestScore = candidates.isEmpty
+          ? -1000.0
+          : candidates.map((c) => c.score).reduce((a, b) => a > b ? a : b);
+      final shouldRunTesseract = normalizedLanguage == 'kn' ||
+          candidates.isEmpty ||
+          currentBestScore < 18.0 ||
+          !_isPlausibleOCR(candidates.first.text);
+
+      if (shouldRunTesseract) {
+        final tesseractCandidates = await _runTesseractCandidates(
+          crop: crop,
+          tightCrop: tightCrop,
+          languageCode: normalizedLanguage,
+        );
+        candidates.addAll(tesseractCandidates);
+      }
+
       if (candidates.isEmpty) {
-        debugPrint('OCR: sign crop returned no text; trying full frame.');
+        debugPrint('OCR: crop ensemble returned no text; trying full frame.');
         return await _recognizeFullImage(image, script);
       }
+
       candidates.sort((a, b) => b.score.compareTo(a.score));
       final best = candidates.first;
 
@@ -154,8 +233,8 @@ class OCRService {
     // Give OCR a little more surrounding context. Signboards often have
     // multiple lines and the detector box can clip the first/last letters.
     // Keep the padding bounded so nearby background text is not pulled in.
-    final padX = (width * 0.18).clamp(8.0, 90.0);
-    final padY = (height * 0.30).clamp(10.0, 120.0);
+    final padX = (width * 0.24).clamp(10.0, 120.0);
+    final padY = (height * 0.42).clamp(14.0, 150.0);
 
     x1 = (x1 - padX).clamp(0.0, image.width.toDouble());
     y1 = (y1 - padY).clamp(0.0, image.height.toDouble());
@@ -261,9 +340,6 @@ class OCRService {
             }
           }
 
-          _fullFrameCacheBlocks = _fullFrameVariantBlocks
-              .expand((blocks) => blocks)
-              .toList();
           _fullFrameCachePath = sourcePath;
           _fullFrameCacheScript = script;
         } finally {
@@ -324,6 +400,46 @@ class OCRService {
       debugPrint('OCR full-frame block matching failed: ' + e.toString());
       return '';
     }
+  }
+
+  img.Image? _cropWithPadding(
+    img.Image image,
+    List<double> bbox, {
+    required double horizontalFactor,
+    required double verticalFactor,
+  }) {
+    if (bbox.length < 4) return null;
+
+    var x1 = bbox[0];
+    var y1 = bbox[1];
+    var x2 = bbox[2];
+    var y2 = bbox[3];
+
+    if (x2 <= x1 || y2 <= y1) return null;
+
+    final width = x2 - x1;
+    final height = y2 - y1;
+    final padX = (width * horizontalFactor).clamp(6.0, 100.0);
+    final padY = (height * verticalFactor).clamp(8.0, 130.0);
+
+    x1 = (x1 - padX).clamp(0.0, image.width.toDouble());
+    y1 = (y1 - padY).clamp(0.0, image.height.toDouble());
+    x2 = (x2 + padX).clamp(0.0, image.width.toDouble());
+    y2 = (y2 + padY).clamp(0.0, image.height.toDouble());
+
+    final cropWidth = (x2 - x1).round();
+    final cropHeight = (y2 - y1).round();
+    if (cropWidth < 12 || cropHeight < 12) return null;
+
+    return _upscaleForText(
+      img.copyCrop(
+        image,
+        x1.round(),
+        y1.round(),
+        cropWidth,
+        cropHeight,
+      ),
+    );
   }
 
   img.Image _upscaleForText(img.Image source) {
@@ -421,18 +537,141 @@ class OCRService {
     ];
   }
 
+  Future<List<_OCRCandidate>> _runTesseractCandidates({
+    required img.Image crop,
+    required img.Image? tightCrop,
+    required String languageCode,
+  }) async {
+    final languages = _tesseractLanguageFor(languageCode);
+    if (languages.isEmpty) return [];
+
+    try {
+      final requested = languages.split('+');
+      final ready = await _ensureTesseractLanguages(requested);
+      if (!ready) return [];
+
+      final sources = <img.Image>[];
+      // Use a small, high-value ensemble because Tesseract is slower
+      // than ML Kit. Rotations help with signs photographed slightly off-axis.
+      sources.addAll(_buildVariants(crop).take(4));
+      if (tightCrop != null) {
+        sources.addAll(_buildVariants(tightCrop).take(2));
+      }
+      sources.addAll([
+        img.copyRotate(crop, -4),
+        img.copyRotate(crop, 4),
+      ]);
+
+      final candidates = <_OCRCandidate>[];
+      for (var i = 0; i < sources.length; i++) {
+        final tempFile = File('${Directory.systemTemp.path}/s2s_tess_${DateTime.now().microsecondsSinceEpoch}_$i.jpg');
+        try {
+          await tempFile.writeAsBytes(
+            img.encodeJpg(sources[i], quality: 98),
+            flush: true,
+          );
+          final raw = await FlutterTesseractOcr.extractText(
+            tempFile.path,
+            language: languages,
+            args: const {
+              'psm': '6',
+              'preserve_interword_spaces': '1',
+            },
+          );
+          final cleaned = _normalizeOCRText(raw);
+          if (cleaned.isNotEmpty) {
+            candidates.add(
+              _OCRCandidate(
+                text: cleaned,
+                variant: 200 + i,
+                score: _score(cleaned) +
+                    (_isPlausibleOCR(cleaned) ? 5.0 : -10.0),
+              ),
+            );
+          }
+        } catch (e) {
+          debugPrint('Tesseract variant $i failed: $e');
+        } finally {
+          try {
+            if (await tempFile.exists()) await tempFile.delete();
+          } catch (_) {}
+        }
+      }
+
+      candidates.sort((a, b) => b.score.compareTo(a.score));
+      if (candidates.isNotEmpty) {
+        debugPrint('Tesseract OCR ($languages): ${candidates.first.text}');
+      }
+      return candidates.take(3).toList();
+    } catch (e) {
+      debugPrint('Tesseract OCR unavailable: $e');
+      return [];
+    }
+  }
+
+  String _tesseractLanguageFor(String languageCode) {
+    switch (languageCode.toLowerCase()) {
+      case 'kn': return 'kan+eng';
+      case 'hi': return 'hin+eng';
+      case 'en': return 'eng';
+      case 'te': return 'tel+eng';
+      case 'ta': return 'tam+eng';
+      case 'ml': return 'mal+eng';
+      case 'bn': return 'ben+eng';
+      case 'gu': return 'guj+eng';
+      case 'pa': return 'pan+eng';
+      case 'mr': return 'mar+eng';
+      case 'or': return 'ori+eng';
+      default: return 'eng';
+    }
+  }
+
+  Future<bool> _ensureTesseractLanguages(List<String> languages) async {
+    if (!Platform.isAndroid && !Platform.isIOS) return false;
+    try {
+      final tessdataPath = await FlutterTesseractOcr.getTessdataPath();
+      final httpClient = HttpClient();
+      httpClient.connectionTimeout = const Duration(seconds: 8);
+      try {
+        for (final language in languages) {
+          final file = File('$tessdataPath/$language.traineddata');
+          if (await file.exists() && await file.length() > 1024) continue;
+          debugPrint('Tesseract: downloading $language.traineddata');
+          final uri = Uri.parse('https://raw.githubusercontent.com/tesseract-ocr/tessdata/main/$language.traineddata');
+          final request = await httpClient.getUrl(uri).timeout(const Duration(seconds: 12));
+          final response = await request.close().timeout(const Duration(seconds: 20));
+          if (response.statusCode != 200) {
+            debugPrint('Tesseract: $language download failed with HTTP ${response.statusCode}');
+            return false;
+          }
+          final bytes = <int>[];
+          await for (final chunk in response) { bytes.addAll(chunk); }
+          if (bytes.length < 1024) return false;
+          await file.parent.create(recursive: true);
+          await file.writeAsBytes(bytes, flush: true);
+          debugPrint('Tesseract: cached $language.traineddata (${bytes.length} bytes)');
+        }
+      } finally {
+        httpClient.close(force: true);
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Tesseract language setup failed: $e');
+      return false;
+    }
+  }
   double _score(String text) {
     final value = _cleanText(text);
     if (value.isEmpty) return -1000;
 
     final compact = value.replaceAll(RegExp(r'\s+'), '');
-    final readable = RegExp(r'[A-Za-z0-9\u0900-\u0CFF]')
+    final readable = RegExp(r'[A-Za-z0-9\u0900-\u0D7F]')
         .allMatches(compact)
         .length;
     final ratio = compact.isEmpty ? 0.0 : readable / compact.length;
     final words = value.split(' ').where((e) => e.isNotEmpty).length;
     final suspicious = RegExp(
-      r'[^A-Za-z0-9\u0900-\u0CFF\s.,:/&()\-+#%]',
+      r'[^A-Za-z0-9\u0900-\u0D7F\s.,:/&()\-+#%]',
     ).allMatches(value).length;
 
     return (compact.length * 0.55) +
@@ -477,7 +716,7 @@ class OCRService {
   String _normalizeForComparison(String text) {
     return _cleanText(text)
         .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9\u0900-\u0CFF]'), '');
+        .replaceAll(RegExp(r'[^a-z0-9\u0900-\u0D7F]'), '');
   }
 
   String _normalizeOCRText(String text) {

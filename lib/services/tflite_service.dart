@@ -24,10 +24,14 @@ class TFLiteService {
 
   bool _isInitialized = false;
 
+  double _lastLetterboxScale = 1.0;
+  double _lastLetterboxPadX = 0.0;
+  double _lastLetterboxPadY = 0.0;
+
   static const int inputSize = 416;
 
   // Do NOT accept extremely tiny predictions.
-  static const double confidenceThreshold = 0.30;
+  static const double confidenceThreshold = 0.25;
 
   static const double nmsThreshold = 0.45;
 
@@ -214,38 +218,56 @@ class TFLiteService {
   Float32List _preprocessImage(
     img.Image image,
   ) {
+    // Preserve the camera aspect ratio. Stretching a phone frame into a
+    // square distorts signboards and can reduce YOLO localization quality.
+    final widthScale = inputSize / image.width;
+    final heightScale = inputSize / image.height;
+    final letterboxScale =
+        widthScale < heightScale ? widthScale : heightScale;
+
+    final resizedWidth =
+        (image.width * letterboxScale).round().clamp(1, inputSize).toInt();
+    final resizedHeight =
+        (image.height * letterboxScale).round().clamp(1, inputSize).toInt();
+
     final resized = img.copyResize(
       image,
-      width: inputSize,
-      height: inputSize,
-      interpolation: img.Interpolation.linear,
+      width: resizedWidth,
+      height: resizedHeight,
+      interpolation: img.Interpolation.cubic,
     );
 
-    final input = Float32List(
-      inputSize *
-          inputSize *
-          3,
-    );
+    final canvas = img.Image(inputSize, inputSize);
+    img.fill(canvas, img.getColor(114, 114, 114));
 
+    final padX = ((inputSize - resizedWidth) / 2).round();
+    final padY = ((inputSize - resizedHeight) / 2).round();
+
+    // Copy the resized image manually because image 3.3.0 does not
+    // expose the newer compositeImage helper used by newer releases.
+    for (int y = 0; y < resized.height; y++) {
+      for (int x = 0; x < resized.width; x++) {
+        canvas.setPixel(
+          x + padX,
+          y + padY,
+          resized.getPixel(x, y),
+        );
+      }
+    }
+
+    _lastLetterboxScale = letterboxScale;
+    _lastLetterboxPadX = padX.toDouble();
+    _lastLetterboxPadY = padY.toDouble();
+
+    final input = Float32List(inputSize * inputSize * 3);
     int index = 0;
 
-    for (int y = 0;
-        y < inputSize;
-        y++) {
-      for (int x = 0;
-          x < inputSize;
-          x++) {
-        final pixel =
-            resized.getPixel(x, y);
-
-        input[index++] =
-            img.getRed(pixel) / 255.0;
-
-        input[index++] =
-            img.getGreen(pixel) / 255.0;
-
-        input[index++] =
-            img.getBlue(pixel) / 255.0;
+    for (int y = 0; y < inputSize; y++) {
+      for (int x = 0; x < inputSize; x++) {
+        final pixel = canvas.getPixel(x, y);
+        input[index++] = img.getRed(pixel) / 255.0;
+        input[index++] = img.getGreen(pixel) / 255.0;
+        input[index++] = img.getBlue(pixel) / 255.0;
       }
     }
 
@@ -504,30 +526,18 @@ class TFLiteService {
           y2.abs() <= 1.5;
 
       if (coordinatesLookNormalized) {
-        x1 *= imageWidth;
-
-        x2 *= imageWidth;
-
-        y1 *= imageHeight;
-
-        y2 *= imageHeight;
-      } else {
-        x1 =
-            (x1 / inputSize) *
-                imageWidth;
-
-        x2 =
-            (x2 / inputSize) *
-                imageWidth;
-
-        y1 =
-            (y1 / inputSize) *
-                imageHeight;
-
-        y2 =
-            (y2 / inputSize) *
-                imageHeight;
+        x1 *= inputSize;
+        x2 *= inputSize;
+        y1 *= inputSize;
+        y2 *= inputSize;
       }
+
+      // Undo the letterbox transform to return boxes in the original
+      // camera-image coordinate system used by OCR.
+      x1 = (x1 - _lastLetterboxPadX) / _lastLetterboxScale;
+      x2 = (x2 - _lastLetterboxPadX) / _lastLetterboxScale;
+      y1 = (y1 - _lastLetterboxPadY) / _lastLetterboxScale;
+      y2 = (y2 - _lastLetterboxPadY) / _lastLetterboxScale;
 
       // --------------------------------------------------------
       // CLAMP

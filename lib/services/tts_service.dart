@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 class TTSService {
@@ -25,10 +26,69 @@ class TTSService {
 
   Future<void> setLanguage(String languageCode) async {
     if (!_isInitialized) await initialize();
-    _languageCode = languageCode;
+
+    final requested = languageCode.trim();
+    _languageCode = requested;
+
     try {
-      await _flutterTts.setLanguage(languageCode);
-    } catch (_) {}
+      var available = false;
+      try {
+        available = (await _flutterTts.isLanguageAvailable(requested)) == true;
+      } catch (error) {
+        debugPrint('[TTS] language availability check failed: ' + error.toString());
+      }
+
+      await _flutterTts.setLanguage(requested);
+
+      try {
+        final rawVoices = await _flutterTts.getVoices;
+        final voices = rawVoices
+            .whereType<Map>()
+            .map((voice) => Map<String, String>.from(
+                  voice.map(
+                    (key, value) => MapEntry(key.toString(), value.toString()),
+                  ),
+                ))
+            .toList();
+
+        final normalized = requested.toLowerCase().replaceAll('_', '-');
+        final base = normalized.split('-').first;
+        final matching = voices.where((voice) {
+          final locale = (voice['locale'] ?? '').toLowerCase().replaceAll('_', '-');
+          return locale == normalized || locale.startsWith(base + '-');
+        }).toList();
+
+        if (matching.isNotEmpty) {
+          await _flutterTts.setVoice(matching.first);
+          debugPrint(
+            '[TTS] selected voice=' +
+                (matching.first['name'] ?? '') +
+                ' locale=' +
+                (matching.first['locale'] ?? '') +
+                ' for ' +
+                requested,
+          );
+        } else {
+          debugPrint(
+            '[TTS] no explicit voice found for ' +
+                requested +
+                '; available=' +
+                available.toString(),
+          );
+        }
+      } catch (error) {
+        debugPrint('[TTS] voice selection failed: ' + error.toString());
+      }
+
+      debugPrint(
+        '[TTS] language set to ' +
+            requested +
+            ', available=' +
+            available.toString(),
+      );
+    } catch (error) {
+      debugPrint('[TTS] setLanguage failed: ' + error.toString());
+    }
   }
 
   String get languageCode => _languageCode;
