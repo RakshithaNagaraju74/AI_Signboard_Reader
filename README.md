@@ -393,7 +393,7 @@ These are possible directions, not promises about current functionality.
 
 ## License
 
-No license file is currently specified in the repository. Until a license is added, do not assume that the source code, trained model, or bundled assets are available for unrestricted reuse. Add a license that matches the project's intended distribution and ownership before accepting external contributions.
+This project is licensed under the MIT License.
 
 ---
 
