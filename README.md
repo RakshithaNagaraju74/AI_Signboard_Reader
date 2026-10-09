@@ -60,7 +60,7 @@ The project is built with Flutter and is intended for real-world accessibility e
 - Tries multiple image variants, including upscaling and contrast-oriented preprocessing, then prefers a readable candidate.
 - Combines the detected category with readable sign text when preparing a spoken result.
 
-OCR is best-effort. Blur, glare, low contrast, unusual fonts, small text, perspective, occlusion, and language/script support can affect the result.
+OCR is best-effort. The current OCR service selects Devanagari recognition for Hindi and Latin recognition for other configured languages; Kannada voice/UI support does **not** currently mean full Kannada-script OCR support. Blur, glare, low contrast, unusual fonts, small text, perspective, occlusion, and language/script support can also affect results.
 
 ### 🧭 Spatial and temporal guidance
 The live reader estimates where a detected sign appears in the camera frame and describes it using five relative zones:
@@ -179,6 +179,7 @@ Detection tracking and relative-position analysis
 | `assets/models/best.tflite` | Bundled TensorFlow Lite model |
 | `assets/models/labels.txt` | Model label order |
 | `assets/models/classes.json` | Numeric class-ID mapping |
+| `ai-signboard-reader-with-eval (1).ipynb` | Notebook artifact for model experimentation/evaluation |
 | `assets/images/app_logo.png` | App branding |
 | `test/` | Flutter tests |
 | `.github/workflows/flutter_ci.yml` | Automated analysis, tests, and Android debug build |
@@ -239,17 +240,14 @@ GROQ_MODEL=openai/gpt-oss-20b
 GROQ_BASE_URL=https://api.groq.com/openai/v1
 ```
 
-Create the file in the repository root:
+Copy the example configuration into a local `.env` file:
 
 ```powershell
-@'
-GROQ_API_KEY=your_groq_api_key
-GROQ_MODEL=openai/gpt-oss-20b
-GROQ_BASE_URL=https://api.groq.com/openai/v1
-'@ | Set-Content .env
+Copy-Item .env.example .env
+notepad .env
 ```
 
-Replace the placeholder with your own key. The app loads `.env` on startup; a configured key is **not** required to launch the app or use the local fallback narration.
+Replace `your_groq_api_key` with your own key. The checked-in `.env.example` contains placeholders only. The app loads `.env` on startup; a configured key is **not** required to launch the app or use the local fallback narration.
 
 **Security:** `.env` is intended to remain local and is gitignored. Never commit an API key, paste it into screenshots/logs, or ship a private provider key inside a production APK. For a public production release, move authenticated AI requests behind a trusted backend. If you use `--dart-define` for local experiments, remember that compile-time values embedded in a client app are not a secure secret store.
 
