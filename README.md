@@ -11,7 +11,7 @@
 [![Flutter](https://img.shields.io/badge/Flutter-Dart-02569B?logo=flutter&logoColor=white)](https://flutter.dev/)
 [![On-device AI](https://img.shields.io/badge/AI-On--device%20inference-6C5CE7)](#how-it-works)
 [![Accessibility](https://img.shields.io/badge/Focus-Accessibility-168B65)](#accessibility-by-design)
-[![License](https://img.shields.io/badge/License-Not%20yet%20specified-lightgrey)](#license)
+[![License](https://img.shields.io/badge/License-%20MIT-lightgrey)](#license)
 
 [Explore the code](https://github.com/RakshithaNagaraju74/AI_Signboard_Reader) · [Report a bug](https://github.com/RakshithaNagaraju74/AI_Signboard_Reader/issues) · [Request a feature](https://github.com/RakshithaNagaraju74/AI_Signboard_Reader/issues)
 
