@@ -340,9 +340,6 @@ class OCRService {
             }
           }
 
-          _fullFrameCacheBlocks = _fullFrameVariantBlocks
-              .expand((blocks) => blocks)
-              .toList();
           _fullFrameCachePath = sourcePath;
           _fullFrameCacheScript = script;
         } finally {
