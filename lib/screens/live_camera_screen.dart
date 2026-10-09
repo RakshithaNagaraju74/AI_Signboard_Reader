@@ -201,7 +201,7 @@ class _LiveCameraScreenState
       await speakRaw(copy('cameraPermissionGuide'));
     }
     final cameraStatus = await permissions.requestCamera();
-    if (!cameraStatus == PermissionStatus.granted) {
+    if (cameraStatus != PermissionStatus.granted) {
       await speakRaw(
         cameraStatus == PermissionStatus.permanentlyDenied
             ? copy('cameraPermissionSettings')
@@ -217,7 +217,7 @@ class _LiveCameraScreenState
       await speakRaw(copy('microphonePermissionGuide'));
     }
     final microphoneStatus = await permissions.requestMicrophone();
-    if (!microphoneStatus == PermissionStatus.granted) {
+    if (microphoneStatus != PermissionStatus.granted) {
       await speakRaw(copy('microphonePermissionOptional'));
     }
 
@@ -225,7 +225,7 @@ class _LiveCameraScreenState
       await speakRaw(copy('locationPermissionGuide'));
     }
     final locationStatus = await permissions.requestLocation();
-    if (!locationStatus == PermissionStatus.granted) {
+    if (locationStatus != PermissionStatus.granted) {
       await speakRaw(
         locationStatus == PermissionStatus.permanentlyDenied
             ? copy('locationPermissionSettings')
