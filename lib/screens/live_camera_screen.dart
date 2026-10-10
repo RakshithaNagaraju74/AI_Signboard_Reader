@@ -806,9 +806,21 @@ class _LiveCameraScreenState
     bool useGroq = true,
   }) async {
     final inputs = <SpeechDetectionInput>[];
+    final seenSignKeys = <String>{};
 
-    for (final context in contexts.take(4)) {
+    for (final context in contexts) {
       final text = context.detection.ocrText.trim();
+      final normalizedText = text
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9\u0900-\u097f\u0c80-\u0cff]+'), ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+      final signKey = normalizedText.isNotEmpty
+          ? normalizedText
+          : '${context.detection.className.toLowerCase()}|${context.position.name}';
+      if (!seenSignKeys.add(signKey)) continue;
+      if (inputs.length >= 4) break;
+
       var placeContext = '';
 
       if (currentLocation != null && placeVerifier.isPlaceLikeText(text)) {
@@ -1426,6 +1438,8 @@ class _LiveCameraScreenState
             'वर्तमान GPS स्थान उपलब्ध नहीं है।',
         'analyzingImage':
             'अपलोड की गई तस्वीर का विश्लेषण किया जा रहा है।',
+        'readingSign':
+            'संकेत मिल गया है। मैं उस पर लिखा पाठ पढ़ रहा हूँ। कृपया एक पल स्थिर रहें।',
         'noSigns':
             'कोई स्पष्ट संकेत नहीं मिला।',
         'analysisFailed':
@@ -1502,6 +1516,8 @@ class _LiveCameraScreenState
             'ಪ್ರಸ್ತುತ GPS ಸ್ಥಳ ಲಭ್ಯವಿಲ್ಲ.',
         'analyzingImage':
             'ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ಚಿತ್ರವನ್ನು ವಿಶ್ಲೇಷಿಸಲಾಗುತ್ತಿದೆ.',
+        'readingSign':
+            'ಫಲಕ ಕಂಡುಬಂದಿದೆ. ಅದರ ಮೇಲಿನ ಬರಹವನ್ನು ಓದುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಕ್ಷಣಕಾಲ ಸ್ಥಿರವಾಗಿ ಇರಿ.',
         'noSigns':
             'ಯಾವುದೇ ಸ್ಪಷ್ಟ ಫಲಕ ಕಂಡುಬಂದಿಲ್ಲ.',
         'analysisFailed':
