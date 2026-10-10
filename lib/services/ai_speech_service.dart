@@ -472,6 +472,7 @@ EXAMPLES:
     String languageCode,
     String? place,
   ) {
+    final shortPlace = _shortCurrentLocation(place);
     if (detections.isEmpty) {
       if (languageCode == 'hi') {
         return 'मुझे कोई स्पष्ट संकेत नहीं मिला।';
@@ -494,10 +495,9 @@ EXAMPLES:
       final prefix =
           safety ? 'सावधान। ' : '';
 
-      final placePart =
-          place == null || place.isEmpty
-              ? ''
-              : ' आप अभी $place के पास हैं।';
+      final placePart = shortPlace.isEmpty
+          ? ''
+          : ' आप अभी $shortPlace के पास हैं।';
 
       return '$prefix'
           '$parts।'
@@ -511,10 +511,9 @@ EXAMPLES:
       final prefix =
           safety ? 'ಎಚ್ಚರಿಕೆ. ' : '';
 
-      final placePart =
-          place == null || place.isEmpty
-              ? ''
-              : ' ನೀವು ಈಗ $place ಬಳಿ ಇದ್ದೀರಿ.';
+      final placePart = shortPlace.isEmpty
+          ? ''
+          : ' ನೀವು ಈಗ $shortPlace ಬಳಿ ಇದ್ದೀರಿ.';
 
       return '$prefix'
           '$parts.'
@@ -524,12 +523,31 @@ EXAMPLES:
     final selected = _selectFallbackDetections(detections);
     final parts = selected.map(_englishItem).join('. ');
     final prefix = safety ? 'Warning. ' : '';
-    final placePart = place == null || place.isEmpty
+    final placePart = shortPlace.isEmpty
         ? ''
-        : ' Current location context: $place.';
+        : ' You are near $shortPlace.';
     return '$prefix$parts.$placePart';
   }
 
+
+  String _shortCurrentLocation(String? context) {
+    if (context == null || context.trim().isEmpty) return '';
+    var value = context.trim();
+    const marker = 'CURRENT USER LOCATION:';
+    final markerIndex = value.indexOf(marker);
+    if (markerIndex >= 0) {
+      value = value.substring(markerIndex + marker.length).trim();
+    }
+    final accuracyIndex = value.indexOf(' (GPS accuracy');
+    if (accuracyIndex >= 0) {
+      value = value.substring(0, accuracyIndex).trim();
+    }
+    final explanationIndex = value.indexOf('This is the user');
+    if (explanationIndex >= 0) {
+      value = value.substring(0, explanationIndex).trim();
+    }
+    return value.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
 
   List<SpeechDetectionInput> _selectFallbackDetections(
     List<SpeechDetectionInput> detections,
