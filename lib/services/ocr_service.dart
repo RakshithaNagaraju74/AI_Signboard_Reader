@@ -612,6 +612,14 @@ class OCRService {
 
   String _cleanText(String text) {
     return text
+        .replaceAll(
+          RegExp(r'-{2,}\s*OCR\s*(?:Start|End)\s*-{2,}', caseSensitive: false),
+          ' ',
+        )
+        .replaceAll(
+          RegExp(r'\bOCR\s*(?:Start|End)\b', caseSensitive: false),
+          ' ',
+        )
         .replaceAll(RegExp(r'[\r\n\t]+'), ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
