@@ -406,18 +406,27 @@ Built to make visual information more accessible—one sign at a time.
 
 </div>
 
-## Offline Kannada OCR setup
 
-SightToSound keeps Google ML Kit for its existing Latin/Hindi OCR flow and uses Tesseract's **fast** on-device models for Kannada scans. Kannada OCR uses Kannada + English recognition, enlarged sign crops, grayscale/contrast/inverted image variants, and a full-frame fallback only when the crop returns no text. This is free and runs on-device; no OCR API key or image upload is required. Tesseract can be slower than ML Kit, so the Kannada path uses four crop variants and only two full-frame variants as a fallback.
+## Multilingual OCR with OCR.Space
 
-The language model files are downloaded during development/build setup (not at runtime) to keep large binary model files out of Git. Run this from PowerShell before building the app:
+SightToSound can use the OCR.Space API's Engine 3 for Kannada, Tamil, Telugu, Hindi, and stylized signboard text. Engine 3 supports more than 200 languages and is the cloud OCR path for these Indic scripts. English and other supported Latin-language scans continue using fast on-device OCR first, with OCR.Space as a fallback when local text is empty or weak. Images are cropped and enlarged locally before upload.
 
-```powershell
-.\scripts\setup_kannada_ocr.ps1
-flutter pub get
-flutter run
-```
+### Configure the API key
 
-The script downloads the official Apache-2.0 `kan.traineddata` and `eng.traineddata` fast models from the Tesseract project. Once included in the app build, Kannada OCR works offline. If you clean/reclone the repository, run the script again before building. Do not launch a Kannada scan before the models have been downloaded and bundled.
+1. Get a key from [OCR.Space's free API page](https://ocr.space/ocrapi/freekey).
+2. Copy `.env.example` to `.env` if you do not already have one:
+   ```powershell
+   Copy-Item .env.example .env
+   notepad .env
+   ```
+3. Set `OCR_SPACE_API_KEY=your_real_key` in your local `.env` file. Keep the key private and do not commit `.env`.
+4. Run:
+   ```powershell
+   flutter pub get
+   flutter clean
+   flutter run
+   ```
 
-The Android implementation uses Tesseract4Android directly from the app module instead of a Flutter Tesseract plugin. This avoids pulling an older plugin Gradle script (with legacy repository configuration) into your Gradle 9 / AGP 9 setup. The GitHub connector cannot run the local Flutter analyzer or Android Gradle build, so test `flutter analyze` and `flutter run` on your machine before merging. The native bridge is Android-only; iOS continues using the existing OCR path and does not gain Kannada-script recognition from this change.
+OCR.Space's free plan has monthly limits, including a smaller quota for Engine 3. Cloud OCR requires internet and sends the cropped sign image to OCR.Space. If the API key or network is unavailable, the app falls back to the existing on-device recognizer. API keys embedded in a mobile app can be extracted from a built APK, so use a trusted backend proxy for a public production release. Never commit your personal key to GitHub.
+
+The previous native Tesseract Android dependency has been removed because the configured artifact could not be resolved by Gradle. This avoids that build failure. The GitHub connector cannot execute Flutter or Android builds, so run the commands above on your computer before merging.
