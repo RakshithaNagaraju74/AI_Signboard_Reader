@@ -16,6 +16,7 @@ class OCRService {
   String? _fullFrameCachePath;
   TextRecognitionScript? _fullFrameCacheScript;
   List<_OCRBlock> _fullFrameCacheBlocks = [];
+  final List<_CloudOcrCacheEntry> _cloudOcrCache = [];
 
   TextRecognizer _recognizerFor(TextRecognitionScript script) =>
       _recognizers.putIfAbsent(script, () => TextRecognizer(script: script));
@@ -106,7 +107,9 @@ class OCRService {
 
       if (candidates.isEmpty) {
         debugPrint('OCR: sign crop returned no text; trying OCR.Space and full frame.');
-        final cloudText = await _recognizeWithOcrSpace(crop);
+        final cloudText = await _recognizeWithOcrSpace(
+          _isIndicLanguage(normalizedLanguage) ? image : crop,
+        );
         if (cloudText.isNotEmpty) return cloudText;
         return await _recognizeFullImage(image, script);
       }
@@ -186,6 +189,18 @@ class OCRService {
       return '';
     }
 
+    final fingerprint = _perceptualFingerprint(source);
+    final now = DateTime.now();
+    _cloudOcrCache.removeWhere(
+      (entry) => now.difference(entry.createdAt) > const Duration(seconds: 45),
+    );
+    for (final entry in _cloudOcrCache) {
+      if (_hammingDistance(fingerprint, entry.fingerprint) <= 7) {
+        debugPrint('OCR.Space cache hit; reusing recent sign text.');
+        return entry.text;
+      }
+    }
+
     HttpClient? client;
     try {
       final prepared = _upscaleForText(source);
@@ -250,13 +265,57 @@ class OCRService {
           .map((result) => result['ParsedText']?.toString() ?? '')
           .where((value) => value.trim().isNotEmpty)
           .join(' ');
-      return _normalizeOCRText(text);
+      final cleaned = _normalizeOCRText(text);
+      if (cleaned.isNotEmpty) {
+        _cloudOcrCache.add(
+          _CloudOcrCacheEntry(
+            fingerprint: fingerprint,
+            text: cleaned,
+            createdAt: DateTime.now(),
+          ),
+        );
+        if (_cloudOcrCache.length > 24) {
+          _cloudOcrCache.removeAt(0);
+        }
+      }
+      return cleaned;
     } catch (e) {
       debugPrint('OCR.Space unavailable; using local OCR: $e');
       return '';
     } finally {
       client?.close(force: true);
     }
+  }
+
+  String _perceptualFingerprint(img.Image source) {
+    final tiny = img.grayscale(
+      img.copyResize(source, width: 8, height: 8),
+    );
+    var total = 0;
+    for (var y = 0; y < 8; y++) {
+      for (var x = 0; x < 8; x++) {
+        total += img.getLuminance(tiny.getPixel(x, y)).round();
+      }
+    }
+    final average = total / 64;
+    final bits = StringBuffer();
+    for (var y = 0; y < 8; y++) {
+      for (var x = 0; x < 8; x++) {
+        bits.write(
+          img.getLuminance(tiny.getPixel(x, y)) >= average ? '1' : '0',
+        );
+      }
+    }
+    return bits.toString();
+  }
+
+  int _hammingDistance(String a, String b) {
+    if (a.length != b.length) return 64;
+    var distance = 0;
+    for (var i = 0; i < a.length; i++) {
+      if (a.codeUnitAt(i) != b.codeUnitAt(i)) distance++;
+    }
+    return distance;
   }
 
   img.Image? _safeCrop(img.Image image, List<double> bbox) {
@@ -580,5 +639,17 @@ class _OCRCandidate {
     required this.text,
     required this.variant,
     required this.score,
+  });
+}
+
+class _CloudOcrCacheEntry {
+  final String fingerprint;
+  final String text;
+  final DateTime createdAt;
+
+  const _CloudOcrCacheEntry({
+    required this.fingerprint,
+    required this.text,
+    required this.createdAt,
   });
 }
