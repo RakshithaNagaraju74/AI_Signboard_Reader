@@ -59,6 +59,7 @@ class _LiveCameraScreenState
   String last = '';
   DateTime? _lastNoSignAnnouncement;
   DateTime? _lastLocationAnnouncement;
+  DateTime? _lastProcessingAnnouncement;
 
   AppLanguage language =
       LanguageService.languages.first;
@@ -548,6 +549,21 @@ class _LiveCameraScreenState
     // Track once per frame. OCR is attached to those same contexts so one
     // camera frame does not artificially advance stability twice.
     final preliminary = intel.analyze(raw);
+
+    // Give blind users a short progress cue before slower OCR/Groq work starts.
+    // Rate-limit it so continuous camera frames do not create repeated speech.
+    if (!demo) {
+      final now = DateTime.now();
+      final canAnnounceProgress = _lastProcessingAnnouncement == null ||
+          now.difference(_lastProcessingAnnouncement!) >=
+              const Duration(seconds: 12);
+      if (canAnnounceProgress && preliminary.isNotEmpty) {
+        _lastProcessingAnnouncement = now;
+        if (mounted) setState(() => status = copy('readingSign'));
+        await speak(copy('readingSign'));
+      }
+    }
+
     final ocrLimit = demo ? 6 : 4;
     final ocrKeys = preliminary
         .take(ocrLimit)
@@ -599,12 +615,26 @@ class _LiveCameraScreenState
       enriched.add(enrichedContext);
     }
 
-    enriched.sort(
+    // Deduplicate overlapping detector boxes after OCR so the result panel,
+    // history and narration do not repeat the same readable sign several times.
+    final unique = <DetectionContext>[];
+    final seenResults = <String>{};
+    for (final context in enriched) {
+      final normalizedText = context.detection.ocrText
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9\u0900-\u097f\u0c80-\u0cff]'), '');
+      final key = normalizedText.isNotEmpty
+          ? normalizedText
+          : '${context.detection.className.toLowerCase()}|${context.position.name}';
+      if (seenResults.add(key)) unique.add(context);
+    }
+
+    unique.sort(
       (a, b) => b.priority.compareTo(a.priority),
     );
 
-    lastDetections = enriched.map((e) => e.detection).toList();
-    return enriched;
+    lastDetections = unique.map((e) => e.detection).toList();
+    return unique;
   }
 
   Future<void> scan() async {
@@ -957,36 +987,44 @@ class _LiveCameraScreenState
   String localizedPlaceContext(PlaceVerification value) {
     final name = value.matchedName;
     final distance = value.shortDistance;
+    final accuracy = currentLocation?.accuracy;
+    final uncertaintyNote = accuracy != null && accuracy > 40
+        ? (language.code == 'kn'
+            ? ' GPS ನಿಖರತೆ ಸುಮಾರು ${accuracy.round()} ಮೀಟರ್; ದೂರ ಅಂದಾಜು ಮಾತ್ರ.'
+            : language.code == 'hi'
+                ? ' GPS सटीकता लगभग ${accuracy.round()} मीटर है, इसलिए दूरी अनुमानित है।'
+                : ' GPS accuracy is about ${accuracy.round()} metres, so this distance is approximate.')
+        : '';
 
     if (language.code == 'hi') {
       if (value.relation == PlaceRelation.onSite) {
-        return 'मानचित्र के अनुसार $name लगभग $distance दूर है। फिर भी यह बोर्ड उस जगह के प्रवेश द्वार का प्रमाण नहीं है।';
+        return 'मानचित्र के अनुसार $name लगभग $distance दूर है। फिर भी यह बोर्ड उस जगह के प्रवेश द्वार का प्रमाण नहीं है.$uncertaintyNote';
       }
       if (value.relation == PlaceRelation.nearby) {
-        return 'मानचित्र में $name लगभग $distance दूर है। यह बोर्ड उस जगह की ओर संकेत या विज्ञापन हो सकता है।';
+        return 'मानचित्र में $name लगभग $distance दूर है। यह बोर्ड उस जगह की ओर संकेत या विज्ञापन हो सकता है.$uncertaintyNote';
       }
-      return 'मानचित्र में $name लगभग $distance दूर मिला। इसलिए यह बोर्ड किसी दूसरी जगह का विज्ञापन हो सकता है, यहाँ की जगह का नहीं।';
+      return 'मानचित्र में $name लगभग $distance दूर मिला। इसलिए यह बोर्ड किसी दूसरी जगह का विज्ञापन हो सकता है, यहाँ की जगह का नहीं.$uncertaintyNote';
     }
 
     if (language.code == 'kn') {
       if (value.relation == PlaceRelation.onSite) {
-        return 'ನಕ್ಷೆಯ ಪ್ರಕಾರ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಆದರೂ ಈ ಫಲಕವೇ ಆ ಸ್ಥಳದ ಪ್ರವೇಶದ್ವಾರ ಎಂದು ಖಚಿತಪಡಿಸುವುದಿಲ್ಲ.';
+        return 'ನಕ್ಷೆಯ ಪ್ರಕಾರ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಆದರೂ ಈ ಫಲಕವೇ ಆ ಸ್ಥಳದ ಪ್ರವೇಶದ್ವಾರ ಎಂದು ಖಚಿತಪಡಿಸುವುದಿಲ್ಲ.$uncertaintyNote';
       }
       if (value.relation == PlaceRelation.nearby) {
-        return 'ನಕ್ಷೆಯಲ್ಲಿ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಈ ಫಲಕ ಆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಅಥವಾ ದಿಕ್ಕು ಸೂಚನೆ ಆಗಿರಬಹುದು.';
+        return 'ನಕ್ಷೆಯಲ್ಲಿ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಈ ಫಲಕ ಆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಅಥವಾ ದಿಕ್ಕು ಸೂಚನೆ ಆಗಿರಬಹುದು.$uncertaintyNote';
       }
-      return 'ನಕ್ಷೆಯಲ್ಲಿ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಆದ್ದರಿಂದ ಈ ಫಲಕ ಇಲ್ಲಿನ ಸ್ಥಳವಲ್ಲ, ಬೇರೆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಆಗಿರಬಹುದು.';
+      return 'ನಕ್ಷೆಯಲ್ಲಿ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಆದ್ದರಿಂದ ಈ ಫಲಕ ಇಲ್ಲಿನ ಸ್ಥಳವಲ್ಲ, ಬೇರೆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಆಗಿರಬಹುದು.$uncertaintyNote';
     }
 
     if (value.relation == PlaceRelation.onSite) {
-      return 'Map data suggests $name is about $distance away. The sign itself does not prove that this is the entrance.';
+      return 'Map data suggests $name is about $distance away. The sign itself does not prove that this is the entrance.$uncertaintyNote';
     }
 
     if (value.relation == PlaceRelation.nearby) {
-      return 'Map data places $name about $distance away. This sign may advertise or point to that place.';
+      return 'Map data places $name about $distance away. This sign may advertise or point to that place.$uncertaintyNote';
     }
 
-    return 'Map data found $name about $distance away. This sign may advertise a different location rather than this exact place.';
+    return 'Map data found $name about $distance away. This sign may advertise a different location rather than this exact place.$uncertaintyNote';
   }
 
   String buildSpeech(DetectionContext context) {
@@ -1417,6 +1455,8 @@ class _LiveCameraScreenState
             'वर्तमान GPS स्थान उपलब्ध नहीं है।',
         'analyzingImage':
             'अपलोड की गई तस्वीर का विश्लेषण किया जा रहा है।',
+        'readingSign':
+            'संकेत मिल गया है। मैं उस पर लिखा पाठ पढ़ रहा हूँ। कृपया एक पल स्थिर रहें।',
         'noSigns':
             'कोई स्पष्ट संकेत नहीं मिला।',
         'analysisFailed':
@@ -1493,6 +1533,8 @@ class _LiveCameraScreenState
             'ಪ್ರಸ್ತುತ GPS ಸ್ಥಳ ಲಭ್ಯವಿಲ್ಲ.',
         'analyzingImage':
             'ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ಚಿತ್ರವನ್ನು ವಿಶ್ಲೇಷಿಸಲಾಗುತ್ತಿದೆ.',
+        'readingSign':
+            'ಫಲಕ ಕಂಡುಬಂದಿದೆ. ಅದರ ಮೇಲಿನ ಬರಹವನ್ನು ಓದುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಕ್ಷಣಕಾಲ ಸ್ಥಿರವಾಗಿ ಇರಿ.',
         'noSigns':
             'ಯಾವುದೇ ಸ್ಪಷ್ಟ ಫಲಕ ಕಂಡುಬಂದಿಲ್ಲ.',
         'analysisFailed':
@@ -1577,6 +1619,8 @@ class _LiveCameraScreenState
           'Current GPS location is unavailable.',
       'analyzingImage':
           'Analyzing the uploaded image.',
+      'readingSign':
+          'Signboard detected. I am reading the text now. Please hold the camera steady for a moment.',
       'noSigns':
           'I could not find a clear signboard.',
       'analysisFailed':
