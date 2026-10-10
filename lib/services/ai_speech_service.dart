@@ -252,7 +252,7 @@ class AISpeechService {
       final payload = {
         'model': _model,
         'temperature': 0.0,
-        'max_completion_tokens': 220,
+        'max_completion_tokens': 320,
         'reasoning_effort': 'low',
         'include_reasoning': false,
         'messages': [
@@ -269,6 +269,8 @@ IMPORTANT EVIDENCE MODEL:
 - "detector_confidence" is the detector confidence. Treat labels below about 0.65 as tentative and use OCR/context to re-evaluate them.
 - "visible_text" is OCR from the sign and may contain spelling errors, split letters, missing spaces, or character substitutions. Treat OCR as evidence, not final text.
 - When visible_text contains a recognizable real-world word, business name, warning, restriction, direction, or number, preserve its meaning and correct only obvious OCR mistakes.
+- FULL SIGN NAME IS REQUIRED: do not truncate a destination, temple, institution, shop, road, or product name to its first word. If OCR contains a readable destination such as 'Goravanahalli Lakshmi Temple', include the complete recognizable name in the spoken answer, even when camera guidance is also available.
+- If OCR contains the same destination in Kannada and English, say it once in the selected narration language; retain Latin brand/model names only when they are meaningful identifiers. Never replace the name with position-only guidance.
 - NEVER read raw OCR noise aloud. Do not copy a long OCR fragment just because it exists in visible_text.
 - Treat mixed-case fragments such as "siNEOARIndNTR", long random uppercase strings, or combinations of unrelated words as unreliable unless they form an obvious real-world word or clearly supported business name.
 - Never put raw OCR in quotation marks in the final narration. If the readable text is uncertain, omit the uncertain fragment and describe the reliable sign category and position instead.
