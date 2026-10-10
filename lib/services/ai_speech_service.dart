@@ -506,9 +506,9 @@ EXAMPLES:
       result += '. ${e.placeContext}';
     }
 
-    if (e.text.isNotEmpty) {
+    if (_cleanOcrForNarration(e.text).isNotEmpty) {
       result +=
-          ', with the text "${e.text}"';
+          ', with the text "${_cleanOcrForNarration(e.text)}"';
     }
 
     if (e.movement.isNotEmpty) {
@@ -536,9 +536,9 @@ EXAMPLES:
       result += '। ${e.placeContext}';
     }
 
-    if (e.text.isNotEmpty) {
+    if (_cleanOcrForNarration(e.text).isNotEmpty) {
       result +=
-          ', जिस पर "${e.text}" लिखा है';
+          ', जिस पर "${_cleanOcrForNarration(e.text)}" लिखा है';
     }
 
     if (e.movement.isNotEmpty) {
