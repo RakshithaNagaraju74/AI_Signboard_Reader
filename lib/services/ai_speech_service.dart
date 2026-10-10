@@ -261,6 +261,7 @@ CRITICAL RULES:
 23. Output ONLY the final spoken sentence. No quotes, headings, labels, explanations, or alternatives.
 23. Keep it very concise: normally one sentence, maximum two short sentences.
 24. Speak ONLY in $languageName. Do not answer in English when Hindi or Kannada is requested.
+25. For Kannada output, translate readable English/Latin OCR into natural Kannada or write proper names in Kannada script. Do not insert English sentences or descriptions into Kannada narration. Digits and standard identifiers may remain unchanged.
 25. Never spell isolated OCR letters as if they were a normal word.
 26. Never output internal detector or debugging terminology.
 27. If a shop/business name is readable after correction, preserve that corrected name naturally.
@@ -546,29 +547,28 @@ EXAMPLES:
     var result =
         '${_friendlyLabel(e.label, 'kn')} ${_kannadaPosition(e.position)}';
 
-    if (e.guidance.isNotEmpty) {
+    // Never feed English metadata into the Kannada fallback. The AI path
+    // translates readable OCR; when it cannot, this fallback stays Kannada.
+    if (_containsKannadaScript(e.guidance)) {
       result += '. ${e.guidance}';
     }
-
-    if (e.placeContext.isNotEmpty) {
+    if (_containsKannadaScript(e.placeContext)) {
       result += '. ${e.placeContext}';
     }
-
-    if (e.text.isNotEmpty) {
-      result +=
-          ', ಅದರಲ್ಲಿ "${e.text}" ಎಂದು ಬರೆಯಲಾಗಿದೆ';
+    if (_containsKannadaScript(e.text)) {
+      result += ', ಅದರಲ್ಲಿ "${e.text}" ಎಂದು ಬರೆಯಲಾಗಿದೆ';
     }
 
     if (e.movement.isNotEmpty) {
-      result +=
-          '. ${_kannadaMovement(e.movement)}';
+      result += '. ${_kannadaMovement(e.movement)}';
     } else if (e.proximity.isNotEmpty) {
-      result +=
-          '. ${_kannadaProximity(e.proximity)}';
+      result += '. ${_kannadaProximity(e.proximity)}';
     }
-
     return result;
   }
+
+  bool _containsKannadaScript(String value) =>
+      RegExp(r'[\\u0C80-\\u0CFF]').hasMatch(value);
 
   String _englishMovement(String value) {
     if (value == 'getting closer') {
@@ -720,8 +720,24 @@ EXAMPLES:
 
   bool _matchesRequestedLanguage(String text, String languageCode) {
     if (text.trim().isEmpty) return false;
-    if (languageCode == 'kn') return RegExp(r'[\u0C80-\u0CFF]').hasMatch(text);
-    if (languageCode == 'hi') return RegExp(r'[\u0900-\u097F]').hasMatch(text);
+
+    if (languageCode == 'kn') {
+      final kannadaLetters =
+          RegExp(r'[\\u0C80-\\u0CFF]').allMatches(text).length;
+      final latinLetters = RegExp(r'[A-Za-z]').allMatches(text).length;
+      // A single Kannada character must not allow a mostly-English response.
+      return kannadaLetters >= 4 &&
+          latinLetters <= (kannadaLetters * 0.12).floor() + 3;
+    }
+
+    if (languageCode == 'hi') {
+      final hindiLetters =
+          RegExp(r'[\\u0900-\\u097F]').allMatches(text).length;
+      final latinLetters = RegExp(r'[A-Za-z]').allMatches(text).length;
+      return hindiLetters >= 4 &&
+          latinLetters <= (hindiLetters * 0.20).floor() + 4;
+    }
+
     return true;
   }
 
