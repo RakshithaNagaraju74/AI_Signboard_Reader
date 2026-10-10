@@ -37,8 +37,9 @@ class OCRService {
       final crop = _safeCrop(image, bbox);
       if (crop == null) return await _recognizeFullImage(image, script);
 
-      // Let ML Kit's text detector inspect the whole oriented frame first.
-      // We then keep only blocks that overlap this sign's YOLO box.
+      // Keep full-frame OCR as one candidate, but do not return it immediately.
+      // A partial full-frame result can be worse than OCR on the enlarged sign crop.
+      final candidates = <_OCRCandidate>[];
       final fullFrameText = await _recognizeBlocksNearBox(
         imageFile.path,
         image,
@@ -46,13 +47,15 @@ class OCRService {
         script,
       );
       if (fullFrameText.isNotEmpty) {
-        debugPrint('OCR: matched full-frame text block(s): ' + fullFrameText);
-        return fullFrameText;
+        candidates.add(_OCRCandidate(
+          text: fullFrameText,
+          variant: -1,
+          score: _score(fullFrameText),
+        ));
       }
 
       final variants = _buildVariants(crop);
       final recognizer = _recognizerFor(script);
-      final candidates = <_OCRCandidate>[];
 
       for (var i = 0; i < variants.length; i++) {
         final tempFile = File(
@@ -145,8 +148,11 @@ class OCRService {
 
     final width = x2 - x1;
     final height = y2 - y1;
-    final padX = width * 0.12;
-    final padY = height * 0.20;
+
+    // Decorative/stylized lettering often extends close to the sign edge.
+    // A little more context helps keep whole words and punctuation in the crop.
+    final padX = width * 0.18;
+    final padY = height * 0.28;
 
     x1 = (x1 - padX).clamp(0.0, image.width.toDouble());
     y1 = (y1 - padY).clamp(0.0, image.height.toDouble());
@@ -254,18 +260,47 @@ class OCRService {
 
   List<img.Image> _buildVariants(img.Image crop) {
     final gray = img.grayscale(crop);
-    final low = img.adjustColor(gray, contrast: 1.35, brightness: 1.02);
-    final high = img.adjustColor(gray, contrast: 2.15, brightness: 1.05);
 
-    // Multi-pass OCR for difficult signboards: original colour, grayscale,
-    // two contrast levels, and an inverted high-contrast pass.
+    // Signboards vary widely: thin decorative lettering, glossy paint,
+    // shadows, bright backgrounds and low-light captures all benefit from
+    // different image preparations. Keep the original in every OCR batch.
+    final softContrast = img.adjustColor(
+      gray,
+      contrast: 1.25,
+      brightness: 1.04,
+    );
+    final mediumContrast = img.adjustColor(
+      gray,
+      contrast: 1.65,
+      brightness: 1.02,
+    );
+    final strongContrast = img.adjustColor(
+      gray,
+      contrast: 2.25,
+      brightness: 1.06,
+    );
+    final darkText = img.adjustColor(
+      gray,
+      contrast: 1.85,
+      brightness: 0.88,
+    );
+    final brightText = img.adjustColor(
+      gray,
+      contrast: 1.75,
+      brightness: 1.16,
+    );
+
+    // Multiple passes help the recognizer with stylized, thin, low-contrast
+    // and light-on-dark fonts without introducing a new native dependency.
     return [
       crop,
       gray,
-      low,
-      img.adjustColor(gray, contrast: 1.75, brightness: 1.00),
-      high,
-      img.invert(high),
+      softContrast,
+      mediumContrast,
+      strongContrast,
+      darkText,
+      brightText,
+      img.invert(strongContrast),
     ];
   }
 
