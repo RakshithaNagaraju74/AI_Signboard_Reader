@@ -1,8 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image/image.dart' as img;
 
@@ -10,9 +11,6 @@ class OCRService {
   static final OCRService _instance = OCRService._internal();
   factory OCRService() => _instance;
   OCRService._internal();
-
-  static const MethodChannel _kannadaOcrChannel =
-      MethodChannel('sighttosound/kannada_ocr');
 
   final Map<TextRecognitionScript, TextRecognizer> _recognizers = {};
   String? _fullFrameCachePath;
@@ -40,16 +38,20 @@ class OCRService {
       final image = img.bakeOrientation(decoded);
       final crop = _safeCrop(image, bbox);
       if (crop == null) {
-        if (_isKannadaLanguage(normalizedLanguage) && Platform.isAndroid) {
-          return await _recognizeKannadaWithTesseract(image, image);
+        if (_isIndicLanguage(normalizedLanguage)) {
+          final cloudText = await _recognizeWithOcrSpace(image);
+          if (cloudText.isNotEmpty) return cloudText;
         }
         return await _recognizeFullImage(image, script);
       }
 
-      // ML Kit's Latin model does not read Kannada script. Use the bundled
-      // Tesseract Kannada+English fast models for Kannada scans instead.
-      if (_isKannadaLanguage(normalizedLanguage) && Platform.isAndroid) {
-        return await _recognizeKannadaWithTesseract(crop, image);
+      // OCR.Space Engine 3 supports Kannada, Tamil, Telugu and Hindi scripts
+      // and is better suited to stylized lettering than the local Latin model.
+      // Indic languages use cloud OCR first; other languages keep the fast
+      // on-device path and use the API only when local OCR is weak.
+      if (_isIndicLanguage(normalizedLanguage)) {
+        final cloudText = await _recognizeWithOcrSpace(crop);
+        if (cloudText.isNotEmpty) return cloudText;
       }
 
       // Keep full-frame OCR as one candidate, but do not return it immediately.
@@ -103,11 +105,20 @@ class OCRService {
       }
 
       if (candidates.isEmpty) {
-        debugPrint('OCR: sign crop returned no text; trying full frame.');
+        debugPrint('OCR: sign crop returned no text; trying OCR.Space and full frame.');
+        final cloudText = await _recognizeWithOcrSpace(crop);
+        if (cloudText.isNotEmpty) return cloudText;
         return await _recognizeFullImage(image, script);
       }
       candidates.sort((a, b) => b.score.compareTo(a.score));
       final best = candidates.first;
+
+      if (_score(best.text) < 18) {
+        final cloudText = await _recognizeWithOcrSpace(crop);
+        if (cloudText.isNotEmpty) {
+          return _score(cloudText) >= _score(best.text) ? cloudText : best.text;
+        }
+      }
 
       for (final candidate in candidates.skip(1)) {
         if (_similar(candidate.text, best.text) >= 0.72) {
@@ -157,101 +168,95 @@ class OCRService {
     return candidates.first.text;
   }
 
-  bool _isKannadaLanguage(String languageCode) {
-    return languageCode == 'kn' ||
-        languageCode.startsWith('kn-') ||
-        languageCode == 'kan';
+  bool _isIndicLanguage(String languageCode) {
+    final code = languageCode.toLowerCase().split(RegExp('[-_]')).first;
+    return const {'hi', 'kn', 'ta', 'te', 'kan', 'tam', 'tel'}.contains(code);
   }
 
-  /// Offline Kannada OCR using Tesseract's fast Kannada + English models.
-  /// Four crop variants balance recognition quality and speed; full-frame OCR
-  /// is attempted only when the sign crop produces no text.
-  Future<String> _recognizeKannadaWithTesseract(
-    img.Image crop,
-    img.Image fullImage,
-  ) async {
-    final cropVariants = _buildVariants(crop);
-    final cropCandidates = await _runTesseractVariants(
-      cropVariants,
-      indices: const [0, 3, 4, 7],
-      prefix: 's2s_kan_crop',
-    );
+  String get _ocrSpaceApiKey =>
+      dotenv.env['OCR_SPACE_API_KEY']?.trim() ?? '';
 
-    if (cropCandidates.isNotEmpty) {
-      cropCandidates.sort((a, b) => b.score.compareTo(a.score));
-      return cropCandidates.first.text;
+  /// OCR.Space Engine 3 supports Indic scripts and stylized fonts.
+  /// The image is cropped/upscaled locally before upload to reduce bandwidth.
+  /// Returns empty on API/network errors so local OCR can continue.
+  Future<String> _recognizeWithOcrSpace(img.Image source) async {
+    final apiKey = _ocrSpaceApiKey;
+    if (apiKey.isEmpty || apiKey == 'your_ocr_space_api_key') {
+      debugPrint('OCR.Space skipped: OCR_SPACE_API_KEY is not configured.');
+      return '';
     }
 
-    debugPrint('Kannada OCR: crop produced no text; trying full frame.');
-    final fullVariants = _buildVariants(_upscaleForText(fullImage));
-    final fullCandidates = await _runTesseractVariants(
-      fullVariants,
-      indices: const [0, 3],
-      prefix: 's2s_kan_full',
-    );
-    if (fullCandidates.isEmpty) return '';
-    fullCandidates.sort((a, b) => b.score.compareTo(a.score));
-    return fullCandidates.first.text;
-  }
-
-  Future<List<_OCRCandidate>> _runTesseractVariants(
-    List<img.Image> variants, {
-    required List<int> indices,
-    required String prefix,
-  }) async {
-    final candidates = <_OCRCandidate>[];
-    final tempFiles = <int, File>{};
-
+    HttpClient? client;
     try {
-      // Prepare variants first, then call native OCR once so the engine loads
-      // its language models only once per crop instead of once per image pass.
-      for (final index in indices) {
-        if (index < 0 || index >= variants.length) continue;
-        final tempFile = File(
-          '${Directory.systemTemp.path}/${prefix}_${DateTime.now().microsecondsSinceEpoch}_$index.jpg',
-        );
-        await tempFile.writeAsBytes(
-          img.encodeJpg(variants[index], quality: 96),
-          flush: true,
-        );
-        tempFiles[index] = tempFile;
+      final prepared = _upscaleForText(source);
+      final bytes = img.encodeJpg(prepared, quality: 88);
+      if (bytes.length > 4 * 1024 * 1024) {
+        debugPrint('OCR.Space skipped: prepared image exceeds 4 MB.');
+        return '';
       }
 
-      if (tempFiles.isEmpty) return candidates;
-      final recognizedTexts =
-          await _kannadaOcrChannel.invokeMethod<List<dynamic>>(
-                'recognizeBatch',
-                {
-                  'imagePaths': tempFiles.values.map((file) => file.path).toList(),
-                },
-              ) ??
-              const <dynamic>[];
+      final boundary =
+          '----SightToSoundOCR${DateTime.now().microsecondsSinceEpoch}';
+      client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+      final request = await client
+          .postUrl(Uri.parse('https://api.ocr.space/parse/image'))
+          .timeout(const Duration(seconds: 10));
+      request.headers.set(
+        HttpHeaders.contentTypeHeader,
+        'multipart/form-data; boundary=$boundary',
+      );
+      request.headers.set('apikey', apiKey);
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
 
-      var resultIndex = 0;
-      for (final index in tempFiles.keys) {
-        final recognized = resultIndex < recognizedTexts.length
-            ? recognizedTexts[resultIndex]?.toString() ?? ''
-            : '';
-        resultIndex++;
-        final cleaned = _normalizeOCRText(recognized);
-        if (cleaned.isNotEmpty) {
-          candidates.add(_OCRCandidate(
-            text: cleaned,
-            variant: index,
-            score: _score(cleaned),
-          ));
-        }
+      void addField(String name, String value) {
+        request.write('--$boundary\r\n');
+        request.write('Content-Disposition: form-data; name="$name"\r\n\r\n');
+        request.write('$value\r\n');
       }
+
+      addField('language', 'auto');
+      addField('OCREngine', '3');
+      addField('isOverlayRequired', 'false');
+      addField('detectOrientation', 'true');
+      addField('scale', 'true');
+      request.write('--$boundary\r\n');
+      request.write(
+        'Content-Disposition: form-data; name="file"; filename="sign.jpg"\r\n',
+      );
+      request.write('Content-Type: image/jpeg\r\n\r\n');
+      request.add(bytes);
+      request.write('\r\n--$boundary--\r\n');
+
+      final response = await request.close().timeout(
+        const Duration(seconds: 18),
+      );
+      final body = await utf8.decoder.bind(response).join().timeout(
+        const Duration(seconds: 8),
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        debugPrint('OCR.Space HTTP ${response.statusCode}; using local OCR.');
+        return '';
+      }
+
+      final decoded = jsonDecode(body) as Map<String, dynamic>;
+      if (decoded['IsErroredOnProcessing'] == true) {
+        debugPrint('OCR.Space processing error; using local OCR.');
+        return '';
+      }
+      final results = decoded['ParsedResults'];
+      if (results is! List) return '';
+      final text = results
+          .whereType<Map<String, dynamic>>()
+          .map((result) => result['ParsedText']?.toString() ?? '')
+          .where((value) => value.trim().isNotEmpty)
+          .join(' ');
+      return _normalizeOCRText(text);
     } catch (e) {
-      debugPrint('Kannada Tesseract OCR batch failed: $e');
+      debugPrint('OCR.Space unavailable; using local OCR: $e');
+      return '';
     } finally {
-      for (final tempFile in tempFiles.values) {
-        try {
-          if (await tempFile.exists()) await tempFile.delete();
-        } catch (_) {}
-      }
+      client?.close(force: true);
     }
-    return candidates;
   }
 
   img.Image? _safeCrop(img.Image image, List<double> bbox) {
