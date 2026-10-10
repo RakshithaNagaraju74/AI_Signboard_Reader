@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image/image.dart' as img;
+import 'package:tesseract_ocr/tesseract_ocr.dart';
+import 'package:tesseract_ocr/ocr_engine_config.dart';
 
 class OCRService {
   static final OCRService _instance = OCRService._internal();
@@ -35,7 +37,18 @@ class OCRService {
       if (decoded == null) return '';
       final image = img.bakeOrientation(decoded);
       final crop = _safeCrop(image, bbox);
-      if (crop == null) return await _recognizeFullImage(image, script);
+      if (crop == null) {
+        if (_isKannadaLanguage(normalizedLanguage)) {
+          return _recognizeKannadaWithTesseract(image, image);
+        }
+        return await _recognizeFullImage(image, script);
+      }
+
+      // ML Kit's Latin model does not read Kannada script. Use the bundled
+      // Tesseract Kannada+English fast models for Kannada scans instead.
+      if (_isKannadaLanguage(normalizedLanguage)) {
+        return _recognizeKannadaWithTesseract(crop, image);
+      }
 
       // Keep full-frame OCR as one candidate, but do not return it immediately.
       // A partial full-frame result can be worse than OCR on the enlarged sign crop.
@@ -142,6 +155,90 @@ class OCRService {
     return candidates.first.text;
   }
 
+  bool _isKannadaLanguage(String languageCode) {
+    return languageCode == 'kn' ||
+        languageCode.startsWith('kn-') ||
+        languageCode == 'kan';
+  }
+
+  /// Offline Kannada OCR using Tesseract's fast Kannada + English models.
+  /// Four crop variants balance recognition quality and speed; full-frame OCR
+  /// is attempted only when the sign crop produces no text.
+  Future<String> _recognizeKannadaWithTesseract(
+    img.Image crop,
+    img.Image fullImage,
+  ) async {
+    final cropVariants = _buildVariants(crop);
+    final cropCandidates = await _runTesseractVariants(
+      cropVariants,
+      indices: const [0, 3, 4, 7],
+      prefix: 's2s_kan_crop',
+    );
+
+    if (cropCandidates.isNotEmpty) {
+      cropCandidates.sort((a, b) => b.score.compareTo(a.score));
+      return cropCandidates.first.text;
+    }
+
+    debugPrint('Kannada OCR: crop produced no text; trying full frame.');
+    final fullVariants = _buildVariants(_upscaleForText(fullImage));
+    final fullCandidates = await _runTesseractVariants(
+      fullVariants,
+      indices: const [0, 3],
+      prefix: 's2s_kan_full',
+    );
+    if (fullCandidates.isEmpty) return '';
+    fullCandidates.sort((a, b) => b.score.compareTo(a.score));
+    return fullCandidates.first.text;
+  }
+
+  Future<List<_OCRCandidate>> _runTesseractVariants(
+    List<img.Image> variants, {
+    required List<int> indices,
+    required String prefix,
+  }) async {
+    final candidates = <_OCRCandidate>[];
+    final config = OCRConfig(
+      language: 'kan+eng',
+      engine: OCREngine.tesseract,
+      options: const {
+        'preserve_interword_spaces': '1',
+        'tessedit_pageseg_mode': '6',
+      },
+    );
+
+    for (final index in indices) {
+      if (index < 0 || index >= variants.length) continue;
+      final tempFile = File(
+        '\${Directory.systemTemp.path}/\${prefix}_\${DateTime.now().microsecondsSinceEpoch}_$index.jpg',
+      );
+      try {
+        await tempFile.writeAsBytes(
+          img.encodeJpg(variants[index], quality: 96),
+          flush: true,
+        );
+        final recognized = await TesseractOcr.extractText(
+          tempFile.path,
+          config: config,
+        );
+        final cleaned = _normalizeOCRText(recognized);
+        if (cleaned.isNotEmpty) {
+          candidates.add(_OCRCandidate(
+            text: cleaned,
+            variant: index,
+            score: _score(cleaned),
+          ));
+        }
+      } catch (e) {
+        debugPrint('Kannada Tesseract OCR variant $index failed: $e');
+      } finally {
+        try {
+          if (await tempFile.exists()) await tempFile.delete();
+        } catch (_) {}
+      }
+    }
+    return candidates;
+  }
   img.Image? _safeCrop(img.Image image, List<double> bbox) {
     var x1 = bbox[0], y1 = bbox[1], x2 = bbox[2], y2 = bbox[3];
     if (x2 <= x1 || y2 <= y1) return null;
