@@ -210,7 +210,7 @@ class OCRService {
     for (final index in indices) {
       if (index < 0 || index >= variants.length) continue;
       final tempFile = File(
-        '\${Directory.systemTemp.path}/\${prefix}_\${DateTime.now().microsecondsSinceEpoch}_$index.jpg',
+        '${Directory.systemTemp.path}/${prefix}_${DateTime.now().microsecondsSinceEpoch}_$index.jpg',
       );
       try {
         await tempFile.writeAsBytes(
