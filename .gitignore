@@ -157,5 +157,3 @@ Thumbs.db
 .env
 .env.*
 !.env.example
-# Downloaded Tesseract models are bundled locally for builds, but not stored in Git.
-assets/tessdata/*.traineddata
