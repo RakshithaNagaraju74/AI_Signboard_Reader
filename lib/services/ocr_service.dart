@@ -40,7 +40,7 @@ class OCRService {
       final image = img.bakeOrientation(decoded);
       final crop = _safeCrop(image, bbox);
       if (crop == null) {
-        if (_isKannadaLanguage(normalizedLanguage)) {
+        if (_isKannadaLanguage(normalizedLanguage) && Platform.isAndroid) {
           return _recognizeKannadaWithTesseract(image, image);
         }
         return await _recognizeFullImage(image, script);
@@ -48,7 +48,7 @@ class OCRService {
 
       // ML Kit's Latin model does not read Kannada script. Use the bundled
       // Tesseract Kannada+English fast models for Kannada scans instead.
-      if (_isKannadaLanguage(normalizedLanguage)) {
+      if (_isKannadaLanguage(normalizedLanguage) && Platform.isAndroid) {
         return _recognizeKannadaWithTesseract(crop, image);
       }
 
