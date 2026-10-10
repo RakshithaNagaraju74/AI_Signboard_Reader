@@ -40,7 +40,6 @@ flutter:
     - assets/models/labels.txt
     - assets/models/classes.json
     - assets/images/
-    - assets/tessdata/
     - .env
 
 flutter_launcher_icons:
