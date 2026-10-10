@@ -16,21 +16,21 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, kannadaOcrChannel)
             .setMethodCallHandler { call, result ->
-                if (call.method != "recognize") {
+                if (call.method != "recognizeBatch") {
                     result.notImplemented()
                     return@setMethodCallHandler
                 }
 
-                val imagePath = call.argument<String>("imagePath")
-                if (imagePath.isNullOrBlank()) {
-                    result.error("INVALID_IMAGE_PATH", "An image path is required.", null)
+                val imagePaths = call.argument<List<String>>("imagePaths")
+                if (imagePaths.isNullOrEmpty()) {
+                    result.error("INVALID_IMAGE_PATHS", "At least one image path is required.", null)
                     return@setMethodCallHandler
                 }
 
                 Thread {
                     try {
-                        val text = recognizeKannadaAndEnglish(imagePath)
-                        runOnUiThread { result.success(text) }
+                        val texts = recognizeKannadaAndEnglish(imagePaths)
+                        runOnUiThread { result.success(texts) }
                     } catch (error: Exception) {
                         Log.e("SightToSoundOCR", "Kannada OCR failed", error)
                         runOnUiThread {
@@ -45,7 +45,7 @@ class MainActivity : FlutterActivity() {
             }
     }
 
-    private fun recognizeKannadaAndEnglish(imagePath: String): String {
+    private fun recognizeKannadaAndEnglish(imagePaths: List<String>): List<String> {
         val dataRoot = File(filesDir, "sighttosound_tesseract")
         val tessdataDir = File(dataRoot, "tessdata")
         if (!tessdataDir.exists() && !tessdataDir.mkdirs()) {
@@ -68,11 +68,15 @@ class MainActivity : FlutterActivity() {
             }
         }
 
-        val imageFile = File(imagePath)
-        if (!imageFile.exists()) {
-            throw IllegalArgumentException("The temporary OCR image no longer exists.")
+        val imageFiles = imagePaths.map { path ->
+            File(path).also { file ->
+                if (!file.exists()) {
+                    throw IllegalArgumentException("A temporary OCR image no longer exists.")
+                }
+            }
         }
 
+        // Initialize once per batch so multiple preprocessing passes stay fast.
         val api = TessBaseAPI()
         try {
             val initialized = api.init(
@@ -87,8 +91,10 @@ class MainActivity : FlutterActivity() {
             }
             api.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_BLOCK)
             api.setVariable("preserve_interword_spaces", "1")
-            api.setImage(imageFile)
-            return api.getUTF8Text().orEmpty().trim()
+            return imageFiles.map { imageFile ->
+                api.setImage(imageFile)
+                api.getUTF8Text().orEmpty().trim()
+            }
         } finally {
             api.recycle()
         }
