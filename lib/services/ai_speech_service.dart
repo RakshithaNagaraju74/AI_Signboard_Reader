@@ -272,7 +272,7 @@ CRITICAL RULES:
 23. Output ONLY the final spoken sentence. No quotes, headings, labels, explanations, or alternatives.
 23. Keep it very concise: normally one sentence, maximum two short sentences.
 24. Speak ONLY in $languageName. Do not answer in English when Hindi or Kannada is requested.
-25. For Kannada output, translate readable English/Latin OCR into natural Kannada or write proper names in Kannada script. Do not insert English sentences or descriptions into Kannada narration. Digits and standard identifiers may remain unchanged.
+25. For Kannada output, use natural Kannada for the sentence, but PRESERVE clearly readable brand names, shop names, product names, model names, road names, and destination names exactly as captured when transliteration could change their identity (for example, REDMI NOTE 5 PRO or MI-DUAL CAMERA). These short proper-name fragments may remain in Latin script inside Kannada narration. Do not drop a readable name just to keep the output entirely in Kannada script. Mention the meaningful sign text/name BEFORE optional camera-position guidance. Guidance must never replace the sign's captured name or wording. Translate generic descriptions into Kannada; do not force-translate brand/model identifiers.
 25. Never spell isolated OCR letters as if they were a normal word.
 26. Never output internal detector or debugging terminology.
 27. If a shop/business name is readable after correction, preserve that corrected name naturally.
@@ -555,19 +555,18 @@ EXAMPLES:
   String _kannadaItem(
     SpeechDetectionInput e,
   ) {
-    var result =
-        '${_friendlyLabel(e.label, 'kn')} ${_kannadaPosition(e.position)}';
+    final readableText = _usefulSignText(e.text);
+    var result = _friendlyLabel(e.label, 'kn');
 
-    // Never feed English metadata into the Kannada fallback. The AI path
-    // translates readable OCR; when it cannot, this fallback stays Kannada.
-    if (_containsKannadaScript(e.guidance)) {
-      result += '. ${e.guidance}';
+    // The sign's readable name/text is the primary information. Position
+    // guidance is secondary and must not cause OCR names to be discarded.
+    if (readableText.isNotEmpty) {
+      result += ', ಅದರಲ್ಲಿ $readableText ಎಂದು ಬರೆಯಲಾಗಿದೆ';
     }
+    result += ' ${_kannadaPosition(e.position)}';
+
     if (_containsKannadaScript(e.placeContext)) {
       result += '. ${e.placeContext}';
-    }
-    if (_hasDominantKannadaText(e.text)) {
-      result += ', ಅದರಲ್ಲಿ "' + _cleanOcrForNarration(e.text) + '" ಎಂದು ಬರೆಯಲಾಗಿದೆ';
     }
 
     if (e.movement.isNotEmpty) {
@@ -576,6 +575,25 @@ EXAMPLES:
       result += '. ${_kannadaProximity(e.proximity)}';
     }
     return result;
+  }
+
+  String _usefulSignText(String value) {
+    final cleaned = _cleanOcrForNarration(value)
+        .replaceAll(RegExp(r'[_|]+'), ' ')
+        .replaceAll(RegExp(r'\\s+'), ' ')
+        .trim();
+    if (cleaned.isEmpty) return '';
+
+    // Ignore OCR-debug residue and very short fragments, but preserve mixed
+    // Kannada/Latin names and product identifiers that users need to hear.
+    final letters =
+        RegExp(r'[A-Za-z\\u0C80-\\u0CFF]').allMatches(cleaned).length;
+    if (letters < 3) return '';
+    if (RegExp(r'^(?:unknown|none|null|ocr|text)$', caseSensitive: false)
+        .hasMatch(cleaned)) {
+      return '';
+    }
+    return cleaned;
   }
 
   bool _containsKannadaScript(String value) =>
@@ -745,10 +763,12 @@ EXAMPLES:
           RegExp(r'[\u0C80-\u0CFF]').allMatches(text).length;
       final latinLetters = RegExp(r'[A-Za-z]').allMatches(text).length;
       final totalLetters = kannadaLetters + latinLetters;
-      // Allow Latin-script brand/place names inside otherwise Kannada narration.
-      return kannadaLetters >= 12 &&
+      // Kannada must be the narration language, but Latin-script brand,
+      // product, and place names are valid embedded identifiers. Accept
+      // mixed-script outputs when there is a substantial Kannada sentence.
+      return kannadaLetters >= 8 &&
           totalLetters > 0 &&
-          kannadaLetters / totalLetters >= 0.48;
+          kannadaLetters / totalLetters >= 0.30;
     }
 
     if (languageCode == 'hi') {
