@@ -124,6 +124,22 @@ class AISpeechService {
           return cleaned;
         }
         _debug('Groq response REJECTED -> wrong language/script for $languageCode');
+
+        // One translation-only retry prevents a useful sign name from being
+        // lost when the first narration mixes too much English into Kannada/Hindi.
+        if (languageCode == 'kn' || languageCode == 'hi') {
+          final translated = await _translateNarrationWithGroq(
+            cleaned,
+            languageCode,
+          );
+          if (translated != null &&
+              _matchesRequestedLanguage(translated, languageCode)) {
+            _debug('TRANSLATION RETRY ACCEPTED -> language=$languageCode');
+            _debug('FINAL SPOKEN RESULT -> $translated');
+            return translated;
+          }
+          _debug('Translation retry failed language validation; using local fallback.');
+        }
       }
     } else if (useGroq) {
       _debug('Groq requested but API key is missing -> local fallback.');
@@ -136,6 +152,67 @@ class AISpeechService {
     );
     _debug('LOCAL FALLBACK RESULT -> $fallback');
     return fallback;
+  }
+
+  Future<String?> _translateNarrationWithGroq(
+    String narration,
+    String languageCode,
+  ) async {
+    HttpClient? client;
+    try {
+      final languageName = languageCode == 'kn' ? 'Kannada' : 'Hindi';
+      final base = _endpoint.endsWith('/')
+          ? _endpoint.substring(0, _endpoint.length - 1)
+          : _endpoint;
+      client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 8);
+      final request = await client
+          .postUrl(Uri.parse('$base/chat/completions'))
+          .timeout(const Duration(seconds: 10));
+      request.headers.contentType = ContentType.json;
+      request.headers.set(
+        HttpHeaders.authorizationHeader,
+        'Bearer $_apiKey',
+      );
+      request.add(utf8.encode(jsonEncode({
+        'model': _model,
+        'temperature': 0.0,
+        'max_completion_tokens': 160,
+        'messages': [
+          {
+            'role': 'system',
+            'content': 'Translate the supplied accessibility narration into natural spoken $languageName. Output only the translated narration. Preserve names of temples, destinations, businesses, roads, brands, product/model names and numbers exactly when translation could change identity. Translate all generic guidance and sentences into $languageName. Do not add facts, do not repeat any name or sentence, do not include OCR/debug markers, headings, quotes, or explanations.',
+          },
+          {
+            'role': 'user',
+            'content': narration,
+          },
+        ],
+      })));
+      final response = await request.close().timeout(
+        const Duration(seconds: 12),
+      );
+      final body = await utf8.decoder.bind(response).join().timeout(
+        const Duration(seconds: 6),
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        _debug('Translation retry HTTP ${response.statusCode}.');
+        return null;
+      }
+      final decoded = jsonDecode(body) as Map<String, dynamic>;
+      final choices = decoded['choices'] as List<dynamic>?;
+      if (choices == null || choices.isEmpty) return null;
+      final message = (choices.first as Map<String, dynamic>)['message']
+          as Map<String, dynamic>?;
+      final content = message?['content']?.toString();
+      if (content == null || content.trim().isEmpty) return null;
+      return _clean(content);
+    } catch (error) {
+      _debug('Translation retry failed: $error');
+      return null;
+    } finally {
+      client?.close(force: true);
+    }
   }
 
   Future<String?> _composeWithGroq({
