@@ -23,4 +23,14 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.4.0" apply false
 }
 
+dependencyResolutionManagement {
+    // Tesseract4Android is published on JitPack, not Google Maven or Maven Central.
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+
 include(":app")
