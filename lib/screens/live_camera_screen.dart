@@ -790,8 +790,20 @@ class _LiveCameraScreenState
     bool useGroq = true,
   }) async {
     final inputs = <SpeechDetectionInput>[];
+    final seenSignText = <String>{};
+    final seenSignKeys = <String>{};
 
-    for (final context in contexts.take(4)) {
+    for (final context in contexts) {
+      final cleanedText = context.detection.ocrText
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+      final textKey = cleanedText
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9\u0900-\u097f\u0c80-\u0cff]'), '');
+      final signKey = context.detection.className.toLowerCase();
+      if (textKey.isNotEmpty && !seenSignText.add(textKey)) continue;
+      if (textKey.isEmpty && !seenSignKeys.add(signKey)) continue;
+      if (inputs.length >= 4) break;
       final text = context.detection.ocrText.trim();
       var placeContext = '';
 
