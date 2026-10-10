@@ -615,12 +615,26 @@ class _LiveCameraScreenState
       enriched.add(enrichedContext);
     }
 
-    enriched.sort(
+    // Deduplicate overlapping detector boxes after OCR so the result panel,
+    // history and narration do not repeat the same readable sign several times.
+    final unique = <DetectionContext>[];
+    final seenResults = <String>{};
+    for (final context in enriched) {
+      final normalizedText = context.detection.ocrText
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9\u0900-\u097f\u0c80-\u0cff]'), '');
+      final key = normalizedText.isNotEmpty
+          ? normalizedText
+          : '${context.detection.className.toLowerCase()}|${context.position.name}';
+      if (seenResults.add(key)) unique.add(context);
+    }
+
+    unique.sort(
       (a, b) => b.priority.compareTo(a.priority),
     );
 
-    lastDetections = enriched.map((e) => e.detection).toList();
-    return enriched;
+    lastDetections = unique.map((e) => e.detection).toList();
+    return unique;
   }
 
   Future<void> scan() async {
