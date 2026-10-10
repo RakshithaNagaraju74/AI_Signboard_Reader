@@ -273,17 +273,17 @@ class OCRService {
           .where((value) => value.trim().isNotEmpty)
           .join(' ');
       final cleaned = _normalizeOCRText(text);
-      if (cleaned.isNotEmpty) {
-        _cloudOcrCache.add(
-          _CloudOcrCacheEntry(
-            fingerprint: fingerprint,
-            text: cleaned,
-            createdAt: DateTime.now(),
-          ),
-        );
-        if (_cloudOcrCache.length > 24) {
-          _cloudOcrCache.removeAt(0);
-        }
+      // Cache empty successes too, so an unreadable frame is not uploaded
+      // repeatedly while the camera remains pointed at the same sign.
+      _cloudOcrCache.add(
+        _CloudOcrCacheEntry(
+          fingerprint: fingerprint,
+          text: cleaned,
+          createdAt: DateTime.now(),
+        ),
+      );
+      if (_cloudOcrCache.length > 24) {
+        _cloudOcrCache.removeAt(0);
       }
       return cleaned;
     } catch (e) {
