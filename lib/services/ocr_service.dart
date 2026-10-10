@@ -2,9 +2,9 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image/image.dart' as img;
-import 'package:flutter/services.dart';
 
 class OCRService {
   static final OCRService _instance = OCRService._internal();
@@ -253,6 +253,7 @@ class OCRService {
     }
     return candidates;
   }
+
   img.Image? _safeCrop(img.Image image, List<double> bbox) {
     var x1 = bbox[0], y1 = bbox[1], x2 = bbox[2], y2 = bbox[3];
     if (x2 <= x1 || y2 <= y1) return null;
