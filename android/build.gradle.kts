@@ -4,6 +4,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // Tesseract4Android 4.9.0 is published through JitPack.
+        maven { url = uri("https://jitpack.io") }
     }
 }
 
