@@ -816,13 +816,11 @@ class _LiveCameraScreenState
         if (verification != null && verification.reliable) {
           lastVerifiedPlace = verification;
 
-          // Only expose a mapped place as a signboard-location candidate when
-          // it is on-site or genuinely nearby. An "elsewhere" match can be an
-          // advertisement or a destination mentioned by the sign.
-          if (verification.relation == PlaceRelation.onSite ||
-              verification.relation == PlaceRelation.nearby) {
-            placeContext = placeVerifier.spokenContext(verification);
-          }
+          // A sign may point to a destination that is not physically nearby.
+          // Keep that mapped destination and its estimated distance, but say
+          // clearly that it is the destination referred to by the sign, not
+          // proof of the sign's own physical location.
+          placeContext = localizedPlaceContext(verification);
         }
       }
 
