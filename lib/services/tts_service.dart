@@ -11,8 +11,8 @@ class TTSService {
 
   Future<void> initialize() async {
     if (_isInitialized) return;
-    await _flutterTts.setSpeechRate(0.48);
-    await _flutterTts.setPitch(1.0);
+    await _flutterTts.setSpeechRate(0.43);
+    await _flutterTts.setPitch(1.03);
     await _flutterTts.setVolume(1.0);
     try {
       await _flutterTts.awaitSpeakCompletion(true);
