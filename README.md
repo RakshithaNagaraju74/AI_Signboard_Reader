@@ -405,3 +405,19 @@ This project is licensed under the MIT License.
 Built to make visual information more accessible—one sign at a time.
 
 </div>
+
+## Offline Kannada OCR setup
+
+SightToSound keeps Google ML Kit for its existing Latin/Hindi OCR flow and uses Tesseract's **fast** on-device models for Kannada scans. Kannada OCR uses Kannada + English recognition, enlarged sign crops, grayscale/contrast/inverted image variants, and a full-frame fallback only when the crop returns no text. This is free and runs on-device; no OCR API key or image upload is required. Tesseract can be slower than ML Kit, so the Kannada path uses four crop variants and only two full-frame variants as a fallback.
+
+The language model files are downloaded during development/build setup (not at runtime) to keep large binary model files out of Git. Run this from PowerShell before building the app:
+
+```powershell
+.\scripts\setup_kannada_ocr.ps1
+flutter pub get
+flutter run
+```
+
+The script downloads the official Apache-2.0 `kan.traineddata` and `eng.traineddata` fast models from the Tesseract project. Once included in the app build, Kannada OCR works offline. If you clean/reclone the repository, run the script again before building. Do not launch a Kannada scan before the models have been downloaded and bundled.
+
+Note: this adds the Tesseract Flutter plugin to Android. The GitHub connector cannot run the local Flutter analyzer or Android Gradle build, so test `flutter analyze` and `flutter run` on your machine before merging. The plugin documents separate manual setup for iOS; this change is intended for the Android app workflow and does not claim iOS build validation.
