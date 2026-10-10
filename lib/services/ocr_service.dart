@@ -200,21 +200,39 @@ class OCRService {
     required String prefix,
   }) async {
     final candidates = <_OCRCandidate>[];
-    for (final index in indices) {
-      if (index < 0 || index >= variants.length) continue;
-      final tempFile = File(
-        '${Directory.systemTemp.path}/${prefix}_${DateTime.now().microsecondsSinceEpoch}_$index.jpg',
-      );
-      try {
+    final tempFiles = <int, File>{};
+
+    try {
+      // Prepare variants first, then call native OCR once so the engine loads
+      // its language models only once per crop instead of once per image pass.
+      for (final index in indices) {
+        if (index < 0 || index >= variants.length) continue;
+        final tempFile = File(
+          '${Directory.systemTemp.path}/${prefix}_${DateTime.now().microsecondsSinceEpoch}_$index.jpg',
+        );
         await tempFile.writeAsBytes(
           img.encodeJpg(variants[index], quality: 96),
           flush: true,
         );
-        final recognized = await _kannadaOcrChannel.invokeMethod<String>(
-              'recognize',
-              {'imagePath': tempFile.path},
-            ) ??
-            '';
+        tempFiles[index] = tempFile;
+      }
+
+      if (tempFiles.isEmpty) return candidates;
+      final recognizedTexts =
+          await _kannadaOcrChannel.invokeMethod<List<dynamic>>(
+                'recognizeBatch',
+                {
+                  'imagePaths': tempFiles.values.map((file) => file.path).toList(),
+                },
+              ) ??
+              const <dynamic>[];
+
+      var resultIndex = 0;
+      for (final index in tempFiles.keys) {
+        final recognized = resultIndex < recognizedTexts.length
+            ? recognizedTexts[resultIndex]?.toString() ?? ''
+            : '';
+        resultIndex++;
         final cleaned = _normalizeOCRText(recognized);
         if (cleaned.isNotEmpty) {
           candidates.add(_OCRCandidate(
@@ -223,9 +241,11 @@ class OCRService {
             score: _score(cleaned),
           ));
         }
-      } catch (e) {
-        debugPrint('Kannada Tesseract OCR variant $index failed: $e');
-      } finally {
+      }
+    } catch (e) {
+      debugPrint('Kannada Tesseract OCR batch failed: $e');
+    } finally {
+      for (final tempFile in tempFiles.values) {
         try {
           if (await tempFile.exists()) await tempFile.delete();
         } catch (_) {}
