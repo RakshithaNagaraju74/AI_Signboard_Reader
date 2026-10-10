@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../models/detection_result.dart';
 import '../services/detection_intelligence.dart';
@@ -100,6 +101,92 @@ class _LiveCameraScreenState
     }
   }
 
+
+  String _permissionPrompt(String feature) {
+    if (language.code == 'kn') {
+      switch (feature) {
+        case 'camera':
+          return 'ಈಗ ಕ್ಯಾಮೆರಾ ಅನುಮತಿ ಕೇಳಲಾಗುತ್ತದೆ. ಫಲಕಗಳನ್ನು ಓದಲು ದಯವಿಟ್ಟು ಅನುಮತಿಸಿ.';
+        case 'microphone':
+          return 'ಈಗ ಮೈಕ್ರೊಫೋನ್ ಅನುಮತಿ ಕೇಳಲಾಗುತ್ತದೆ. ಧ್ವನಿ ಆಜ್ಞೆಗಳನ್ನು ಬಳಸಲು ದಯವಿಟ್ಟು ಅನುಮತಿಸಿ.';
+        default:
+          return 'ಈಗ ಸ್ಥಳದ ಅನುಮತಿ ಕೇಳಲಾಗುತ್ತದೆ. ಸ್ಥಳ ಆಧಾರಿತ ಮಾರ್ಗದರ್ಶನಕ್ಕಾಗಿ ದಯವಿಟ್ಟು ಅನುಮತಿಸಿ.';
+      }
+    }
+    if (language.code == 'hi') {
+      switch (feature) {
+        case 'camera':
+          return 'अब कैमरे की अनुमति मांगी जाएगी। संकेत पढ़ने के लिए कृपया अनुमति दें।';
+        case 'microphone':
+          return 'अब माइक्रोफ़ोन की अनुमति मांगी जाएगी। आवाज़ से आदेश देने के लिए कृपया अनुमति दें।';
+        default:
+          return 'अब स्थान की अनुमति मांगी जाएगी। स्थान आधारित मार्गदर्शन के लिए कृपया अनुमति दें।';
+      }
+    }
+    switch (feature) {
+      case 'camera':
+        return 'Android will now ask for camera permission. Please tap Allow so I can read signboards.';
+      case 'microphone':
+        return 'Android will now ask for microphone permission. Please tap Allow to use voice commands.';
+      default:
+        return 'Android will now ask for location permission. Please tap Allow for location-aware guidance.';
+    }
+  }
+
+  String _permissionDeniedMessage(String feature, {bool settingsRequired = false}) {
+    final action = settingsRequired
+        ? (language.code == 'kn'
+            ? 'ದಯವಿಟ್ಟು ಅಪ್ಲಿಕೇಶನ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಈ ಅನುಮತಿಯನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ.'
+            : language.code == 'hi'
+                ? 'कृपया ऐप की सेटिंग में यह अनुमति चालू करें।'
+                : 'Please enable this permission in the app settings.')
+        : (language.code == 'kn'
+            ? 'ಅನುಮತಿ ನೀಡಲಾಗಿಲ್ಲ. ಈ ವೈಶಿಷ್ಟ್ಯ ಕಾರ್ಯನಿರ್ವಹಿಸುವುದಿಲ್ಲ.'
+            : language.code == 'hi'
+                ? 'अनुमति नहीं मिली। यह सुविधा काम नहीं करेगी।'
+                : 'Permission was not granted, so this feature will not work.');
+    final featureName = language.code == 'kn'
+        ? (feature == 'camera' ? 'ಕ್ಯಾಮೆರಾ' : feature == 'microphone' ? 'ಮೈಕ್ರೊಫೋನ್' : 'ಸ್ಥಳ')
+        : language.code == 'hi'
+            ? (feature == 'camera' ? 'कैमरा' : feature == 'microphone' ? 'माइक्रोफ़ोन' : 'स्थान')
+            : feature;
+    return '$featureName. $action';
+  }
+
+  Future<bool> _requestPermissionWithVoice(
+    Permission permission,
+    String feature,
+  ) async {
+    var current = await permission.status;
+    if (current.isGranted || current.isLimited) return true;
+
+    if (current.isPermanentlyDenied || current.isRestricted) {
+      await speakRaw(_permissionDeniedMessage(feature, settingsRequired: true));
+      return false;
+    }
+
+    // Speak before triggering Android's permission dialog so a blind user
+    // knows what the upcoming system prompt is asking for.
+    await speakRaw(_permissionPrompt(feature));
+    current = await permission.request();
+
+    if (current.isGranted || current.isLimited) {
+      final confirmation = language.code == 'kn'
+          ? 'ಅನುಮತಿ ದೊರೆತಿದೆ.'
+          : language.code == 'hi'
+              ? 'अनुमति मिल गई।'
+              : '$feature permission granted.';
+      await speakRaw(confirmation);
+      return true;
+    }
+
+    await speakRaw(_permissionDeniedMessage(
+      feature,
+      settingsRequired: current.isPermanentlyDenied,
+    ));
+    return false;
+  }
+
   Future<void> start() async {
     try {
       status = 'Starting SightToSound';
@@ -153,6 +240,13 @@ class _LiveCameraScreenState
         return;
       }
 
+      final cameraAllowed = await _requestPermissionWithVoice(
+        Permission.camera,
+        'camera',
+      );
+      if (!cameraAllowed) {
+        throw StateError('Camera permission was not granted.');
+      }
       await _initializeCamera();
       if (!mounted) return;
 
@@ -216,6 +310,11 @@ class _LiveCameraScreenState
 
   Future<void> _refreshLocationInBackground() async {
     try {
+      final locationAllowed = await _requestPermissionWithVoice(
+        Permission.locationWhenInUse,
+        'location',
+      );
+      if (!locationAllowed) return;
       final value = await location.current(
         localeIdentifier: _locationLocale(),
         refreshPlace: true,
@@ -1530,6 +1629,15 @@ class _LiveCameraScreenState
 
     await announcements.stopAndClear();
     await tts.stop();
+
+    final microphoneAllowed = await _requestPermissionWithVoice(
+      Permission.microphone,
+      'microphone',
+    );
+    if (!microphoneAllowed) {
+      listening = false;
+      return;
+    }
 
     await speakRaw(copy('voicePrompt'));
 
