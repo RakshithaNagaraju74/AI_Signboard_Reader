@@ -580,14 +580,14 @@ EXAMPLES:
   String _usefulSignText(String value) {
     final cleaned = _cleanOcrForNarration(value)
         .replaceAll(RegExp(r'[_|]+'), ' ')
-        .replaceAll(RegExp(r'\\s+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     if (cleaned.isEmpty) return '';
 
     // Ignore OCR-debug residue and very short fragments, but preserve mixed
     // Kannada/Latin names and product identifiers that users need to hear.
     final letters =
-        RegExp(r'[A-Za-z\\u0C80-\\u0CFF]').allMatches(cleaned).length;
+        RegExp(r'[A-Za-z\u0C80-\u0CFF]').allMatches(cleaned).length;
     if (letters < 3) return '';
     if (RegExp(r'^(?:unknown|none|null|ocr|text)$', caseSensitive: false)
         .hasMatch(cleaned)) {
