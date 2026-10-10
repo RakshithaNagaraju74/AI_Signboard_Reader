@@ -1285,7 +1285,7 @@ class _LiveCameraScreenState
       const map =
           <String, String>{
         'scanning':
-            'लाइव स्कैनिंग शुरू है। कैमरे के सामने संकेत लाएँ।',
+            'लाइव स्कैनिंग शुरू है। वॉइस कमांड के लिए वॉइस कमांड बटन दबाएँ और माइक्रोफ़ोन की अनुमति दें। तस्वीर पढ़ने के लिए तस्वीर चुनें, और स्थान की जानकारी के लिए लोकेशन की अनुमति दें।',
         'languageSelected':
             'भाषा चुन ली गई है। अब से सभी ऐप निर्देश इसी भाषा में होंगे।',
         'detected': 'पहचाना गया',
@@ -1310,7 +1310,7 @@ class _LiveCameraScreenState
             'तस्वीर का विश्लेषण नहीं हो सका। दूसरी तस्वीर आज़माएँ।',
         'cameraError':
             'कैमरा उपलब्ध नहीं है। कैमरा और माइक्रोफ़ोन की अनुमति दें और ऐप फिर से खोलें।',
-        'voicePrompt': 'आदेश बोलें।',
+        'voicePrompt': 'वॉइस कमांड तैयार हैं। स्कैन, संकेत खोजें, मैं कहाँ हूँ, या मदद बोलें।',
         'stopDone':
             'स्कैनिंग रोक दी गई है।',
         'nothingToRepeat':
@@ -1361,7 +1361,7 @@ class _LiveCameraScreenState
       const map =
           <String, String>{
         'scanning':
-            'ಲೈವ್ ಸ್ಕ್ಯಾನಿಂಗ್ ಪ್ರಾರಂಭವಾಗಿದೆ. ಕ್ಯಾಮೆರಾ ಮುಂದೆ ಫಲಕವನ್ನು ಹಿಡಿಯಿರಿ.',
+            'ಲೈವ್ ಸ್ಕ್ಯಾನಿಂಗ್ ಪ್ರಾರಂಭವಾಗಿದೆ. ಧ್ವನಿ ಆಜ್ಞೆಗಳಿಗೆ ವಾಯ್ಸ್ ಕಮಾಂಡ್ ಬಟನ್ ಒತ್ತಿ ಮೈಕ್ರೋಫೋನ್ ಅನುಮತಿ ನೀಡಿ. ಚಿತ್ರ ಓದಲು ಚಿತ್ರ ಆಯ್ಕೆಮಾಡಿ; ಸ್ಥಳದ ಮಾಹಿತಿ ಪಡೆಯಲು ಸ್ಥಳ ಅನುಮತಿ ನೀಡಿ.',
         'languageSelected':
             'ಭಾಷೆಯನ್ನು ಆಯ್ಕೆ ಮಾಡಲಾಗಿದೆ. ಇನ್ನು ಮುಂದೆ ಎಲ್ಲಾ ಆಪ್ ಸೂಚನೆಗಳು ಇದೇ ಭಾಷೆಯಲ್ಲಿ ಇರುತ್ತವೆ.',
         'detected': 'ಗುರುತಿಸಲಾಗಿದೆ',
@@ -1387,7 +1387,7 @@ class _LiveCameraScreenState
         'cameraError':
             'ಕ್ಯಾಮೆರಾ ಲಭ್ಯವಿಲ್ಲ. ಕ್ಯಾಮೆರಾ ಮತ್ತು ಮೈಕ್ರೋಫೋನ್ ಅನುಮತಿ ನೀಡಿ ಮತ್ತು ಆಪ್ ಅನ್ನು ಮತ್ತೆ ತೆರೆಯಿರಿ.',
         'voicePrompt':
-            'ಆಜ್ಞೆಯನ್ನು ಹೇಳಿ.',
+            'ಧ್ವನಿ ಆಜ್ಞೆಗಳು ಸಿದ್ಧವಾಗಿವೆ. ಸ್ಕ್ಯಾನ್, ಫಲಕ ಹುಡುಕಿ, ನಾನು ಎಲ್ಲಿದ್ದೇನೆ, ಅಥವಾ ಸಹಾಯ ಎಂದು ಹೇಳಿ.',
         'stopDone':
             'ಸ್ಕ್ಯಾನಿಂಗ್ ನಿಲ್ಲಿಸಲಾಗಿದೆ.',
         'nothingToRepeat':
@@ -1439,7 +1439,7 @@ class _LiveCameraScreenState
     const map =
         <String, String>{
       'scanning':
-          'Live scanning is on. Hold a signboard in front of the camera.',
+          'Live scanning is on. To use voice commands, tap Voice Commands and allow microphone access. Choose Upload Image to read a photo, and allow location access for location-aware guidance.',
       'languageSelected':
           'Language selected. From now on, all app guidance will use this language.',
       'detected':

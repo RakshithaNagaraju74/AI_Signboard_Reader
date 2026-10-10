@@ -40,8 +40,6 @@ android {
 
 dependencies {
     implementation("com.google.mlkit:text-recognition-devanagari:16.0.1")
-    // Direct native dependency avoids an older Flutter Tesseract plugin Gradle script.
-    implementation("cz.adaptech.tesseract4android:tesseract4android:4.9.0")
 }
 
 kotlin {
