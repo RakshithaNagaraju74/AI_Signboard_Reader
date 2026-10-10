@@ -568,7 +568,7 @@ EXAMPLES:
   }
 
   bool _containsKannadaScript(String value) =>
-      RegExp(r'[\\u0C80-\\u0CFF]').hasMatch(value);
+      RegExp(r'[\u0C80-\u0CFF]').hasMatch(value);
 
   String _englishMovement(String value) {
     if (value == 'getting closer') {
@@ -723,7 +723,7 @@ EXAMPLES:
 
     if (languageCode == 'kn') {
       final kannadaLetters =
-          RegExp(r'[\\u0C80-\\u0CFF]').allMatches(text).length;
+          RegExp(r'[\u0C80-\u0CFF]').allMatches(text).length;
       final latinLetters = RegExp(r'[A-Za-z]').allMatches(text).length;
       // A single Kannada character must not allow a mostly-English response.
       return kannadaLetters >= 4 &&
@@ -732,7 +732,7 @@ EXAMPLES:
 
     if (languageCode == 'hi') {
       final hindiLetters =
-          RegExp(r'[\\u0900-\\u097F]').allMatches(text).length;
+          RegExp(r'[\u0900-\u097F]').allMatches(text).length;
       final latinLetters = RegExp(r'[A-Za-z]').allMatches(text).length;
       return hindiLetters >= 4 &&
           latinLetters <= (hindiLetters * 0.20).floor() + 4;
