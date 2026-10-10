@@ -60,7 +60,7 @@ The project is built with Flutter and is intended for real-world accessibility e
 - Tries multiple image variants, including upscaling and contrast-oriented preprocessing, then prefers a readable candidate.
 - Combines the detected category with readable sign text when preparing a spoken result.
 
-OCR is best-effort. The current OCR service selects Devanagari recognition for Hindi and Latin recognition for other configured languages; Kannada voice/UI support does **not** currently mean full Kannada-script OCR support. Blur, glare, low contrast, unusual fonts, small text, perspective, occlusion, and language/script support can also affect results.
+OCR is best-effort. On-device ML Kit handles supported scripts quickly; when the selected language is Hindi or Kannada, or local results are weak/inconsistent, the app can use OCR.Space Engine 3 with automatic language detection for Kannada, Tamil, Telugu, Hindi, and stylized signboard text. Tamil/Telugu recognition may use the cloud fallback even when the spoken UI language is English. Cloud OCR requires internet, a configured API key, and available free-tier quota. Blur, glare, low contrast, small text, perspective, occlusion, and font design can still affect results.
 
 ### 🧭 Spatial and temporal guidance
 The live reader estimates where a detected sign appears in the camera frame and describes it using five relative zones:
@@ -431,10 +431,11 @@ OCR.Space's free plan has monthly limits, including a smaller quota for Engine 3
 
 The previous native Tesseract Android dependency has been removed because the configured artifact could not be resolved by Gradle. This avoids that build failure. The GitHub connector cannot execute Flutter or Android builds, so run the commands above on your computer before merging.
 
+
 ## Accessible permission prompts and narration
 
 Before Android displays camera, microphone, or location permission dialogs, SightToSound speaks what the permission is for and asks the user to choose Allow. If a permission was permanently denied, the app explains that it must be enabled in Android app settings. Microphone permission is requested when voice commands are used; location permission is requested for location-aware guidance.
 
-Groq narration validation allows useful Latin-script brand names inside otherwise Hindi/Kannada narration instead of rejecting the entire answer. OCR debug wrappers such as `--- OCR Start ---` and `--- OCR End ---` are removed before narration, and the offline fallback avoids reading long Latin-heavy OCR fragments as Kannada.
+Groq narration validation allows useful Latin-script brand names inside otherwise Hindi/Kannada narration instead of rejecting the entire answer. OCR debug wrappers such as `--- OCR Start ---` and `--- OCR End ---` are removed before narration, and the offline fallback avoids reading Latin-heavy OCR fragments as Kannada.
 
 Keep your actual `.env` file private. Add your personal `OCR_SPACE_API_KEY` and optional Groq credentials locally; do not commit real keys to GitHub. OCR.Space sends the selected sign crop to its API, so cloud OCR requires an internet connection. If the API is unavailable, SightToSound falls back to on-device OCR where supported.

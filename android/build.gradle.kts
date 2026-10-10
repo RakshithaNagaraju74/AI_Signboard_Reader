@@ -4,7 +4,7 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // Tesseract4Android publishes its Android AAR through JitPack.
+        // Tesseract4Android 4.9.0 is published through JitPack.
         maven { url = uri("https://jitpack.io") }
     }
 }

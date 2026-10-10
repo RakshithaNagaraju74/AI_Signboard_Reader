@@ -568,6 +568,9 @@ EXAMPLES:
     if (_containsKannadaScript(e.placeContext)) {
       result += '. ${e.placeContext}';
     }
+    if (_hasDominantKannadaText(e.text)) {
+      result += ', ಅದರಲ್ಲಿ "${_cleanOcrForNarration(e.text)}" ಎಂದು ಬರೆಯಲಾಗಿದೆ';
+    }
 
     if (e.movement.isNotEmpty) {
       result += '. ${_kannadaMovement(e.movement)}';
@@ -763,12 +766,10 @@ EXAMPLES:
           RegExp(r'[\u0C80-\u0CFF]').allMatches(text).length;
       final latinLetters = RegExp(r'[A-Za-z]').allMatches(text).length;
       final totalLetters = kannadaLetters + latinLetters;
-      // Kannada must be the narration language, but Latin-script brand,
-      // product, and place names are valid embedded identifiers. Accept
-      // mixed-script outputs when there is a substantial Kannada sentence.
-      return kannadaLetters >= 8 &&
+      // Allow Latin-script brand/place names inside otherwise Kannada narration.
+      return kannadaLetters >= 12 &&
           totalLetters > 0 &&
-          kannadaLetters / totalLetters >= 0.30;
+          kannadaLetters / totalLetters >= 0.48;
     }
 
     if (languageCode == 'hi') {
