@@ -973,36 +973,44 @@ class _LiveCameraScreenState
   String localizedPlaceContext(PlaceVerification value) {
     final name = value.matchedName;
     final distance = value.shortDistance;
+    final accuracy = currentLocation?.accuracy;
+    final uncertaintyNote = accuracy != null && accuracy > 40
+        ? (language.code == 'kn'
+            ? ' GPS ನಿಖರತೆ ಸುಮಾರು ${accuracy.round()} ಮೀಟರ್; ದೂರ ಅಂದಾಜು ಮಾತ್ರ.'
+            : language.code == 'hi'
+                ? ' GPS सटीकता लगभग ${accuracy.round()} मीटर है, इसलिए दूरी अनुमानित है।'
+                : ' GPS accuracy is about ${accuracy.round()} metres, so this distance is approximate.')
+        : '';
 
     if (language.code == 'hi') {
       if (value.relation == PlaceRelation.onSite) {
-        return 'मानचित्र के अनुसार $name लगभग $distance दूर है। फिर भी यह बोर्ड उस जगह के प्रवेश द्वार का प्रमाण नहीं है।';
+        return 'मानचित्र के अनुसार $name लगभग $distance दूर है। फिर भी यह बोर्ड उस जगह के प्रवेश द्वार का प्रमाण नहीं है.$uncertaintyNote';
       }
       if (value.relation == PlaceRelation.nearby) {
-        return 'मानचित्र में $name लगभग $distance दूर है। यह बोर्ड उस जगह की ओर संकेत या विज्ञापन हो सकता है।';
+        return 'मानचित्र में $name लगभग $distance दूर है। यह बोर्ड उस जगह की ओर संकेत या विज्ञापन हो सकता है.$uncertaintyNote';
       }
-      return 'मानचित्र में $name लगभग $distance दूर मिला। इसलिए यह बोर्ड किसी दूसरी जगह का विज्ञापन हो सकता है, यहाँ की जगह का नहीं।';
+      return 'मानचित्र में $name लगभग $distance दूर मिला। इसलिए यह बोर्ड किसी दूसरी जगह का विज्ञापन हो सकता है, यहाँ की जगह का नहीं.$uncertaintyNote';
     }
 
     if (language.code == 'kn') {
       if (value.relation == PlaceRelation.onSite) {
-        return 'ನಕ್ಷೆಯ ಪ್ರಕಾರ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಆದರೂ ಈ ಫಲಕವೇ ಆ ಸ್ಥಳದ ಪ್ರವೇಶದ್ವಾರ ಎಂದು ಖಚಿತಪಡಿಸುವುದಿಲ್ಲ.';
+        return 'ನಕ್ಷೆಯ ಪ್ರಕಾರ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಆದರೂ ಈ ಫಲಕವೇ ಆ ಸ್ಥಳದ ಪ್ರವೇಶದ್ವಾರ ಎಂದು ಖಚಿತಪಡಿಸುವುದಿಲ್ಲ.$uncertaintyNote';
       }
       if (value.relation == PlaceRelation.nearby) {
-        return 'ನಕ್ಷೆಯಲ್ಲಿ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಈ ಫಲಕ ಆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಅಥವಾ ದಿಕ್ಕು ಸೂಚನೆ ಆಗಿರಬಹುದು.';
+        return 'ನಕ್ಷೆಯಲ್ಲಿ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಈ ಫಲಕ ಆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಅಥವಾ ದಿಕ್ಕು ಸೂಚನೆ ಆಗಿರಬಹುದು.$uncertaintyNote';
       }
-      return 'ನಕ್ಷೆಯಲ್ಲಿ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಆದ್ದರಿಂದ ಈ ಫಲಕ ಇಲ್ಲಿನ ಸ್ಥಳವಲ್ಲ, ಬೇರೆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಆಗಿರಬಹುದು.';
+      return 'ನಕ್ಷೆಯಲ್ಲಿ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಆದ್ದರಿಂದ ಈ ಫಲಕ ಇಲ್ಲಿನ ಸ್ಥಳವಲ್ಲ, ಬೇರೆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಆಗಿರಬಹುದು.$uncertaintyNote';
     }
 
     if (value.relation == PlaceRelation.onSite) {
-      return 'Map data suggests $name is about $distance away. The sign itself does not prove that this is the entrance.';
+      return 'Map data suggests $name is about $distance away. The sign itself does not prove that this is the entrance.$uncertaintyNote';
     }
 
     if (value.relation == PlaceRelation.nearby) {
-      return 'Map data places $name about $distance away. This sign may advertise or point to that place.';
+      return 'Map data places $name about $distance away. This sign may advertise or point to that place.$uncertaintyNote';
     }
 
-    return 'Map data found $name about $distance away. This sign may advertise a different location rather than this exact place.';
+    return 'Map data found $name about $distance away. This sign may advertise a different location rather than this exact place.$uncertaintyNote';
   }
 
   String buildSpeech(DetectionContext context) {
