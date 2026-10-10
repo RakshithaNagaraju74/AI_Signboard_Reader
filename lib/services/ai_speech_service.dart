@@ -4,6 +4,17 @@ import 'dart:io';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+String _cleanOcrForNarration(String value) {
+  return value
+      .replaceAll(
+        RegExp(r'-{2,}\s*OCR\s*(?:Start|End)\s*-{2,}', caseSensitive: false),
+        ' ',
+      )
+      .replaceAll(RegExp(r'\bOCR\s*(?:Start|End)\b', caseSensitive: false), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+}
+
 class SpeechDetectionInput {
   final String label;
   final String position;
@@ -31,7 +42,7 @@ class SpeechDetectionInput {
     return {
       'sign': label,
       'position': position,
-      if (text.isNotEmpty) 'visible_text': text,
+      if (_cleanOcrForNarration(text).isNotEmpty) 'visible_text': _cleanOcrForNarration(text),
       'detector_confidence': confidence,
       if (movement.isNotEmpty) 'movement': movement,
       if (proximity.isNotEmpty) 'proximity': proximity,
@@ -555,8 +566,8 @@ EXAMPLES:
     if (_containsKannadaScript(e.placeContext)) {
       result += '. ${e.placeContext}';
     }
-    if (_containsKannadaScript(e.text)) {
-      result += ', ಅದರಲ್ಲಿ "${e.text}" ಎಂದು ಬರೆಯಲಾಗಿದೆ';
+    if (_hasDominantKannadaText(e.text)) {
+      result += ', ಅದರಲ್ಲಿ "' + _cleanOcrForNarration(e.text) + '" ಎಂದು ಬರೆಯಲಾಗಿದೆ';
     }
 
     if (e.movement.isNotEmpty) {
@@ -569,6 +580,14 @@ EXAMPLES:
 
   bool _containsKannadaScript(String value) =>
       RegExp(r'[\u0C80-\u0CFF]').hasMatch(value);
+
+  bool _hasDominantKannadaText(String value) {
+    final cleaned = _cleanOcrForNarration(value);
+    final kannada = RegExp(r'[\u0C80-\u0CFF]').allMatches(cleaned).length;
+    final latin = RegExp(r'[A-Za-z]').allMatches(cleaned).length;
+    final total = kannada + latin;
+    return kannada >= 4 && total > 0 && kannada / total >= 0.35;
+  }
 
   String _englishMovement(String value) {
     if (value == 'getting closer') {
@@ -725,24 +744,28 @@ EXAMPLES:
       final kannadaLetters =
           RegExp(r'[\u0C80-\u0CFF]').allMatches(text).length;
       final latinLetters = RegExp(r'[A-Za-z]').allMatches(text).length;
-      // A single Kannada character must not allow a mostly-English response.
-      return kannadaLetters >= 4 &&
-          latinLetters <= (kannadaLetters * 0.12).floor() + 3;
+      final totalLetters = kannadaLetters + latinLetters;
+      // Allow Latin-script brand/place names inside otherwise Kannada narration.
+      return kannadaLetters >= 12 &&
+          totalLetters > 0 &&
+          kannadaLetters / totalLetters >= 0.48;
     }
 
     if (languageCode == 'hi') {
       final hindiLetters =
           RegExp(r'[\u0900-\u097F]').allMatches(text).length;
       final latinLetters = RegExp(r'[A-Za-z]').allMatches(text).length;
-      return hindiLetters >= 4 &&
-          latinLetters <= (hindiLetters * 0.20).floor() + 4;
+      final totalLetters = hindiLetters + latinLetters;
+      return hindiLetters >= 10 &&
+          totalLetters > 0 &&
+          hindiLetters / totalLetters >= 0.48;
     }
 
     return true;
   }
 
   String _clean(String value) {
-    var result = value.trim();
+    var result = _cleanOcrForNarration(value).trim();
 
     // Remove common prefixes such as:
     // "assistant: ..."
