@@ -116,17 +116,24 @@ class OCRService {
       candidates.sort((a, b) => b.score.compareTo(a.score));
       final best = candidates.first;
 
-      if (_score(best.text) < 18) {
+      final agreeing = candidates
+          .skip(1)
+          .where((candidate) => _similar(candidate.text, best.text) >= 0.72)
+          .toList();
+
+      // A result that appears in several preprocessing passes is more stable.
+      // If the passes disagree or the text is very weak, ask Engine 3 to
+      // resolve stylized lettering; the local result remains the offline fallback.
+      if (agreeing.isEmpty || _score(best.text) < 18) {
         final cloudText = await _recognizeWithOcrSpace(crop);
-        if (cloudText.isNotEmpty) {
-          return _score(cloudText) >= _score(best.text) ? cloudText : best.text;
+        if (cloudText.isNotEmpty &&
+            _score(cloudText) >= _score(best.text)) {
+          return cloudText;
         }
       }
 
-      for (final candidate in candidates.skip(1)) {
-        if (_similar(candidate.text, best.text) >= 0.72) {
-          return _preferReadable(best.text, candidate.text);
-        }
+      if (agreeing.isNotEmpty) {
+        return _preferReadable(best.text, agreeing.first.text);
       }
       return best.text;
     } catch (e) {
