@@ -460,9 +460,32 @@ EXAMPLES:
     final sorted = [...detections]
       ..sort((a, b) {
         if (a.safety != b.safety) return a.safety ? -1 : 1;
+        if (a.confidence != b.confidence) {
+          return b.confidence.compareTo(a.confidence);
+        }
         return b.text.trim().length.compareTo(a.text.trim().length);
       });
-    return sorted.take(2).toList();
+
+    // Multiple boxes can refer to one board. Keep each readable OCR string once.
+    final selected = <SpeechDetectionInput>[];
+    final seenText = <String>{};
+    final seenSignPosition = <String>{};
+    for (final item in sorted) {
+      final textKey = _normalizeSpokenText(item.text);
+      final signKey = '${item.label.toLowerCase()}|${item.position.toLowerCase()}';
+      if (textKey.isNotEmpty && !seenText.add(textKey)) continue;
+      if (textKey.isEmpty && !seenSignPosition.add(signKey)) continue;
+      selected.add(item);
+      if (selected.length == 2) break;
+    }
+    return selected;
+  }
+
+  String _normalizeSpokenText(String value) {
+    return _cleanOcrForNarration(value)
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9\u0900-\u097f\u0c80-\u0cff]'), '');
+  }
   }
 
   String _friendlyLabel(String label, String languageCode) {
@@ -567,9 +590,6 @@ EXAMPLES:
 
     if (_containsKannadaScript(e.placeContext)) {
       result += '. ${e.placeContext}';
-    }
-    if (_hasDominantKannadaText(e.text)) {
-      result += ', ಅದರಲ್ಲಿ "${_cleanOcrForNarration(e.text)}" ಎಂದು ಬರೆಯಲಾಗಿದೆ';
     }
 
     if (e.movement.isNotEmpty) {
@@ -767,9 +787,9 @@ EXAMPLES:
       final latinLetters = RegExp(r'[A-Za-z]').allMatches(text).length;
       final totalLetters = kannadaLetters + latinLetters;
       // Allow Latin-script brand/place names inside otherwise Kannada narration.
-      return kannadaLetters >= 12 &&
+      return kannadaLetters >= 8 &&
           totalLetters > 0 &&
-          kannadaLetters / totalLetters >= 0.48;
+          kannadaLetters / totalLetters >= 0.35;
     }
 
     if (languageCode == 'hi') {
@@ -777,9 +797,9 @@ EXAMPLES:
           RegExp(r'[\u0900-\u097F]').allMatches(text).length;
       final latinLetters = RegExp(r'[A-Za-z]').allMatches(text).length;
       final totalLetters = hindiLetters + latinLetters;
-      return hindiLetters >= 10 &&
+      return hindiLetters >= 8 &&
           totalLetters > 0 &&
-          hindiLetters / totalLetters >= 0.48;
+          hindiLetters / totalLetters >= 0.35;
     }
 
     return true;
