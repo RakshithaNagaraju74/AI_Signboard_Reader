@@ -60,20 +60,26 @@ class PlaceVerificationService {
         RegExp(r'[\u0C80-\u0CFF]').hasMatch(value);
   }
 
-  String spokenContext(PlaceVerification verification) {
+  String spokenContext(
+    PlaceVerification verification, {
+    double? gpsAccuracyMeters,
+  }) {
     final distance = verification.shortDistance;
     final mappedAddress = verification.displayName.trim();
     final addressPart = mappedAddress.isEmpty
         ? ''
         : ' Mapped address: ${verification.displayName}.';
+    final accuracyNote = gpsAccuracyMeters == null
+        ? ''
+        : ' The phone GPS accuracy is about ${gpsAccuracyMeters.round()} metres, so treat the distance as approximate.';
 
     switch (verification.relation) {
       case PlaceRelation.onSite:
-        return 'VERIFIED SIGN-RELATED PLACE. ${verification.matchedName} is mapped about $distance from the user.$addressPart This is a map location for the named place, not proof of the exact physical sign position.';
+        return 'VERIFIED SIGN-RELATED PLACE. ${verification.matchedName} is mapped about $distance from the user.$addressPart This is a map location for the named place, not proof of the exact physical sign position.$accuracyNote';
       case PlaceRelation.nearby:
-        return 'VERIFIED NEARBY SIGN-RELATED PLACE. ${verification.matchedName} is mapped about $distance from the user.$addressPart This is a map location for the named place, not proof of the exact physical sign position.';
+        return 'VERIFIED NEARBY SIGN-RELATED PLACE. ${verification.matchedName} is mapped about $distance from the user.$addressPart This is a map location for the named place, not proof of the exact physical sign position.$accuracyNote';
       case PlaceRelation.elsewhere:
-        return 'The sign refers to ${verification.matchedName}, mapped about $distance from the user.$addressPart This appears to be a different location, not the current sign position.';
+        return 'The sign refers to ${verification.matchedName}, mapped about $distance from the user.$addressPart This appears to be a destination or a different location, not the current sign position.$accuracyNote';
       case PlaceRelation.uncertain:
         return '';
     }
@@ -329,8 +335,13 @@ class PlaceVerificationService {
       if (c.contains(token)) overlap++;
     }
 
-    final tokenScore =
-        overlap / q.length;
+    // OCR may contain a bilingual destination plus unrelated brand text.
+    // Compare a multi-word mapped place with the tokens it actually has;
+    // keep one-word matches conservative to avoid matching only "temple".
+    final denominator = c.length == 1 && q.length > 1
+        ? q.length
+        : math.min(q.length, c.length);
+    final tokenScore = overlap / denominator;
 
     final compactQuery = q.join();
     final compactCandidate = c.join();
