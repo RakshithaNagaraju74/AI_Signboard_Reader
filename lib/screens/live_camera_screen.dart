@@ -445,8 +445,14 @@ class _LiveCameraScreenState
     onboarding = true;
     if (mounted) setState(() {});
 
-    await voice.initialize();
-    await voice.stop();
+    final microphoneAllowed = await _requestPermissionWithVoice(
+      Permission.microphone,
+      'microphone',
+    );
+    if (microphoneAllowed) {
+      await voice.initialize();
+      await voice.stop();
+    }
     await tts.initialize();
     await tts.stop();
 
@@ -457,7 +463,7 @@ class _LiveCameraScreenState
     // Keep the first interaction extremely simple. English speech
     // recognition is used only for the numeric choice because numbers are
     // generally more robust than multilingual language-name recognition.
-    for (var attempt = 0; attempt < 4; attempt++) {
+    for (var attempt = 0; microphoneAllowed && attempt < 4; attempt++) {
       await tts.setLanguage('en-US');
 
       final prompt = attempt == 0
