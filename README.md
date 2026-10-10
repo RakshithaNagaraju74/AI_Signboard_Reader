@@ -60,7 +60,7 @@ The project is built with Flutter and is intended for real-world accessibility e
 - Tries multiple image variants, including upscaling and contrast-oriented preprocessing, then prefers a readable candidate.
 - Combines the detected category with readable sign text when preparing a spoken result.
 
-OCR is best-effort. The current OCR service selects Devanagari recognition for Hindi and Latin recognition for other configured languages; Kannada voice/UI support does **not** currently mean full Kannada-script OCR support. Blur, glare, low contrast, unusual fonts, small text, perspective, occlusion, and language/script support can also affect results.
+OCR is best-effort. On-device ML Kit handles supported scripts quickly; when the selected language is Hindi or Kannada, or local results are weak/inconsistent, the app can use OCR.Space Engine 3 with automatic language detection for Kannada, Tamil, Telugu, Hindi, and stylized signboard text. Tamil/Telugu recognition may use the cloud fallback even when the spoken UI language is English. Cloud OCR requires internet, a configured API key, and available free-tier quota. Blur, glare, low contrast, small text, perspective, occlusion, and font design can still affect results.
 
 ### 🧭 Spatial and temporal guidance
 The live reader estimates where a detected sign appears in the camera frame and describes it using five relative zones:
