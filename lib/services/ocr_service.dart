@@ -4,13 +4,15 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image/image.dart' as img;
-import 'package:tesseract_ocr/tesseract_ocr.dart';
-import 'package:tesseract_ocr/ocr_engine_config.dart';
+import 'package:flutter/services.dart';
 
 class OCRService {
   static final OCRService _instance = OCRService._internal();
   factory OCRService() => _instance;
   OCRService._internal();
+
+  static const MethodChannel _kannadaOcrChannel =
+      MethodChannel('sighttosound/kannada_ocr');
 
   final Map<TextRecognitionScript, TextRecognizer> _recognizers = {};
   String? _fullFrameCachePath;
@@ -198,15 +200,6 @@ class OCRService {
     required String prefix,
   }) async {
     final candidates = <_OCRCandidate>[];
-    final config = OCRConfig(
-      language: 'kan+eng',
-      engine: OCREngine.tesseract,
-      options: const {
-        'preserve_interword_spaces': '1',
-        'tessedit_pageseg_mode': '6',
-      },
-    );
-
     for (final index in indices) {
       if (index < 0 || index >= variants.length) continue;
       final tempFile = File(
@@ -217,10 +210,11 @@ class OCRService {
           img.encodeJpg(variants[index], quality: 96),
           flush: true,
         );
-        final recognized = await TesseractOcr.extractText(
-          tempFile.path,
-          config: config,
-        );
+        final recognized = await _kannadaOcrChannel.invokeMethod<String>(
+              'recognize',
+              {'imagePath': tempFile.path},
+            ) ??
+            '';
         final cleaned = _normalizeOCRText(recognized);
         if (cleaned.isNotEmpty) {
           candidates.add(_OCRCandidate(
