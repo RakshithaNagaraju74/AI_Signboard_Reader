@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image/image.dart' as img;
 
@@ -10,11 +11,13 @@ class OCRService {
   factory OCRService() => _instance;
   OCRService._internal();
 
+  static const MethodChannel _kannadaOcrChannel =
+      MethodChannel('sighttosound/kannada_ocr');
+
   final Map<TextRecognitionScript, TextRecognizer> _recognizers = {};
   String? _fullFrameCachePath;
   TextRecognitionScript? _fullFrameCacheScript;
   List<_OCRBlock> _fullFrameCacheBlocks = [];
-  List<List<_OCRBlock>> _fullFrameVariantBlocks = [];
 
   TextRecognizer _recognizerFor(TextRecognitionScript script) =>
       _recognizers.putIfAbsent(script, () => TextRecognizer(script: script));
@@ -36,28 +39,38 @@ class OCRService {
       if (decoded == null) return '';
       final image = img.bakeOrientation(decoded);
       final crop = _safeCrop(image, bbox);
-      if (crop == null) return await _recognizeFullImage(image, script);
+      if (crop == null) {
+        if (_isKannadaLanguage(normalizedLanguage) && Platform.isAndroid) {
+          return _recognizeKannadaWithTesseract(image, image);
+        }
+        return await _recognizeFullImage(image, script);
+      }
 
-      // Let ML Kit's text detector inspect the whole oriented frame first.
-      // We then keep only blocks that overlap this sign's YOLO box.
+      // ML Kit's Latin model does not read Kannada script. Use the bundled
+      // Tesseract Kannada+English fast models for Kannada scans instead.
+      if (_isKannadaLanguage(normalizedLanguage) && Platform.isAndroid) {
+        return _recognizeKannadaWithTesseract(crop, image);
+      }
+
+      // Keep full-frame OCR as one candidate, but do not return it immediately.
+      // A partial full-frame result can be worse than OCR on the enlarged sign crop.
+      final candidates = <_OCRCandidate>[];
       final fullFrameText = await _recognizeBlocksNearBox(
         imageFile.path,
         image,
         bbox,
         script,
       );
-      if (fullFrameText.isNotEmpty && _isPlausibleOCR(fullFrameText)) {
-        debugPrint('OCR: matched full-frame text block(s): ' + fullFrameText);
-        return fullFrameText;
-      }
-
       if (fullFrameText.isNotEmpty) {
-        debugPrint('OCR: rejecting low-quality full-frame text; trying sign crop variants.');
+        candidates.add(_OCRCandidate(
+          text: fullFrameText,
+          variant: -1,
+          score: _score(fullFrameText),
+        ));
       }
 
       final variants = _buildVariants(crop);
       final recognizer = _recognizerFor(script);
-      final candidates = <_OCRCandidate>[];
 
       for (var i = 0; i < variants.length; i++) {
         final tempFile = File(
@@ -144,6 +157,103 @@ class OCRService {
     return candidates.first.text;
   }
 
+  bool _isKannadaLanguage(String languageCode) {
+    return languageCode == 'kn' ||
+        languageCode.startsWith('kn-') ||
+        languageCode == 'kan';
+  }
+
+  /// Offline Kannada OCR using Tesseract's fast Kannada + English models.
+  /// Four crop variants balance recognition quality and speed; full-frame OCR
+  /// is attempted only when the sign crop produces no text.
+  Future<String> _recognizeKannadaWithTesseract(
+    img.Image crop,
+    img.Image fullImage,
+  ) async {
+    final cropVariants = _buildVariants(crop);
+    final cropCandidates = await _runTesseractVariants(
+      cropVariants,
+      indices: const [0, 3, 4, 7],
+      prefix: 's2s_kan_crop',
+    );
+
+    if (cropCandidates.isNotEmpty) {
+      cropCandidates.sort((a, b) => b.score.compareTo(a.score));
+      return cropCandidates.first.text;
+    }
+
+    debugPrint('Kannada OCR: crop produced no text; trying full frame.');
+    final fullVariants = _buildVariants(_upscaleForText(fullImage));
+    final fullCandidates = await _runTesseractVariants(
+      fullVariants,
+      indices: const [0, 3],
+      prefix: 's2s_kan_full',
+    );
+    if (fullCandidates.isEmpty) return '';
+    fullCandidates.sort((a, b) => b.score.compareTo(a.score));
+    return fullCandidates.first.text;
+  }
+
+  Future<List<_OCRCandidate>> _runTesseractVariants(
+    List<img.Image> variants, {
+    required List<int> indices,
+    required String prefix,
+  }) async {
+    final candidates = <_OCRCandidate>[];
+    final tempFiles = <int, File>{};
+
+    try {
+      // Prepare variants first, then call native OCR once so the engine loads
+      // its language models only once per crop instead of once per image pass.
+      for (final index in indices) {
+        if (index < 0 || index >= variants.length) continue;
+        final tempFile = File(
+          '${Directory.systemTemp.path}/${prefix}_${DateTime.now().microsecondsSinceEpoch}_$index.jpg',
+        );
+        await tempFile.writeAsBytes(
+          img.encodeJpg(variants[index], quality: 96),
+          flush: true,
+        );
+        tempFiles[index] = tempFile;
+      }
+
+      if (tempFiles.isEmpty) return candidates;
+      final recognizedTexts =
+          await _kannadaOcrChannel.invokeMethod<List<dynamic>>(
+                'recognizeBatch',
+                {
+                  'imagePaths': tempFiles.values.map((file) => file.path).toList(),
+                },
+              ) ??
+              const <dynamic>[];
+
+      var resultIndex = 0;
+      for (final index in tempFiles.keys) {
+        final recognized = resultIndex < recognizedTexts.length
+            ? recognizedTexts[resultIndex]?.toString() ?? ''
+            : '';
+        resultIndex++;
+        final cleaned = _normalizeOCRText(recognized);
+        if (cleaned.isNotEmpty) {
+          candidates.add(_OCRCandidate(
+            text: cleaned,
+            variant: index,
+            score: _score(cleaned),
+          ));
+        }
+      }
+    } catch (e) {
+      debugPrint('Kannada Tesseract OCR batch failed: $e');
+    } finally {
+      for (final tempFile in tempFiles.values) {
+        try {
+          if (await tempFile.exists()) await tempFile.delete();
+        } catch (_) {}
+      }
+    }
+    return candidates;
+  }
+
   img.Image? _safeCrop(img.Image image, List<double> bbox) {
     var x1 = bbox[0], y1 = bbox[1], x2 = bbox[2], y2 = bbox[3];
     if (x2 <= x1 || y2 <= y1) return null;
@@ -151,11 +261,10 @@ class OCRService {
     final width = x2 - x1;
     final height = y2 - y1;
 
-    // Give OCR a little more surrounding context. Signboards often have
-    // multiple lines and the detector box can clip the first/last letters.
-    // Keep the padding bounded so nearby background text is not pulled in.
-    final padX = (width * 0.18).clamp(8.0, 90.0);
-    final padY = (height * 0.30).clamp(10.0, 120.0);
+    // Decorative/stylized lettering often extends close to the sign edge.
+    // A little more context helps keep whole words and punctuation in the crop.
+    final padX = width * 0.18;
+    final padY = height * 0.28;
 
     x1 = (x1 - padX).clamp(0.0, image.width.toDouble());
     y1 = (y1 - padY).clamp(0.0, image.height.toDouble());
@@ -197,72 +306,18 @@ class OCRService {
             img.encodeJpg(image, quality: 98),
             flush: true,
           );
-          // Run a small set of same-size full-frame preprocessing passes.
-          // Keeping the dimensions unchanged preserves ML Kit's bounding boxes,
-          // so we can still match OCR blocks to the YOLO sign box.
-          final fullFrameVariants = <img.Image>[
-            image,
-            img.adjustColor(
-              img.grayscale(image),
-              contrast: 1.45,
-              brightness: 1.04,
-              gamma: 0.90,
-            ),
-            img.convolution(
-              img.grayscale(image),
-              <num>[
-                0, -1, 0,
-                -1, 5, -1,
-                0, -1, 0,
-              ],
-              div: 1.0,
-            ),
-          ];
+          final result = await recognizer.processImage(
+            InputImage.fromFile(tempFile),
+          );
 
-          _fullFrameVariantBlocks = [];
-
-          for (var variantIndex = 0;
-              variantIndex < fullFrameVariants.length;
-              variantIndex++) {
-            final variantFile = File(
-              Directory.systemTemp.path + '/s2s_ocr_full_' +
-                  DateTime.now().microsecondsSinceEpoch.toString() +
-                  '_v' +
-                  variantIndex.toString() +
-                  '.jpg',
-            );
-
-            try {
-              await variantFile.writeAsBytes(
-                img.encodeJpg(fullFrameVariants[variantIndex], quality: 98),
-                flush: true,
-              );
-              final result = await recognizer.processImage(
-                InputImage.fromFile(variantFile),
-              );
-
-              final blocks = result.blocks
-                  .map(
-                    (block) => _OCRBlock(
-                      text: _normalizeOCRText(block.text),
-                      box: block.boundingBox,
-                    ),
-                  )
-                  .where((block) => block.text.isNotEmpty)
-                  .toList();
-
-              _fullFrameVariantBlocks.add(blocks);
-            } finally {
-              try {
-                if (await variantFile.exists()) {
-                  await variantFile.delete();
-                }
-              } catch (_) {}
-            }
-          }
-
-          _fullFrameCacheBlocks = _fullFrameVariantBlocks
-              .expand((blocks) => blocks)
+          _fullFrameCacheBlocks = result.blocks
+              .map(
+                (block) => _OCRBlock(
+                  text: _normalizeOCRText(block.text),
+                  box: block.boundingBox,
+                ),
+              )
+              .where((block) => block.text.isNotEmpty)
               .toList();
           _fullFrameCachePath = sourcePath;
           _fullFrameCacheScript = script;
@@ -276,50 +331,22 @@ class OCRService {
       final target = ui.Rect.fromLTRB(
         bbox[0], bbox[1], bbox[2], bbox[3],
       );
-      final candidates = <_OCRCandidate>[];
-
-      // Evaluate each full-frame preprocessing pass independently. This
-      // prevents a weak raw pass from dominating a clearer grayscale/sharp
-      // pass while still retaining the original image as a fallback.
-      for (var variantIndex = 0;
-          variantIndex < _fullFrameVariantBlocks.length;
-          variantIndex++) {
-        final matching = <String>[];
-
-        for (final block in _fullFrameVariantBlocks[variantIndex]) {
-          final intersection = target.intersect(block.box);
-          final targetArea = target.width * target.height;
-          final intersectionArea =
-              intersection.width > 0 && intersection.height > 0
-                  ? intersection.width * intersection.height
-                  : 0.0;
-          final overlap = targetArea <= 0
-              ? 0.0
-              : intersectionArea / targetArea;
-
-          // Require meaningful overlap with the detected sign. A very
-          // small overlap can accidentally attach unrelated background text
-          // to the sign and is a common source of gibberish OCR.
-          if (overlap >= 0.20 || target.contains(block.box.center)) {
-            matching.add(block.text);
-          }
-        }
-
-        final text = _normalizeOCRText(matching.join(' '));
-        if (text.isNotEmpty) {
-          candidates.add(
-            _OCRCandidate(
-              text: text,
-              variant: variantIndex,
-              score: _score(text),
-            ),
-          );
+      final matching = <String>[];
+      for (final block in _fullFrameCacheBlocks) {
+        final intersection = target.intersect(block.box);
+        final targetArea = target.width * target.height;
+        final intersectionArea =
+            intersection.width > 0 && intersection.height > 0
+                ? intersection.width * intersection.height
+                : 0.0;
+        final overlap = targetArea <= 0
+            ? 0.0
+            : intersectionArea / targetArea;
+        if (overlap >= 0.08 || target.contains(block.box.center)) {
+          matching.add(block.text);
         }
       }
-
-      if (candidates.isEmpty) return '';
-      candidates.sort((a, b) => b.score.compareTo(a.score));
-      return candidates.first.text;
+      return _normalizeOCRText(matching.join(' '));
     } catch (e) {
       debugPrint('OCR full-frame block matching failed: ' + e.toString());
       return '';
@@ -327,17 +354,12 @@ class OCRService {
   }
 
   img.Image _upscaleForText(img.Image source) {
-    // ML Kit benefits when characters contain enough pixels. We upscale
-    // small sign crops more aggressively, while keeping a hard limit so
-    // mobile OCR does not become excessively slow or memory-heavy.
-    final targetHeight = source.height < 140
-        ? 720
-        : source.height < 220
-            ? 840
-            : source.height < 360
-                ? 960
-                : source.height;
-    final scale = (targetHeight / source.height).clamp(1.0, 4.0).toDouble();
+    final targetHeight = source.height < 180
+        ? 600
+        : source.height < 320
+            ? 720
+            : source.height;
+    final scale = (targetHeight / source.height).clamp(1.0, 3.5).toDouble();
     if (scale <= 1.01) return source;
 
     return img.copyResize(
@@ -351,72 +373,45 @@ class OCRService {
   List<img.Image> _buildVariants(img.Image crop) {
     final gray = img.grayscale(crop);
 
-    // Keep several independent preprocessing paths. Different signboards
-    // fail for different reasons: glare, shadows, low contrast, coloured
-    // backgrounds, small characters, or slightly soft focus.
-    final brighter = img.adjustColor(
-      img.grayscale(crop),
+    // Signboards vary widely: thin decorative lettering, glossy paint,
+    // shadows, bright backgrounds and low-light captures all benefit from
+    // different image preparations. Keep the original in every OCR batch.
+    final softContrast = img.adjustColor(
+      gray,
       contrast: 1.25,
-      brightness: 1.14,
-      gamma: 0.82,
-    );
-
-    final darker = img.adjustColor(
-      img.grayscale(crop),
-      contrast: 1.35,
-      brightness: 0.90,
-      gamma: 1.18,
-    );
-
-    final mediumContrast = img.adjustColor(
-      img.grayscale(crop),
-      contrast: 1.60,
-      brightness: 1.02,
-    );
-
-    final strongContrast = img.adjustColor(
-      img.grayscale(crop),
-      contrast: 2.20,
       brightness: 1.04,
     );
-
-    // A mild 3x3 sharpening pass can restore character edges after camera
-    // compression/resizing without changing the actual words.
-    final sharpened = img.convolution(
-      img.grayscale(crop),
-      <num>[
-        0, -1, 0,
-        -1, 5, -1,
-        0, -1, 0,
-      ],
-      div: 1.0,
+    final mediumContrast = img.adjustColor(
+      gray,
+      contrast: 1.65,
+      brightness: 1.02,
+    );
+    final strongContrast = img.adjustColor(
+      gray,
+      contrast: 2.25,
+      brightness: 1.06,
+    );
+    final darkText = img.adjustColor(
+      gray,
+      contrast: 1.85,
+      brightness: 0.88,
+    );
+    final brightText = img.adjustColor(
+      gray,
+      contrast: 1.75,
+      brightness: 1.16,
     );
 
-    final sharpenedContrast = img.adjustColor(
-      img.convolution(
-        img.grayscale(crop),
-        <num>[
-          0, -1, 0,
-          -1, 5, -1,
-          0, -1, 0,
-        ],
-        div: 1.0,
-      ),
-      contrast: 1.70,
-      brightness: 1.03,
-    );
-
-    // Multi-pass OCR: preserve the original colour image, then try
-    // luminance/brightness/contrast/gamma/sharpened/inverted representations.
+    // Multiple passes help the recognizer with stylized, thin, low-contrast
+    // and light-on-dark fonts without introducing a new native dependency.
     return [
       crop,
       gray,
-      brighter,
-      darker,
+      softContrast,
       mediumContrast,
       strongContrast,
-      sharpened,
-      sharpenedContrast,
+      darkText,
+      brightText,
       img.invert(strongContrast),
     ];
   }
@@ -537,40 +532,6 @@ class OCRService {
     return value;
   }
 
-  bool _isPlausibleOCR(String text) {
-    final value = _cleanText(text);
-    if (value.isEmpty) return false;
-
-    // Reject obvious OCR hallucinations with repeated mixed-case fragments
-    // while preserving normal business names, acronyms, numbers, and Indian
-    // script text.
-    final words = value.split(' ');
-    var suspicious = 0;
-    var asciiWords = 0;
-
-    for (final word in words) {
-      final cleaned = word.replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
-      if (cleaned.isEmpty) continue;
-      asciiWords++;
-
-      if (RegExp(r'[A-Z]{3,}[a-z]+[A-Z]{2,}').hasMatch(cleaned)) {
-        suspicious++;
-        continue;
-      }
-
-      if (cleaned.length >= 10) {
-        final letters = cleaned.replaceAll(RegExp(r'[^A-Za-z]'), '');
-        if (letters.length >= 8) {
-          final vowels = RegExp(r'[AEIOUaeiou]').allMatches(letters).length;
-          if (vowels == 0) suspicious++;
-        }
-      }
-    }
-
-    // One suspicious word may be a genuine brand. Reject only when the
-    // overall Latin OCR is dominated by suspicious fragments.
-    return asciiWords < 3 || suspicious < 2 || suspicious < (asciiWords / 2);
-  }
   bool _isSingleAsciiLetter(String value) {
     if (value.length != 1) return false;
     final code = value.codeUnitAt(0);
