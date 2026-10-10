@@ -581,7 +581,6 @@ EXAMPLES:
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9\u0900-\u097f\u0c80-\u0cff]'), '');
   }
-  }
 
   String _friendlyLabel(String label, String languageCode) {
     final value = label.toLowerCase().replaceAll('_', ' ').trim();
