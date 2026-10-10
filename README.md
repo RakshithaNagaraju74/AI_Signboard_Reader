@@ -430,3 +430,12 @@ SightToSound can use the OCR.Space API's Engine 3 for Kannada, Tamil, Telugu, Hi
 OCR.Space's free plan has monthly limits, including a smaller quota for Engine 3. Cloud OCR requires internet and sends the cropped sign image to OCR.Space. If the API key or network is unavailable, the app falls back to the existing on-device recognizer. API keys embedded in a mobile app can be extracted from a built APK, so use a trusted backend proxy for a public production release. Never commit your personal key to GitHub.
 
 The previous native Tesseract Android dependency has been removed because the configured artifact could not be resolved by Gradle. This avoids that build failure. The GitHub connector cannot execute Flutter or Android builds, so run the commands above on your computer before merging.
+
+
+## Accessible permission prompts and narration
+
+Before Android displays camera, microphone, or location permission dialogs, SightToSound speaks what the permission is for and asks the user to choose Allow. If a permission was permanently denied, the app explains that it must be enabled in Android app settings. Microphone permission is requested when voice commands are used; location permission is requested for location-aware guidance.
+
+Groq narration validation allows useful Latin-script brand names inside otherwise Hindi/Kannada narration instead of rejecting the entire answer. OCR debug wrappers such as `--- OCR Start ---` and `--- OCR End ---` are removed before narration, and the offline fallback avoids reading Latin-heavy OCR fragments as Kannada.
+
+Keep your actual `.env` file private. Add your personal `OCR_SPACE_API_KEY` and optional Groq credentials locally; do not commit real keys to GitHub. OCR.Space sends the selected sign crop to its API, so cloud OCR requires an internet connection. If the API is unavailable, SightToSound falls back to on-device OCR where supported.
