@@ -92,7 +92,7 @@ class PlaceVerificationService {
     // Reverse geocoding on many phones reports 60–100 m accuracy. Permit
     // that range for a tentative map search; the distance is approximate and
     // never proof of the sign's exact physical position.
-    if (location.accuracy > 100) return null;
+    if (location.accuracy > 150) return null;
 
     final query = _correctCommonOCR(_cleanQuery(visibleText));
     if (query.length < 4 || _looksGeneric(query)) return null;
