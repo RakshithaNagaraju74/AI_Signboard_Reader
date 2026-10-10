@@ -718,13 +718,6 @@ EXAMPLES:
   bool _containsKannadaScript(String value) =>
       RegExp(r'[\u0C80-\u0CFF]').hasMatch(value);
 
-  bool _hasDominantKannadaText(String value) {
-    final cleaned = _cleanOcrForNarration(value);
-    final kannada = RegExp(r'[\u0C80-\u0CFF]').allMatches(cleaned).length;
-    final latin = RegExp(r'[A-Za-z]').allMatches(cleaned).length;
-    final total = kannada + latin;
-    return kannada >= 4 && total > 0 && kannada / total >= 0.35;
-  }
 
   String _englishMovement(String value) {
     if (value == 'getting closer') {
