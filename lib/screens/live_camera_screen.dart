@@ -59,6 +59,7 @@ class _LiveCameraScreenState
   String last = '';
   DateTime? _lastNoSignAnnouncement;
   DateTime? _lastLocationAnnouncement;
+  DateTime? _lastProcessingAnnouncement;
 
   AppLanguage language =
       LanguageService.languages.first;
@@ -548,6 +549,21 @@ class _LiveCameraScreenState
     // Track once per frame. OCR is attached to those same contexts so one
     // camera frame does not artificially advance stability twice.
     final preliminary = intel.analyze(raw);
+
+    // Give blind users a short progress cue before slower OCR/Groq work starts.
+    // Rate-limit it so continuous camera frames do not create repeated speech.
+    if (!demo) {
+      final now = DateTime.now();
+      final canAnnounceProgress = _lastProcessingAnnouncement == null ||
+          now.difference(_lastProcessingAnnouncement!) >=
+              const Duration(seconds: 12);
+      if (canAnnounceProgress && preliminary.isNotEmpty) {
+        _lastProcessingAnnouncement = now;
+        if (mounted) setState(() => status = copy('readingSign'));
+        await speak(copy('readingSign'));
+      }
+    }
+
     final ocrLimit = demo ? 6 : 4;
     final ocrKeys = preliminary
         .take(ocrLimit)
@@ -1417,6 +1433,8 @@ class _LiveCameraScreenState
             'वर्तमान GPS स्थान उपलब्ध नहीं है।',
         'analyzingImage':
             'अपलोड की गई तस्वीर का विश्लेषण किया जा रहा है।',
+        'readingSign':
+            'संकेत मिल गया है। मैं उस पर लिखा पाठ पढ़ रहा हूँ। कृपया एक पल स्थिर रहें।',
         'noSigns':
             'कोई स्पष्ट संकेत नहीं मिला।',
         'analysisFailed':
@@ -1493,6 +1511,8 @@ class _LiveCameraScreenState
             'ಪ್ರಸ್ತುತ GPS ಸ್ಥಳ ಲಭ್ಯವಿಲ್ಲ.',
         'analyzingImage':
             'ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ಚಿತ್ರವನ್ನು ವಿಶ್ಲೇಷಿಸಲಾಗುತ್ತಿದೆ.',
+        'readingSign':
+            'ಫಲಕ ಕಂಡುಬಂದಿದೆ. ಅದರ ಮೇಲಿನ ಬರಹವನ್ನು ಓದುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಕ್ಷಣಕಾಲ ಸ್ಥಿರವಾಗಿ ಇರಿ.',
         'noSigns':
             'ಯಾವುದೇ ಸ್ಪಷ್ಟ ಫಲಕ ಕಂಡುಬಂದಿಲ್ಲ.',
         'analysisFailed':
@@ -1577,6 +1597,8 @@ class _LiveCameraScreenState
           'Current GPS location is unavailable.',
       'analyzingImage':
           'Analyzing the uploaded image.',
+      'readingSign':
+          'Signboard detected. I am reading the text now. Please hold the camera steady for a moment.',
       'noSigns':
           'I could not find a clear signboard.',
       'analysisFailed':
