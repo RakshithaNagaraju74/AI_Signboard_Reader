@@ -6,110 +6,124 @@
 
 ### From Sight to Sound. From Sound to Freedom.
 
-**An AI-powered, voice-first signboard reader designed to make everyday visual information more accessible to blind and visually impaired people.**
+**An AI-powered, voice-first signboard reader that helps blind and low-vision users access the information printed on everyday signs.**
 
 [![Flutter](https://img.shields.io/badge/Flutter-Dart-02569B?logo=flutter&logoColor=white)](https://flutter.dev/)
-[![On-device AI](https://img.shields.io/badge/AI-On--device%20inference-6C5CE7)](#how-it-works)
-[![Accessibility](https://img.shields.io/badge/Focus-Accessibility-168B65)](#accessibility-by-design)
-[![License](https://img.shields.io/badge/License-%20MIT-lightgrey)](#license)
+[![On-device inference](https://img.shields.io/badge/Inference-On--device-6C5CE7)](#system-architecture)
+[![Accessibility](https://img.shields.io/badge/Designed%20for-Accessibility-168B65)](#accessibility-by-design)
+[![License](https://img.shields.io/badge/License-MIT-lightgrey)](LICENSE)
 
-[Explore the code](https://github.com/RakshithaNagaraju74/AI_Signboard_Reader) · [Report a bug](https://github.com/RakshithaNagaraju74/AI_Signboard_Reader/issues) · [Request a feature](https://github.com/RakshithaNagaraju74/AI_Signboard_Reader/issues)
+[Repository](https://github.com/RakshithaNagaraju74/AI_Signboard_Reader) · [Issues and feedback](https://github.com/RakshithaNagaraju74/AI_Signboard_Reader/issues)
 
 </div>
 
 ---
 
-## The idea
+## 1. Project overview
 
-A signboard can tell someone where to go, what to avoid, or which service is nearby. For a person who cannot easily read visual signs, that information may be difficult to access independently.
+A signboard can tell someone where a destination is, which direction to follow, whether an area is restricted, or where a public service is located. When that information is available only visually, blind and low-vision people can face an avoidable barrier.
 
-**SightToSound turns signboard imagery into spoken, contextual guidance.** It combines a camera, an on-device sign detector, optical character recognition (OCR), spatial reasoning, speech input and output, and optional AI-assisted narration. The goal is not simply to detect an object: it is to communicate useful information in a way that sounds natural and is easier to act on.
+**SightToSound is a voice-first accessibility prototype that turns signboard images into spoken information and contextual guidance.** It combines an on-device sign detector, multilingual text recognition, relative-position analysis, speech commands, text-to-speech, optional AI narration, and location-aware place lookup.
 
-The project is built with Flutter and is intended for real-world accessibility exploration as well as academic demonstration. It is an assistive aid—not a replacement for a cane, guide dog, accessible pedestrian signals, or a user's own safety judgement.
+The design goal is to communicate *what the sign says*, *where it appears in the camera view*, and—when evidence is sufficient—*whether the text may refer to a known place*. It aims to be useful with minimal interaction, while still offering a visual interface for sighted users, evaluators, and caregivers.
 
-## At a glance
+SightToSound is an assistive aid, not a certified navigation system. It does not replace a cane, guide dog, accessible pedestrian signals, or independent safety judgement.
 
-| | |
+## 2. Project at a glance
+
+| Area | Implementation |
 |---|---|
-| **Application** | SightToSound — AI Signboard Reader |
-| **Platform/framework** | Flutter / Dart |
-| **Primary use** | Spoken sign recognition and situational awareness |
-| **Vision model** | YOLO-style object detector exported to TensorFlow Lite |
-| **Text recognition** | Google ML Kit Text Recognition, with image crop and preprocessing strategies |
-| **Voice** | Speech-to-text commands and text-to-speech narration |
-| **Languages** | English, Hindi, and Kannada UI/voice flows |
-| **Context** | GPS location, reverse-geocoded place names, optional OpenStreetMap/Nominatim place verification |
-| **Optional narration service** | Groq-compatible chat-completions API; local fallback when unavailable |
-| **State and history** | Provider, SharedPreferences |
-| **Current package version** | `2.6.0+10` |
+| App | SightToSound / AI Signboard Reader |
+| Framework | Flutter and Dart |
+| App state | Provider |
+| Sign detection | Bundled TensorFlow Lite model through `flutter_litert` |
+| Local OCR | Google ML Kit Text Recognition, crop expansion, image upscaling and contrast variants |
+| Multilingual OCR | Optional OCR.Space API, Engine 3, with automatic language detection |
+| Indic-script OCR path | OCR.Space is attempted first for Hindi, Kannada, Tamil and Telugu language codes |
+| AI narration | Optional Groq-compatible chat-completions API |
+| Offline/low-connectivity narration | Deterministic local narration fallback |
+| Voice input/output | `speech_to_text` and `flutter_tts` |
+| Location | `geolocator`, `geocoding`, OpenStreetMap Nominatim place lookup |
+| Local persistence | SharedPreferences for preferences and detection history |
+| Version in `pubspec.yaml` | `2.6.0+10` |
 
-> **Project status:** This repository contains an actively developed Flutter application. Device-specific behavior, model quality, language availability, API access, and Android build compatibility should be verified in the target environment before a public release.
+### Current language scope
 
-## What it can do
+- **App language and narration choices:** English, Hindi and Kannada.
+- **OCR language detection:** OCR.Space is configured for automatic language detection and is used for Kannada, Tamil, Telugu and Hindi paths; the service may also be used as a fallback for other scripts or weak local OCR.
+- **Important distinction:** recognizing Tamil or Telugu text does not mean the app currently offers a complete Tamil or Telugu voice-command/onboarding experience. Speech recognition and TTS support also depend on the Android device and its installed language resources.
 
-### 📷 Live signboard reading
-- Uses the device camera to periodically analyze the scene.
-- Runs the bundled TensorFlow Lite model to detect supported sign categories.
-- Draws detection overlays and filters weak/duplicate predictions.
-- Uses tracking across successive frames to reduce unstable or repetitive announcements.
-- Supports an image-upload/demo path so a saved signboard photo can be analyzed through the app.
+## 3. Features
 
-### 🔎 Read the words on a sign
-- Runs OCR on the detected sign region and can fall back to full-image recognition.
-- Expands the crop around the detection to avoid clipping text at the edges.
-- Tries multiple image variants, including upscaling and contrast-oriented preprocessing, then prefers a readable candidate.
-- Combines the detected category with readable sign text when preparing a spoken result.
+### Live camera and saved-image scanning
 
-OCR is best-effort. On-device ML Kit handles supported scripts quickly; when the selected language is Hindi or Kannada, or local results are empty/weak/inconsistent, the app can use OCR.Space Engine 3 with automatic language detection for Kannada, Tamil, Telugu, Hindi, and stylized signboard text. Tamil/Telugu recognition may use the cloud fallback even when the spoken UI language is English. Cloud OCR requires internet, a configured API key, and available free-tier quota. Images sent to OCR.Space leave the device, so configure the service only if that privacy trade-off is acceptable. Blur, glare, low contrast, small text, perspective, occlusion, and font design can still affect results.
+- Opens the device camera and periodically analyzes frames.
+- Detects supported sign categories with the bundled TensorFlow Lite model.
+- Draws bounding-box overlays and exposes readable results in the interface.
+- Supports selecting a saved image for analysis, useful for testing and demonstrations.
+- Tracks detections across frames and applies stability/cooldown logic to reduce repeated announcements.
 
-**Restriction-aware narration:** OCR text is checked for explicit parking restrictions before the narration is accepted. A clear “NO PARKING” phrase takes precedence over the generic detector label, and the Groq response is rejected if it changes or omits that restriction. The local fallback uses the same interpretation, so an OCR result such as “NO PARKING” cannot be narrated as ordinary parking merely because the detector classified the board generically. A lone “P” is not enough evidence to infer a prohibition. This is a rule-based safeguard, not a guarantee that OCR will always capture a small or obscured “NO” or prohibition symbol.
+### Multilingual OCR for real-world signboards
 
-### 🧭 Spatial and temporal guidance
-The live reader estimates where a detected sign appears in the camera frame and describes it using five relative zones:
+A sign can use a regional script, stylized lettering, mixed-language text, or a combination of local and English names. SightToSound therefore uses a layered OCR approach rather than relying on one recognizer for every case.
 
-- **Far left**
-- **Slightly left**
-- **Directly ahead**
-- **Slightly right**
-- **Far right**
+1. **Locate the sign.** Use the detected sign bounding box to extract a region of interest.
+2. **Preserve context.** Expand the crop slightly so edge characters are less likely to be clipped.
+3. **Prepare the image.** Decode and orient the image, enlarge small text, and generate grayscale/contrast-oriented variants.
+4. **Use the appropriate OCR path.** The app keeps Google ML Kit as the fast local recognizer for supported scripts. When the selected OCR language is Hindi, Kannada, Tamil or Telugu, it attempts OCR.Space Engine 3 with automatic language detection on the cropped sign. For other language selections, it tries local OCR first and can ask OCR.Space to help when the local result is empty, weak or inconsistent.
+5. **Compare candidates.** Text candidates are normalized and scored; the app considers results from the sign crop and nearby/full-frame text rather than blindly accepting the first partial result.
+6. **Narrate the result.** OCR text is passed as evidence to the narration layer, alongside the detected sign class and visual context.
 
-It also tracks a sign across frames to infer relative visual changes, such as moving left/right in the frame or appearing larger/smaller. Detection priority can take confidence, relative box area, OCR availability, focus, and safety-related categories into account.
+OCR.Space is an **online service**. It requires an internet connection, a valid `OCR_SPACE_API_KEY`, and available plan quota. The crop is sent to OCR.Space for recognition. If the API key is missing or the request fails, the app attempts the available local OCR path; local script coverage is not equivalent for every language. OCR can still fail on motion blur, glare, low contrast, perspective distortion, tiny lettering, decorative fonts, occlusion, or a poorly framed sign.
 
-**These are visual estimates, not calibrated navigation measurements.** A sign appearing on the left of the camera is not, by itself, an instruction to turn left.
+### Relative position and changing visual context
 
-### 🎯 Focus and scene modes
-- **Focus mode:** the voice command “find sign” prioritizes a visible sign and can provide alignment feedback.
-- **Scene mode:** commands such as “scan surroundings” and “what signs” request a summary of multiple visible signs.
-- Safety-oriented categories can receive higher announcement priority.
-- Cooldowns and stability checks help avoid repeatedly announcing the same unchanged detection.
+The app describes the sign's location in the camera frame using relative zones such as far left, slightly left, directly ahead, slightly right and far right. Tracking can provide cues when a sign shifts in the frame or appears larger/smaller over time.
 
-### 🗣️ Voice-first interaction
-- Offers a first-run language selection flow and remembers the user's preference.
-- Supports English, Hindi, and Kannada language choices for the app's voice flows.
-- Uses speech recognition for supported commands and text-to-speech for announcements.
-- Includes controls/commands for scanning, stopping, repeating information, focusing a sign, scanning the surroundings, checking history, changing language, and requesting navigation context.
-- Queues announcements to reduce speech interruptions.
+These cues describe the **camera view**, not a calibrated compass direction or a reliable physical distance. A sign on the left side of the image is not automatically a command to turn left.
 
-Actual speech-recognition and text-to-speech availability depends on the operating system, installed language packs, device settings, microphone permission, and ambient noise.
+### Focus mode, scene mode and safety prioritization
 
-### 📍 Location-aware context
-- Requests device location when available and can reverse-geocode coordinates into a human-readable place/address.
-- Can save a phone-location snapshot with a detection in history.
-- Can compare readable place/business text against OpenStreetMap/Nominatim search results when location quality and text are sufficient.
-- Can open walking directions for a sufficiently verified destination.
+- **Focus mode:** the user can ask the app to find a sign and receive alignment-oriented feedback.
+- **Scene mode:** the user can request a summary of visible signs.
+- Detection confidence, sign size in the frame, OCR availability, stability and configured safety priority can influence which result is announced.
+- Cooldowns and an announcement queue help reduce duplicate or overlapping speech.
 
-Map matches are supporting evidence, not ground truth. Map coverage, geocoder responses, OCR accuracy, GPS accuracy, and network access vary.
+### Voice-first interaction and spoken permissions
 
-### ✨ Natural narration with a fallback
-The app separates structured detection evidence from the final user-facing narration. When configured, the optional Groq-compatible API can compose a concise spoken explanation using fields such as detected category, OCR text, relative position, motion/proximity cues, safety relevance, and available place context.
+The app offers first-run language selection and remembers the chosen language. It uses speech recognition for supported voice commands and text-to-speech for responses. Permission prompts are preceded by a spoken explanation, where applicable, so the user can hear why Android is about to ask for camera, microphone or location access. If a permission is permanently denied, the app can explain that it must be enabled in system settings.
 
-If the API key is missing, a request fails, or the generated response does not meet the app's language checks, the app can use deterministic local narration instead. **Cloud narration is optional; camera inference and the local narration fallback do not require a Groq API key.**
+The available commands and recognition quality depend on the selected language, the device's speech service, microphone permission, ambient noise and installed language packs. On-screen controls remain available as an alternative.
 
-## Supported sign categories
+### Natural-language narration with local fallback
 
-The bundled label file defines **21 classes**:
+When configured, the Groq-compatible API receives structured evidence such as the predicted sign category, OCR text, relative position, motion/proximity cues, safety relevance and available place context. It is asked to produce concise, user-friendly narration in the selected language.
 
-| # | Class | # | Class |
+The app validates the returned language/script and uses a deterministic local narration path if the API key is absent, a request fails, or the generated answer is unsuitable. OCR wrapper/debug markers are cleaned before narration, and the fallback avoids mixing unnecessary Latin-heavy OCR fragments into Kannada speech where possible.
+
+AI narration is optional. It can improve phrasing, but it can also omit or misinterpret evidence. Treat OCR and AI-generated descriptions as fallible; the recognized sign text should remain the source evidence rather than allowing a language model to invent a destination or safety instruction.
+
+### Location-aware place context
+
+- Requests phone location when the feature is used and permission is available.
+- Reverse-geocodes coordinates into a readable address/place context.
+- Can query OpenStreetMap Nominatim to check whether text read from a sign resembles a known place.
+- Can provide/open directions for a sufficiently verified destination when the app has enough information.
+
+A GPS fix identifies the **phone**, not the signboard. A place-name match is approximate and may be wrong or incomplete. GPS accuracy, map coverage, network availability and OCR quality all affect the result. The app should not state an exact distance to a sign unless it has reliable coordinates for that sign; text on a sign alone is not proof of the sign's physical location.
+
+### Detection history and visual interface
+
+- Saves local detection-history information for later review.
+- Shows detection overlays, status messages, recognized text, relative-position details and available place context.
+- Provides controls for live scanning, uploaded-image analysis, voice commands and safety/focus modes.
+- Uses a high-contrast dark interface with large touch targets and semantic labels as accessibility aids.
+
+## 4. Supported sign categories
+
+The label files configure 21 classes:
+
+| ID | Class | ID | Class |
 |---:|---|---:|---|
 | 0 | Warning sign | 11 | TRA sign |
 | 1 | Construction sign | 12 | Bicycle sign |
@@ -123,244 +137,280 @@ The bundled label file defines **21 classes**:
 | 9 | Public information | 20 | Tactile paving |
 | 10 | MRT sign | | |
 
-These are the categories configured in `assets/models/labels.txt` and `assets/models/classes.json`. Real-world performance depends on the model's training data and the conditions in which a sign is captured; a listed class is not a guarantee of correct recognition.
+The source of truth for class order is `assets/models/labels.txt` and `assets/models/classes.json`. These labels describe the classes the model was configured to predict; they do not guarantee that every real-world sign will be recognized correctly. A model update must preserve the expected tensor format and label ordering.
 
-## How it works
+## 5. System architecture
+
+### End-to-end data flow
 
 ```text
-Camera frame / selected image
-            │
-            ▼
-Image decoding and preprocessing
-            │
-            ▼
-TensorFlow Lite sign detection
-            │
-            ▼
-Confidence filtering + non-maximum suppression
-            │
-            ▼
-Detection tracking and relative-position analysis
-            │
-            ├──────────────► OCR on sign crop / image variants
-            │                         │
-            │                         ▼
-            │              On-device ML Kit (fast path)
-            │                         │
-            │               empty / weak / Indic text
-            │                         ▼
-            │              OCR.Space Engine 3 (cloud)
-            │                         │
-            └─────────────────────────┘
-                                      ▼
-                      OCR cleanup + semantic checks
-                    (including parking restrictions)
-                                      │
-                                      ▼
-                      Optional location/place context
-                                      │
-                                      ▼
-                 Local narration or optional Groq narration
-                                      │
-                                      ▼
-                    Language + safety-meaning validation
-                                      │
-                                      ▼
-                       Spoken guidance + visual results
-                                      │
-                                      ▼
-                    Optional detection history / directions
+┌─────────────────────────────┐
+│ Live camera frame / gallery │
+│ image                       │
+└──────────────┬──────────────┘
+               ▼
+┌─────────────────────────────┐
+│ Decode, orient and prepare  │
+│ image                       │
+└──────────────┬──────────────┘
+               ▼
+┌─────────────────────────────┐
+│ TensorFlow Lite detector    │
+│ class + confidence + box    │
+└──────────────┬──────────────┘
+               ▼
+┌─────────────────────────────┐
+│ Filter detections, suppress │
+│ overlaps, track stable signs│
+└──────────────┬──────────────┘
+               │
+        ┌──────┴────────┐
+        ▼               ▼
+┌───────────────┐ ┌─────────────────────────┐
+│ Relative      │ │ OCR on expanded sign    │
+│ position and  │ │ crop + preprocessed     │
+│ motion cues   │ │ image variants          │
+└───────┬───────┘ └────────────┬────────────┘
+        │                      ▼
+        │         ┌─────────────────────────┐
+        │         │ Indic language selected?│
+        │         └────────────┬────────────┘
+        │                 Yes  │  No
+        │           ┌──────────┴─────────┐
+        │           ▼                    ▼
+        │  ┌────────────────┐  ┌─────────────────┐
+        │  │ OCR.Space      │  │ Google ML Kit   │
+        │  │ Engine 3       │  │ local OCR first │
+        │  │ online OCR     │  │ + cloud fallback│
+        │  └───────┬────────┘  └────────┬────────┘
+        │          └──────────┬─────────┘
+        └─────────────────────┤
+                              ▼
+                 ┌────────────────────────┐
+                 │ Optional location and  │
+                 │ OpenStreetMap place    │
+                 │ verification context   │
+                 └────────────┬───────────┘
+                              ▼
+                 ┌────────────────────────┐
+                 │ Groq narration when    │
+                 │ configured and valid;  │
+                 │ otherwise local text   │
+                 └────────────┬───────────┘
+                              ▼
+                 ┌────────────────────────┐
+                 │ TTS + accessible UI +  │
+                 │ optional local history │
+                 └────────────────────────┘
 ```
 
-### Codebase map
+### Architectural principles
+
+- **Local-first inference:** sign detection runs on the device using the bundled TFLite model.
+- **Hybrid OCR:** local ML Kit recognition avoids network latency for supported scripts; OCR.Space is the cloud route for selected Indic scripts and a fallback for weak local results.
+- **Evidence-aware narration:** the narration layer receives structured sign/OCR/context fields instead of only an unstructured prompt.
+- **Graceful degradation:** missing API configuration or cloud failure should leave the local OCR/narration paths available where supported.
+- **Accessibility before decoration:** voice feedback, permission explanations, queued announcements, readable status and large controls are core interaction paths.
+- **Separate phone and sign location:** GPS is treated as phone context; place lookup is a candidate verification step, not proof.
+
+## 6. Repository structure
 
 | Path | Responsibility |
 |---|---|
-| `lib/main.dart` | App entry point, theme, Provider setup, optional environment loading |
-| `lib/screens/` | Splash/onboarding, home, live camera, gallery, and result screens |
-| `lib/models/detection_result.dart` | Structured detection result model |
-| `lib/models/sign_model.dart` | UI state for selected images, processing, and detections |
-| `lib/services/tflite_service.dart` | Model initialization, image preprocessing, inference, and detection parsing |
-| `lib/services/ocr_service.dart` | OCR, sign-region cropping, image variants, and text selection |
-| `lib/services/detection_intelligence.dart` | Tracking, relative position, stability, priority, and proximity cues |
-| `lib/services/ai_speech_service.dart` | Optional API narration and deterministic fallback |
-| `lib/services/tts_service.dart` | Spoken output |
-| `lib/services/voice_command_service.dart` | Speech recognition and command input |
-| `lib/services/language_service.dart` | Language selection, normalization, and preference persistence |
-| `lib/services/location_service.dart` | GPS, reverse geocoding, and location context |
-| `lib/services/place_verification_service.dart` | Optional OpenStreetMap/Nominatim place matching |
-| `lib/services/history_service.dart` | Local detection-history persistence |
-| `lib/services/announcement_queue_service.dart` | Ordered speech announcements |
-| `lib/widgets/` | Reusable sign cards and detection overlays |
-| `assets/models/best.tflite` | Bundled TensorFlow Lite model |
-| `assets/models/labels.txt` | Model label order |
-| `assets/models/classes.json` | Numeric class-ID mapping |
-| `ai-signboard-reader-with-eval (1).ipynb` | Notebook artifact for model experimentation/evaluation |
-| `assets/images/app_logo.png` | App branding |
-| `test/` | Flutter tests |
-| `.github/workflows/flutter_ci.yml` | Automated analysis, tests, and Android debug build |
+| `lib/main.dart` | App startup, optional `.env` loading, theme and Provider setup |
+| `lib/screens/splash_screen.dart` | Startup/onboarding entry |
+| `lib/screens/live_camera_screen.dart` | Main voice-first camera experience, permissions, language selection, image demo, result narration and controls |
+| `lib/screens/camera_screen.dart` | Camera screen entry/flow |
+| `lib/screens/gallery_screen.dart` | Saved-image selection flow |
+| `lib/screens/home_screen.dart` | Home/navigation UI |
+| `lib/screens/result_screen.dart` | Result presentation |
+| `lib/models/detection_result.dart` | Structured detection result |
+| `lib/models/sign_model.dart` | App state for detections and image processing |
+| `lib/services/tflite_service.dart` | TFLite model loading, image preprocessing, inference and output parsing |
+| `lib/services/ocr_service.dart` | ML Kit OCR, OCR.Space Engine 3 requests, sign crops, image variants, normalization, scoring and fallback |
+| `lib/services/detection_intelligence.dart` | Detection tracking, relative position, proximity/movement cues, prioritization and stability |
+| `lib/services/ai_speech_service.dart` | Optional Groq API narration, language checks, OCR cleanup and local fallback narration |
+| `lib/services/tts_service.dart` | Text-to-speech output |
+| `lib/services/voice_command_service.dart` | Speech recognition lifecycle and command capture |
+| `lib/services/language_service.dart` | Supported app language choices and saved preference |
+| `lib/services/location_service.dart` | Phone GPS, reverse geocoding and location snapshot |
+| `lib/services/place_verification_service.dart` | Nominatim place-name verification and destination context |
+| `lib/services/history_service.dart` | Local detection history |
+| `lib/services/announcement_queue_service.dart` | Ordered/priority speech announcements |
+| `lib/widgets/detection_overlay.dart` | Bounding-box visualization |
+| `lib/widgets/sign_card.dart` | Reusable sign-result UI |
+| `assets/models/best.tflite` | Bundled sign detection model |
+| `assets/models/labels.txt` | Label ordering |
+| `assets/models/classes.json` | Numeric class-to-label mapping |
+| `assets/models/best.pt` | Model artifact used during development |
+| `assets/images/app_logo.png` | App logo |
+| `android/app/src/main/AndroidManifest.xml` | Android app/platform declarations |
+| `android/app/build.gradle.kts` | Android application build configuration and ML Kit dependency |
+| `.env.example` | Placeholder configuration for optional APIs |
+| `test/widget_test.dart` | Flutter widget test |
+| `.github/workflows/flutter_ci.yml` | CI checks for analysis, tests and Android debug build |
+| `LICENSE` | Project license |
 
-## Technology stack
+## 7. Technology stack
 
-- **Flutter + Dart** — cross-platform application UI and application logic.
-- **TensorFlow Lite via `flutter_litert`** — local sign-detection inference.
-- **Google ML Kit Text Recognition** — fast on-device OCR for supported scripts.
-- **OCR.Space Engine 3 (optional cloud fallback)** — multilingual OCR for Kannada, Tamil, Telugu, Hindi, and difficult/stylized text when local recognition is empty or weak.
-- **Camera and image-picker plugins** — live frames and image selection.
-- **Flutter TTS + speech-to-text** — spoken output and voice commands.
-- **Geolocator + Geocoding** — location retrieval and human-readable place information.
-- **OpenStreetMap Nominatim** — optional place-name lookup for verification context.
-- **Provider + SharedPreferences** — state management and saved preferences/history.
-- **Optional Groq-compatible API** — AI-assisted natural narration.
-- **GitHub Actions** — Flutter quality checks and Android debug-build verification.
+- **Flutter / Dart:** app UI and application logic.
+- **`flutter_litert` + TensorFlow Lite:** local sign detection.
+- **Google ML Kit Text Recognition:** local OCR for supported scripts.
+- **OCR.Space Engine 3:** optional online multilingual OCR with automatic language detection.
+- **Camera / image picker / image package:** frame capture, saved-image input and image preprocessing.
+- **`speech_to_text` + `flutter_tts`:** voice commands and spoken feedback.
+- **Geolocator + Geocoding:** phone position and reverse-geocoded address.
+- **OpenStreetMap Nominatim:** optional text-based place lookup.
+- **Groq-compatible chat-completions API:** optional natural-language narration.
+- **Provider + SharedPreferences:** state management and local persistence.
+- **GitHub Actions:** automated quality checks.
 
-## Getting started
+## 8. Getting started
 
-### 1. Install the prerequisites
+### Prerequisites
 
-Install the following on your development machine:
+Install:
 
-- [Flutter SDK (stable channel)](https://docs.flutter.dev/get-started/install)
-- [Android Studio](https://developer.android.com/studio) or Android SDK command-line tools
-- Android SDK / platform tools and a compatible JDK (Java 17 is used by the Android build configuration)
-- A physical Android device with developer options and USB debugging enabled, or an Android emulator with camera support
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) on the stable channel.
+- [Android Studio](https://developer.android.com/studio) or Android SDK command-line tools.
+- Android SDK/platform tools and a compatible JDK. The Android app build targets Java 17.
+- A physical Android device with developer options and USB debugging enabled, or an emulator with camera support.
 
-Check the setup:
+Verify the development environment:
 
 ```powershell
 flutter doctor
 flutter --version
 ```
 
-### 2. Clone the repository
+### Clone and install
 
 ```powershell
 git clone https://github.com/RakshithaNagaraju74/AI_Signboard_Reader.git
 cd AI_Signboard_Reader
-```
-
-### 3. Install dependencies
-
-```powershell
 flutter pub get
 ```
 
-The model and its label files are expected at the paths already declared in `pubspec.yaml`. If you replace the model, make sure the input/output tensor shapes and class ordering still match the assumptions in `lib/services/tflite_service.dart`.
+The model and label assets are referenced in `pubspec.yaml`. If replacing the model, verify its input/output tensor layout and label ordering against `lib/services/tflite_service.dart`.
 
-### 4. Configure optional AI narration
+### Configure optional APIs
 
-The app reads these variables from a local `.env` file:
-
-```dotenv
-GROQ_API_KEY=your_groq_api_key
-GROQ_MODEL=openai/gpt-oss-20b
-GROQ_BASE_URL=https://api.groq.com/openai/v1
-```
-
-Copy the example configuration into a local `.env` file:
+Create a local `.env` file from the template:
 
 ```powershell
 Copy-Item .env.example .env
 notepad .env
 ```
 
-Replace `your_groq_api_key` with your own key. The checked-in `.env.example` contains placeholders only. The app loads `.env` on startup; a configured key is **not** required to launch the app or use the local fallback narration.
+Configure only the services you intend to use:
 
-**Security:** `.env` is intended to remain local and is gitignored. Never commit an API key, paste it into screenshots/logs, or ship a private provider key inside a production APK. For a public production release, move authenticated AI requests behind a trusted backend. If you use `--dart-define` for local experiments, remember that compile-time values embedded in a client app are not a secure secret store.
+```dotenv
+# Optional natural-language narration
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=openai/gpt-oss-20b
+GROQ_BASE_URL=https://api.groq.com/openai/v1
 
-### 5. Run on a device
+# Optional multilingual OCR
+OCR_SPACE_API_KEY=your_ocr_space_api_key
+```
 
-Connect an Android device, accept its USB debugging prompt, and run:
+#### OCR.Space setup
+
+1. Request a key from the [OCR.Space free API page](https://ocr.space/ocrapi/freekey).
+2. Put it in the local `.env` as `OCR_SPACE_API_KEY=...`.
+3. Make sure the app has internet access and run it again.
+
+The key is optional: without it, the app skips cloud OCR and uses local recognition where supported. OCR.Space free-plan quota and Engine 3 availability can change; check the provider's current terms and limits. Do not assume unlimited requests.
+
+#### Groq setup
+
+Set `GROQ_API_KEY` and, if needed, `GROQ_MODEL` / `GROQ_BASE_URL`. When the key is missing or a request is rejected, the local narration fallback is used.
+
+**API-key security:** this is a student/demo client configuration. The app bundles `.env` as an asset for runtime loading, so any real key packaged into a mobile build may be extracted from the APK. Never commit your actual `.env` file to GitHub. For a public release, route authenticated API requests through a backend you control, apply quotas, and avoid distributing provider secrets inside the app. Cloud OCR sends the selected sign crop to OCR.Space; Groq receives the structured data needed to create narration.
+
+### Run on Android
 
 ```powershell
 flutter devices
 flutter run
 ```
 
-For verbose diagnostics:
+If Gradle or Flutter reports a build error, fix the first actionable error before chasing secondary warnings. Some dependencies may emit Gradle/Kotlin migration or Android SDK metadata warnings; these warnings are not necessarily the cause of a failed build.
 
-```powershell
-flutter run -v
-```
-
-The first run may take longer while Gradle downloads dependencies and Flutter builds the native Android components.
-
-### 6. Build a debug APK
+### Build a debug APK
 
 ```powershell
 flutter build apk --debug
 ```
 
-The output is normally written to:
+Expected output:
 
 ```text
 build/app/outputs/flutter-apk/app-debug.apk
 ```
 
-This is a **debug build**, not a signed production release. A production build needs an appropriate release-signing configuration and release testing.
+This is a debug APK, not a signed production release.
 
-## Using the app
+## 9. Using the app
 
-1. Launch SightToSound and complete the language selection when prompted.
-2. Grant camera permission to start live scanning.
-3. Grant microphone permission when using voice commands.
-4. Grant location permission only if you want location-aware context and history.
-5. Point the camera toward a signboard and hold the phone reasonably steady while it is analyzed.
-6. Listen to the spoken summary and use the on-screen result/controls for more context.
-7. Use the saved-image/demo flow to analyze an existing photo.
-8. Try supported voice commands such as **“find sign,” “scan surroundings,”** or **“what signs.”** Exact command recognition depends on the selected language and device speech engine.
-9. Use navigation links only as an additional aid and independently verify the route and surroundings.
+1. Launch the app and select English, Hindi or Kannada when first prompted.
+2. Allow camera access when the app explains that permission is needed to read signs.
+3. Allow microphone access if you want to issue voice commands.
+4. Allow location access if you want phone-location context, place verification or location-aware history.
+5. Aim the camera at a sign and keep the phone as steady as practical.
+6. Listen to the spoken result. If text is missing or incomplete, move closer, improve lighting, reduce glare, and keep the full sign inside the camera frame.
+7. Use image selection to test saved signboard photographs.
+8. Try supported commands such as **“find sign,” “scan surroundings,”** and **“what signs.”** The exact set recognized depends on language and device speech support.
+9. Treat any suggested place match or direction as additional context, and independently verify the physical route.
 
-## Accessibility by design
+## 10. Accessibility by design
 
-SightToSound aims to make its own interface easier to use with spoken interaction and clear controls:
+Accessibility affects both the user experience and the system architecture:
 
-- Language selection is available during onboarding and can be revisited.
-- Important detections can be spoken without requiring the user to read raw class IDs or confidence values.
-- Announcements are prioritized and queued to reduce overlapping speech.
-- Repeated detections are stabilized and rate-limited where possible.
-- Safety-relevant classes can receive higher priority.
-- A local narration fallback helps retain core spoken feedback when the optional AI service is unavailable.
+- Spoken onboarding/permission explanations reduce dependence on reading dialogs.
+- Language choice is saved so users do not need to repeat onboarding every time.
+- Large controls, high contrast, semantic labels and visible detection status support touch and screen-reader use.
+- Priority queuing helps prevent overlapping announcements.
+- Detection stability/cooldowns help avoid repeatedly announcing the same unchanged sign.
+- The local narration path provides useful feedback when the optional AI service is unavailable.
+- Saved-image analysis supports repeatable testing without requiring the user to stand in front of a sign during every demo.
 
-Accessibility is an ongoing engineering goal, not a claim of certification. Please test with screen readers, different speech engines, varied lighting and outdoor noise, and feedback from blind and low-vision users before relying on the app in unfamiliar environments.
+These features are design intentions and implementation aids, not a claim of accessibility certification. Testing with blind and low-vision users, Android TalkBack, different speech engines, outdoor noise and varied lighting is still essential.
 
-## Safety, privacy, and known limitations
+## 11. Privacy, safety and limitations
 
-This project is an assistive prototype and can make mistakes. Keep these limitations in mind:
+SightToSound is a prototype and can misread signs or provide incomplete context.
 
-- **Not a certified navigation or obstacle-avoidance system.** Never rely on the app alone when crossing roads, navigating traffic, or identifying hazards.
-- **Relative position is camera-frame position.** It is not a compass bearing, road direction, or instruction to turn.
-- **No exact distance is inferred from bounding-box size.** Apparent size changes provide only relative visual cues unless a calibrated depth source is added.
-- **GPS locates the phone, not necessarily the sign.** Phone coordinates do not prove a sign's exact location, direction, or distance.
-- **OCR and object detection can be wrong.** Low confidence, clutter, blur, glare, and unfamiliar signs can produce incorrect or incomplete results.
-- **Place verification is approximate.** Nominatim results can be missing or outdated and should not override what is physically present.
-- **Network features need connectivity.** Optional AI narration and online place lookup may fail offline or be rate-limited.
-- **Device permissions matter.** Camera, microphone, and location functionality depends on permissions and system settings.
-- **Language support is device-dependent.** The app can request a language, but the operating system must provide compatible recognition and synthesis resources.
-- **Location and history are sensitive.** The app may store detection text and phone coordinates locally. Review permissions and stored history before sharing a device or diagnostic data.
+- **Not a certified navigation or obstacle-avoidance system.** Do not rely on it alone around traffic, road crossings or hazards.
+- **OCR can be wrong.** Always treat recognized wording as a candidate reading, especially for restrictions, warnings, names and numbers.
+- **Object detection is limited to its trained classes.** A sign not represented in the model may not be detected or may be assigned the wrong class.
+- **Camera-relative position is not a turn instruction.** The position label describes the image, not the street layout.
+- **No reliable physical distance to a sign is inferred from bounding-box size.** A verified map destination and signboard location coordinates would be required for a defensible distance estimate.
+- **GPS refers to the phone.** It does not automatically reveal where the photographed sign is installed.
+- **Place-name verification is approximate.** OCR text can contain spelling errors, and Nominatim may return a similar but incorrect location.
+- **Cloud features require network access.** OCR.Space, Groq and online place lookup can fail, time out or hit quota limits.
+- **Cloud data handling:** OCR.Space receives the sign crop sent for OCR; the configured narration API receives the structured detection/context data it needs. Do not scan sensitive documents or private information without considering provider policies.
+- **API keys in client apps are not secrets.** Keep real keys out of source control and use a trusted backend for production.
+- **Permissions are user-controlled.** Camera, microphone and location features depend on Android permissions and system settings.
+- **Speech support varies by device.** Recognition and synthesis depend on installed language packs, engine quality, settings and ambient noise.
+- **History and location are sensitive.** Review stored history before sharing a device or diagnostic logs.
 
-### Data and network notes
+### Data-flow summary
 
-- The TensorFlow Lite model is bundled with the app and used for local inference.
-- Optional AI narration sends structured detection/context data to the configured API provider when enabled.
-- Place verification sends a text query to OpenStreetMap Nominatim when the feature is used.
-- Location services and reverse geocoding may use platform services.
-- Local preferences and detection history are stored using SharedPreferences.
+| Data | Where it is processed |
+|---|---|
+| Camera/image input | On device for sign detection and preprocessing |
+| Sign category and bounding box | On-device TFLite inference |
+| OCR image crop | Sent to OCR.Space only when cloud OCR is attempted and configured |
+| Narration context | Sent to the configured Groq-compatible API when AI narration is enabled |
+| Phone coordinates | Obtained through location services; may be reverse-geocoded or used for place context |
+| Preferences and detection history | Stored locally using SharedPreferences |
 
-Configure only the permissions and external services you need. Do not submit personal location history or API credentials in bug reports.
+## 12. Testing and continuous integration
 
-## Testing and continuous integration
+The repository contains a GitHub Actions workflow at `.github/workflows/flutter_ci.yml` configured to run Flutter dependency resolution, static analysis, tests and an Android debug build on the configured branch events.
 
-The repository includes a GitHub Actions workflow at `.github/workflows/flutter_ci.yml`. On pushes and pull requests targeting `main`, it is configured to:
-
-1. Set up Flutter stable.
-2. Create an empty optional API configuration for CI.
-3. Run `flutter pub get`.
-4. Run `flutter analyze`.
-5. Run `flutter test`.
-6. Build an Android debug APK.
-
-You can run the same core checks locally:
+Run the checks locally before submitting a change:
 
 ```powershell
 flutter pub get
@@ -369,48 +419,41 @@ flutter test
 flutter build apk --debug
 ```
 
-Passing static analysis or a debug build does not prove the app is accurate or safe in every environment. Test on real devices and representative signboards as well.
+Automated checks cannot establish real-world OCR accuracy or navigation safety. Also test on a physical Android device with representative English, Kannada, Hindi, Tamil and Telugu signboard photos, including different fonts, lighting, angles and image sizes. Test both with and without API keys/network access to verify fallback behavior.
 
-## Working on the project
+## 13. Working on the project
 
-Useful places to start:
+| Goal | Start here |
+|---|---|
+| Change sign detection/model parsing | `lib/services/tflite_service.dart` |
+| Change OCR behavior, OCR.Space request or image preprocessing | `lib/services/ocr_service.dart` |
+| Change narration prompts, response checks or local fallback | `lib/services/ai_speech_service.dart` |
+| Tune tracking, relative position and announcement stability | `lib/services/detection_intelligence.dart` |
+| Adjust voice command capture | `lib/services/voice_command_service.dart` |
+| Add/adjust app language settings | `lib/services/language_service.dart` |
+| Change speech output | `lib/services/tts_service.dart` |
+| Change GPS or reverse geocoding | `lib/services/location_service.dart` |
+| Adjust map-place verification | `lib/services/place_verification_service.dart` |
+| Change saved detection history | `lib/services/history_service.dart` |
+| Change announcement ordering | `lib/services/announcement_queue_service.dart` |
+| Change bounding-box UI | `lib/widgets/detection_overlay.dart` |
+| Change result cards | `lib/widgets/sign_card.dart` |
 
-- **Change detection behavior:** `lib/services/tflite_service.dart`
-- **Improve text extraction:** `lib/services/ocr_service.dart`
-- **Tune relative positioning and announcement stability:** `lib/services/detection_intelligence.dart`
-- **Adjust voice commands and language handling:** `lib/services/voice_command_service.dart`, `lib/services/language_service.dart`
-- **Modify narration:** `lib/services/ai_speech_service.dart`
-- **Update the sign taxonomy:** update the model, `assets/models/labels.txt`, and `assets/models/classes.json` together, then validate the output shape and class order.
-- **Update app branding:** replace `assets/images/app_logo.png` and regenerate launcher assets if necessary.
+When changing the detector, update the model and both label files together and verify the tensor shapes and class order. When changing OCR, test both crop and full-frame paths and verify behavior when the API key is missing, the network fails, and the OCR result is empty. When changing narration, ensure that sign text, negation (for example, “no parking”), names and safety wording are not dropped or reversed.
 
-For changes to the model, verify the expected `[1, 416, 416, 3]` float32 input and the model output layout expected by the parser. A label-order mismatch can silently make otherwise valid detections appear as the wrong class.
+## 14. Contributing
 
-## Contributing
+Bug reports, implementation contributions and accessibility feedback are welcome.
 
-Contributions, bug reports, accessibility feedback, and ideas are welcome.
+1. Open an issue with a clear description and reproduction steps.
+2. Make changes on a focused branch.
+3. Run analysis, tests and an Android debug build where possible.
+4. Test the change on a device and include OS/device details.
+5. Never attach API keys, personal addresses, private location history or sensitive camera images to issues.
 
-1. Open an issue describing the problem or proposal.
-2. Create a focused branch for your change.
-3. Keep changes scoped and explain any model, platform, or permission implications.
-4. Run analysis and tests, and build the Android debug APK when relevant.
-5. Include device/OS details and reproducible steps in bug reports—never include API keys or private location data.
+## 15. License
 
-## Roadmap ideas
-
-Potential areas for future work include:
-
-- Broader real-world evaluation across lighting, angles, sign types, and distances.
-- More robust OCR for additional scripts and languages.
-- Better accessibility testing with blind and low-vision participants.
-- Improved on-device performance and power usage.
-- A safer backend architecture for production AI narration.
-- Clearer model evaluation metrics, sample demonstrations, and release packaging.
-
-These are possible directions, not promises about current functionality.
-
-## License
-
-This project is licensed under the MIT License.
+This project is distributed under the [MIT License](LICENSE).
 
 ---
 
@@ -419,40 +462,6 @@ This project is licensed under the MIT License.
 **SightToSound**  
 *From Sight to Sound. From Sound to Freedom.*
 
-Built to make visual information more accessible—one sign at a time.
+**Technology should make the world more accessible—not add another barrier.**
 
 </div>
-
-
-## Multilingual OCR with OCR.Space
-
-SightToSound can use the OCR.Space API's Engine 3 for Kannada, Tamil, Telugu, Hindi, and stylized signboard text. Engine 3 supports more than 200 languages and is the cloud OCR path for these Indic scripts. English and other supported Latin-language scans continue using fast on-device OCR first, with OCR.Space as a fallback when local text is empty or weak. Images are cropped and enlarged locally before upload.
-
-### Configure the API key
-
-1. Get a key from [OCR.Space's free API page](https://ocr.space/ocrapi/freekey).
-2. Copy `.env.example` to `.env` if you do not already have one:
-   ```powershell
-   Copy-Item .env.example .env
-   notepad .env
-   ```
-3. Set `OCR_SPACE_API_KEY=your_real_key` in your local `.env` file. Keep the key private and do not commit `.env`.
-4. Run:
-   ```powershell
-   flutter pub get
-   flutter clean
-   flutter run
-   ```
-
-OCR.Space's free plan has monthly limits, including a smaller quota for Engine 3. Cloud OCR requires internet and sends the cropped sign image to OCR.Space. If the API key or network is unavailable, the app falls back to the existing on-device recognizer. API keys embedded in a mobile app can be extracted from a built APK, so use a trusted backend proxy for a public production release. Never commit your personal key to GitHub.
-
-The previous native Tesseract Android dependency has been removed because the configured artifact could not be resolved by Gradle. This avoids that build failure. The GitHub connector cannot execute Flutter or Android builds, so run the commands above on your computer before merging.
-
-
-## Accessible permission prompts and narration
-
-Before Android displays camera, microphone, or location permission dialogs, SightToSound speaks what the permission is for and asks the user to choose Allow. If a permission was permanently denied, the app explains that it must be enabled in Android app settings. Microphone permission is requested when voice commands are used; location permission is requested for location-aware guidance.
-
-Groq narration validation allows useful Latin-script brand names inside otherwise Hindi/Kannada narration instead of rejecting the entire answer. OCR debug wrappers such as `--- OCR Start ---` and `--- OCR End ---` are removed before narration, and the offline fallback avoids reading Latin-heavy OCR fragments as Kannada.
-
-Keep your actual `.env` file private. Add your personal `OCR_SPACE_API_KEY` and optional Groq credentials locally; do not commit real keys to GitHub. OCR.Space sends the selected sign crop to its API, so cloud OCR requires an internet connection. If the API is unavailable, SightToSound falls back to on-device OCR where supported.
