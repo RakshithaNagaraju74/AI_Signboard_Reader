@@ -15,6 +15,47 @@ String _cleanOcrForNarration(String value) {
       .trim();
 }
 
+/// Resolve explicit parking restrictions from OCR before asking an LLM to narrate.
+/// The negative phrase must be checked first because "no parking" contains "parking".
+String? _parkingMeaning(String label, String text) {
+  final source = '$label $text'
+      .toLowerCase()
+      .replaceAll('_', ' ')
+      .replaceAll(RegExp(r'[–—-]+'), ' ')
+      .replaceAll(RegExp(r'\\s+'), ' ')
+      .trim();
+
+  final noParking = RegExp(
+    r'\\bno\\s+parking\\b|\\bdo\\s+not\\s+park\\b|\\bno\\s+park\\b|'
+    r'ನೋ\\s*ಪಾರ್ಕಿಂಗ್|ಪಾರ್ಕಿಂಗ್\\s*ನಿಷೇಧ|ಪಾರ್ಕಿಂಗ್\\s*ಮಾಡಬೇಡಿ|'
+    r'नो\\s*पार्किंग|पार्किंग\\s*निषेध|पार्किंग\\s*मना',
+    caseSensitive: false,
+  );
+  if (noParking.hasMatch(source)) return 'no_parking';
+
+  final positiveParking = RegExp(
+    r'\\bparking\\b|\\bpark\\b|ಪಾರ್ಕಿಂಗ್|पार्किंग',
+    caseSensitive: false,
+  );
+  if (positiveParking.hasMatch(source)) return 'parking';
+  return null;
+}
+
+bool _outputClearlySaysNoParking(String text, String languageCode) {
+  final value = text.toLowerCase();
+  if (languageCode == 'kn') {
+    return RegExp(
+      r'ನೋ\\s*ಪಾರ್ಕಿಂಗ್|ಪಾರ್ಕಿಂಗ್\\s*ನಿಷೇಧ|ಪಾರ್ಕಿಂಗ್\\s*ಮಾಡಬೇಡಿ',
+    ).hasMatch(value);
+  }
+  if (languageCode == 'hi') {
+    return RegExp(r'नो\\s*पार्किंग|पार्किंग\\s*निषेध|पार्किंग\\s*मना')
+        .hasMatch(value);
+  }
+  return RegExp(r'\\bno[ -]parking\\b|\\bdo not park\\b|\\bno park\\b')
+      .hasMatch(value);
+}
+
 class SpeechDetectionInput {
   final String label;
   final String position;
@@ -42,7 +83,10 @@ class SpeechDetectionInput {
     return {
       'sign': label,
       'position': position,
-      if (_cleanOcrForNarration(text).isNotEmpty) 'visible_text': _cleanOcrForNarration(text),
+      if (_parkingMeaning(label, text) != null)
+        'interpreted_sign_meaning': _parkingMeaning(label, text),
+      if (_cleanOcrForNarration(text).isNotEmpty)
+        'visible_text': _cleanOcrForNarration(text),
       'detector_confidence': confidence,
       if (movement.isNotEmpty) 'movement': movement,
       if (proximity.isNotEmpty) 'proximity': proximity,
@@ -118,12 +162,19 @@ class AISpeechService {
 
       if (generated != null && generated.trim().isNotEmpty) {
         final cleaned = _clean(generated);
-        if (_matchesRequestedLanguage(cleaned, languageCode)) {
+        final correctLanguage = _matchesRequestedLanguage(cleaned, languageCode);
+        final correctParkingMeaning =
+            _preservesParkingMeaning(cleaned, detections, languageCode);
+        if (correctLanguage && correctParkingMeaning) {
           _debug('Groq response ACCEPTED -> language=$languageCode, chars=${cleaned.length}');
           _debug('FINAL SPOKEN RESULT -> $cleaned');
           return cleaned;
         }
-        _debug('Groq response REJECTED -> wrong language/script for $languageCode');
+        if (!correctLanguage) {
+          _debug('Groq response REJECTED -> wrong language/script for $languageCode');
+        } else {
+          _debug('Groq response REJECTED -> parking meaning contradicted or omitted');
+        }
 
         // One translation-only retry prevents a useful sign name from being
         // lost when the first narration mixes too much English into Kannada/Hindi.
@@ -275,6 +326,9 @@ IMPORTANT EVIDENCE MODEL:
 - If OCR is noisy or contradictory, prefer the detector category plus the reliable OCR fragments instead of inventing a complete sentence from uncertain text.
 - Example: if OCR looks like "AOne Advertising siNEOARIndNTR BUTIK dya DIMILLI LEYVTEO", do not repeat that string. At most use the clearly recognizable "Advertising" if the sign context supports it; otherwise describe it as a business/shop sign.
 - Read the sign as a whole. For example, "P", "NO", "PARKING", "50M", arrows, and restriction symbols can change the meaning when they occur together.
+- If an input includes "interpreted_sign_meaning": "no_parking", that deterministic interpretation is authoritative: say NO PARKING in the requested language. Never shorten it to parking or omit the restriction.
+- If "interpreted_sign_meaning" is "parking", say parking only; do not invent a prohibition.
+- Negation has safety priority. Never infer parking permission/prohibition from the letter "P" alone; a readable NO / prohibition phrase must be present to say no parking.
 - "proximity" is an estimated relation to the camera. A number such as 50M inside visible_text is NOT the distance from the user.
 - Never say a sign is 50 metres away merely because the sign contains 50M. Only use a distance when explicitly supplied by proximity or guidance.
 
@@ -554,6 +608,9 @@ EXAMPLES:
   ) {
     final sorted = [...detections]
       ..sort((a, b) {
+        final aNoParking = _parkingMeaning(a.label, a.text) == 'no_parking';
+        final bNoParking = _parkingMeaning(b.label, b.text) == 'no_parking';
+        if (aNoParking != bNoParking) return aNoParking ? -1 : 1;
         if (a.safety != b.safety) return a.safety ? -1 : 1;
         if (a.confidence != b.confidence) {
           return b.confidence.compareTo(a.confidence);
@@ -580,6 +637,35 @@ EXAMPLES:
     return _cleanOcrForNarration(value)
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9\u0900-\u097f\u0c80-\u0cff]'), '');
+  }
+
+  String _resolvedLabel(SpeechDetectionInput input) {
+    final parking = _parkingMeaning(input.label, input.text);
+    if (parking == 'no_parking') return 'no parking';
+    if (parking == 'parking') return 'parking';
+    return input.label;
+  }
+
+  bool _preservesParkingMeaning(
+    String narration,
+    List<SpeechDetectionInput> detections,
+    String languageCode,
+  ) {
+    final hasNoParking = detections.any(
+      (item) => _parkingMeaning(item.label, item.text) == 'no_parking',
+    );
+    if (hasNoParking) {
+      // Do not let a fluent but unsafe AI paraphrase erase the prohibition.
+      return _outputClearlySaysNoParking(narration, languageCode);
+    }
+
+    final hasPositiveParking = detections.any(
+      (item) => _parkingMeaning(item.label, item.text) == 'parking',
+    );
+    if (hasPositiveParking && _outputClearlySaysNoParking(narration, languageCode)) {
+      return false;
+    }
+    return true;
   }
 
   String _friendlyLabel(String label, String languageCode) {
@@ -613,7 +699,7 @@ EXAMPLES:
     SpeechDetectionInput e,
   ) {
     var result =
-        '${_friendlyLabel(e.label, 'en')} ${e.position}';
+        '${_friendlyLabel(_resolvedLabel(e), 'en')} ${e.position}';
 
     if (e.guidance.isNotEmpty) {
       result += '. ${e.guidance}';
@@ -623,7 +709,8 @@ EXAMPLES:
       result += '. ${e.placeContext}';
     }
 
-    if (_cleanOcrForNarration(e.text).isNotEmpty) {
+    if (_parkingMeaning(e.label, e.text) == null &&
+        _cleanOcrForNarration(e.text).isNotEmpty) {
       result +=
           ', with the text "${_cleanOcrForNarration(e.text)}"';
     }
@@ -643,7 +730,7 @@ EXAMPLES:
     SpeechDetectionInput e,
   ) {
     var result =
-        '${_friendlyLabel(e.label, 'hi')} ${_hindiPosition(e.position)}';
+        '${_friendlyLabel(_resolvedLabel(e), 'hi')} ${_hindiPosition(e.position)}';
 
     if (e.guidance.isNotEmpty) {
       result += '। ${e.guidance}';
@@ -653,7 +740,8 @@ EXAMPLES:
       result += '। ${e.placeContext}';
     }
 
-    if (_cleanOcrForNarration(e.text).isNotEmpty) {
+    if (_parkingMeaning(e.label, e.text) == null &&
+        _cleanOcrForNarration(e.text).isNotEmpty) {
       result +=
           ', जिस पर "${_cleanOcrForNarration(e.text)}" लिखा है';
     }
@@ -672,8 +760,9 @@ EXAMPLES:
   String _kannadaItem(
     SpeechDetectionInput e,
   ) {
-    final readableText = _usefulSignText(e.text);
-    var result = _friendlyLabel(e.label, 'kn');
+    final parkingMeaning = _parkingMeaning(e.label, e.text);
+    final readableText = parkingMeaning == null ? _usefulSignText(e.text) : '';
+    var result = _friendlyLabel(_resolvedLabel(e), 'kn');
 
     // The sign's readable name/text is the primary information. Position
     // guidance is secondary and must not cause OCR names to be discarded.
