@@ -60,7 +60,9 @@ The project is built with Flutter and is intended for real-world accessibility e
 - Tries multiple image variants, including upscaling and contrast-oriented preprocessing, then prefers a readable candidate.
 - Combines the detected category with readable sign text when preparing a spoken result.
 
-OCR is best-effort. On-device ML Kit handles supported scripts quickly; when the selected language is Hindi or Kannada, or local results are weak/inconsistent, the app can use OCR.Space Engine 3 with automatic language detection for Kannada, Tamil, Telugu, Hindi, and stylized signboard text. Tamil/Telugu recognition may use the cloud fallback even when the spoken UI language is English. Cloud OCR requires internet, a configured API key, and available free-tier quota. Blur, glare, low contrast, small text, perspective, occlusion, and font design can still affect results.
+OCR is best-effort. On-device ML Kit handles supported scripts quickly; when the selected language is Hindi or Kannada, or local results are empty/weak/inconsistent, the app can use OCR.Space Engine 3 with automatic language detection for Kannada, Tamil, Telugu, Hindi, and stylized signboard text. Tamil/Telugu recognition may use the cloud fallback even when the spoken UI language is English. Cloud OCR requires internet, a configured API key, and available free-tier quota. Images sent to OCR.Space leave the device, so configure the service only if that privacy trade-off is acceptable. Blur, glare, low contrast, small text, perspective, occlusion, and font design can still affect results.
+
+**Restriction-aware narration:** OCR text is checked for explicit parking restrictions before the narration is accepted. A clear “NO PARKING” phrase takes precedence over the generic detector label, and the Groq response is rejected if it changes or omits that restriction. The local fallback uses the same interpretation, so an OCR result such as “NO PARKING” cannot be narrated as ordinary parking merely because the detector classified the board generically. A lone “P” is not enough evidence to infer a prohibition. This is a rule-based safeguard, not a guarantee that OCR will always capture a small or obscured “NO” or prohibition symbol.
 
 ### 🧭 Spatial and temporal guidance
 The live reader estimates where a detected sign appears in the camera frame and describes it using five relative zones:
@@ -142,12 +144,26 @@ Detection tracking and relative-position analysis
             │
             ├──────────────► OCR on sign crop / image variants
             │                         │
+            │                         ▼
+            │              On-device ML Kit (fast path)
+            │                         │
+            │               empty / weak / Indic text
+            │                         ▼
+            │              OCR.Space Engine 3 (cloud)
+            │                         │
             └─────────────────────────┘
+                                      ▼
+                      OCR cleanup + semantic checks
+                    (including parking restrictions)
+                                      │
                                       ▼
                       Optional location/place context
                                       │
                                       ▼
-                 Local narration or optional AI narration
+                 Local narration or optional Groq narration
+                                      │
+                                      ▼
+                    Language + safety-meaning validation
                                       │
                                       ▼
                        Spoken guidance + visual results
@@ -188,7 +204,8 @@ Detection tracking and relative-position analysis
 
 - **Flutter + Dart** — cross-platform application UI and application logic.
 - **TensorFlow Lite via `flutter_litert`** — local sign-detection inference.
-- **Google ML Kit Text Recognition** — OCR for supported scripts.
+- **Google ML Kit Text Recognition** — fast on-device OCR for supported scripts.
+- **OCR.Space Engine 3 (optional cloud fallback)** — multilingual OCR for Kannada, Tamil, Telugu, Hindi, and difficult/stylized text when local recognition is empty or weak.
 - **Camera and image-picker plugins** — live frames and image selection.
 - **Flutter TTS + speech-to-text** — spoken output and voice commands.
 - **Geolocator + Geocoding** — location retrieval and human-readable place information.
