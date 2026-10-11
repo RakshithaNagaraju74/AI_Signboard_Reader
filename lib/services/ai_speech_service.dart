@@ -22,19 +22,19 @@ String? _parkingMeaning(String label, String text) {
       .toLowerCase()
       .replaceAll('_', ' ')
       .replaceAll(RegExp(r'[–—-]+'), ' ')
-      .replaceAll(RegExp(r'\\s+'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
 
   final noParking = RegExp(
-    r'\\bno\\s+parking\\b|\\bdo\\s+not\\s+park\\b|\\bno\\s+park\\b|'
-    r'ನೋ\\s*ಪಾರ್ಕಿಂಗ್|ಪಾರ್ಕಿಂಗ್\\s*ನಿಷೇಧ|ಪಾರ್ಕಿಂಗ್\\s*ಮಾಡಬೇಡಿ|'
-    r'नो\\s*पार्किंग|पार्किंग\\s*निषेध|पार्किंग\\s*मना',
+    r'\bno\s+parking\b|\bdo\s+not\s+park\b|\bno\s+park\b|'
+    r'ನೋ\s*ಪಾರ್ಕಿಂಗ್|ಪಾರ್ಕಿಂಗ್\s*ನಿಷೇಧ|ಪಾರ್ಕಿಂಗ್\s*ಮಾಡಬೇಡಿ|'
+    r'नो\s*पार्किंग|पार्किंग\s*निषेध|पार्किंग\s*मना',
     caseSensitive: false,
   );
   if (noParking.hasMatch(source)) return 'no_parking';
 
   final positiveParking = RegExp(
-    r'\\bparking\\b|\\bpark\\b|ಪಾರ್ಕಿಂಗ್|पार्किंग',
+    r'\bparking\b|\bpark\b|ಪಾರ್ಕಿಂಗ್|पार्किंग',
     caseSensitive: false,
   );
   if (positiveParking.hasMatch(source)) return 'parking';
@@ -45,14 +45,14 @@ bool _outputClearlySaysNoParking(String text, String languageCode) {
   final value = text.toLowerCase();
   if (languageCode == 'kn') {
     return RegExp(
-      r'ನೋ\\s*ಪಾರ್ಕಿಂಗ್|ಪಾರ್ಕಿಂಗ್\\s*ನಿಷೇಧ|ಪಾರ್ಕಿಂಗ್\\s*ಮಾಡಬೇಡಿ',
+      r'ನೋ\s*ಪಾರ್ಕಿಂಗ್|ಪಾರ್ಕಿಂಗ್\s*ನಿಷೇಧ|ಪಾರ್ಕಿಂಗ್\s*ಮಾಡಬೇಡಿ',
     ).hasMatch(value);
   }
   if (languageCode == 'hi') {
-    return RegExp(r'नो\\s*पार्किंग|पार्किंग\\s*निषेध|पार्किंग\\s*मना')
+    return RegExp(r'नो\s*पार्किंग|पार्किंग\s*निषेध|पार्किंग\s*मना')
         .hasMatch(value);
   }
-  return RegExp(r'\\bno[ -]parking\\b|\\bdo not park\\b|\\bno park\\b')
+  return RegExp(r'\bno[ -]parking\b|\bdo not park\b|\bno park\b')
       .hasMatch(value);
 }
 
