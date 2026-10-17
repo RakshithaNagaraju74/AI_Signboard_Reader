@@ -1803,7 +1803,7 @@ class _LiveCameraScreenState
         'result': 'अभी का परिणाम',
         'scanningNow': 'स्कैन किया जा रहा है',
         'analyzingNearby': 'मैं आसपास के संकेत बोर्ड देख रहा हूँ। कृपया थोड़ी देर प्रतीक्षा करें।',
-        'resultReady': 'संकेत बोर्ड मिल गया। परिणाम तैयार है।'
+        'resultReady': 'संकेत बोर्ड मिल गया। परिणाम तैयार है।',
         'waitingForScan': 'कैमरा तैयार है। संकेत के सामने रखें।',
         'retryCamera': 'कैमरा फिर शुरू करें',
         'position': 'स्थिति',
@@ -1885,7 +1885,7 @@ class _LiveCameraScreenState
         'result': 'ಈಗಿನ ಫಲಿತಾಂಶ',
         'scanningNow': 'ಸ್ಕ್ಯಾನ್ ಮಾಡಲಾಗುತ್ತಿದೆ',
         'analyzingNearby': 'ನಿಮ್ಮ ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳನ್ನು ಹುಡುಕುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ಕಾಯಿರಿ.',
-        'resultReady': 'ಫಲಕ ಕಂಡುಬಂದಿದೆ. ಫಲಿತಾಂಶ ಸಿದ್ಧವಾಗಿದೆ.'
+        'resultReady': 'ಫಲಕ ಕಂಡುಬಂದಿದೆ. ಫಲಿತಾಂಶ ಸಿದ್ಧವಾಗಿದೆ.',
         'waitingForScan': 'ಕ್ಯಾಮೆರಾ ಸಿದ್ಧವಾಗಿದೆ. ಫಲಕವನ್ನು ಮುಂದೆ ಹಿಡಿಯಿರಿ.',
         'retryCamera': 'ಕ್ಯಾಮೆರಾ ಮತ್ತೆ ಪ್ರಾರಂಭಿಸಿ',
         'position': 'ಸ್ಥಾನ',
@@ -1967,7 +1967,7 @@ class _LiveCameraScreenState
         'result': 'தற்போதைய முடிவு',
         'scanningNow': 'ஸ்கேன் செய்கிறது',
         'analyzingNearby': 'உங்களைச் சுற்றியுள்ள பலகைகளைத் தேடுகிறேன். சிறிது நேரம் காத்திருக்கவும்.',
-        'resultReady': 'பலகை கண்டறியப்பட்டது. முடிவு தயாராக உள்ளது.'
+        'resultReady': 'பலகை கண்டறியப்பட்டது. முடிவு தயாராக உள்ளது.',
         'waitingForScan': 'கேமரா தயாராக உள்ளது. பலகையை முன்புறம் காட்டுங்கள்.',
         'retryCamera': 'கேமராவை மீண்டும் தொடங்கு',
         'position': 'இடம்',
@@ -2020,7 +2020,7 @@ class _LiveCameraScreenState
         'result': 'ప్రస్తుత ఫలితం',
         'scanningNow': 'స్కాన్ చేస్తోంది',
         'analyzingNearby': 'మీ చుట్టూ ఉన్న బోర్డుల కోసం చూస్తున్నాను. దయచేసి కొద్దిసేపు వేచి ఉండండి.',
-        'resultReady': 'బోర్డు గుర్తించబడింది. ఫలితం సిద్ధంగా ఉంది.'
+        'resultReady': 'బోర్డు గుర్తించబడింది. ఫలితం సిద్ధంగా ఉంది.',
         'waitingForScan': 'కెమెరా సిద్ధంగా ఉంది. బోర్డును ముందుగా చూపించండి.',
         'retryCamera': 'కెమెరాను మళ్లీ ప్రారంభించండి',
         'position': 'స్థానం',
@@ -2073,7 +2073,7 @@ class _LiveCameraScreenState
         'result': 'നിലവിലെ ഫലം',
         'scanningNow': 'സ്കാൻ ചെയ്യുന്നു',
         'analyzingNearby': 'നിങ്ങളുടെ ചുറ്റുമുള്ള ബോർഡുകൾ പരിശോധിക്കുന്നു. ദയവായി അല്പസമയം കാത്തിരിക്കുക.',
-        'resultReady': 'ബോർഡ് കണ്ടെത്തി. ഫലം തയ്യാറാണ്.'
+        'resultReady': 'ബോർഡ് കണ്ടെത്തി. ഫലം തയ്യാറാണ്.',
         'waitingForScan': 'ക്യാമറ തയ്യാറാണ്. ബോർഡ് മുന്നിൽ പിടിക്കുക.',
         'retryCamera': 'ക്യാമറ വീണ്ടും ആരംഭിക്കുക',
         'position': 'സ്ഥാനം',
@@ -2131,7 +2131,7 @@ class _LiveCameraScreenState
       'scanningNow':
           'Scanning',
       'analyzingNearby': 'I’m checking for signboards around you. Please wait a moment.',
-      'resultReady': 'I found a signboard. Your result is ready.'
+      'resultReady': 'I found a signboard. Your result is ready.',
       'waitingForScan':
           'Camera is ready. Hold a signboard in front of it.',
       'retryCamera':
