@@ -730,8 +730,8 @@ class _LiveCameraScreenState
         now.difference(_lastAnalysisAnnouncement!) >=
             const Duration(seconds: 15)) {
       _lastAnalysisAnnouncement = now;
-      try {
-        unawaited(speak(
+      unawaited(
+        speak(
           language.code == 'hi'
               ? 'मैं आपके आसपास संकेत बोर्ड खोज रहा हूँ। कृपया थोड़ी देर प्रतीक्षा करें।'
               : language.code == 'kn'
@@ -743,10 +743,10 @@ class _LiveCameraScreenState
                           : language.code == 'ml'
                               ? 'നിങ്ങളുടെ ചുറ്റുമുള്ള ബോർഡുകൾ പരിശോധിക്കുന്നു. ദയവായി അല്പസമയം കാത്തിരിക്കുക.'
                               : 'I’m checking for signboards around you. Please wait a moment.',
-        ));
-      } catch (speechError) {
-        debugPrint('Progress announcement failed: $speechError');
-      }
+        ).catchError((Object speechError) {
+          debugPrint('Progress announcement failed: $speechError');
+        }),
+      );
     }
 
     try {
