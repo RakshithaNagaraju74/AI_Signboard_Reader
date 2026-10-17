@@ -88,7 +88,6 @@ class _LiveCameraScreenState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    unawaited(_recoverLostImage());
     start();
   }
 
@@ -232,6 +231,9 @@ class _LiveCameraScreenState
 
   Future<void> start() async {
     try {
+      // Wait for Android's lost-picker recovery before checking whether a
+      // recovered image should be analyzed instead of starting the camera.
+      await _recoverLostImage();
       status = 'Starting SightToSound';
       if (mounted) setState(() {});
 
@@ -271,13 +273,27 @@ class _LiveCameraScreenState
           });
         }
 
+        unawaited(speak(copy('analyzingImage')));
         final recoveredContexts = await _analyzeFile(
           recovered,
           demo: true,
         );
 
         visibleContexts = recoveredContexts;
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() => status = recoveredContexts.isEmpty
+              ? copy('noSigns')
+              : copy('resultReady'));
+        }
+        if (recoveredContexts.isEmpty) {
+          await speak(copy('noSigns'));
+        } else {
+          final recoveredSpeech = await composeDetectionSpeech(
+            recoveredContexts,
+            useGroq: true,
+          );
+          await speak(recoveredSpeech);
+        }
 
         // The user can return to camera explicitly after recovery.
         return;
@@ -715,7 +731,7 @@ class _LiveCameraScreenState
             const Duration(seconds: 15)) {
       _lastAnalysisAnnouncement = now;
       try {
-        await speak(
+        unawaited(speak(
           language.code == 'hi'
               ? 'मैं आपके आसपास संकेत बोर्ड खोज रहा हूँ। कृपया थोड़ी देर प्रतीक्षा करें।'
               : language.code == 'kn'
@@ -727,7 +743,7 @@ class _LiveCameraScreenState
                           : language.code == 'ml'
                               ? 'നിങ്ങളുടെ ചുറ്റുമുള്ള ബോർഡുകൾ പരിശോധിക്കുന്നു. ദയവായി അല്പസമയം കാത്തിരിക്കുക.'
                               : 'I’m checking for signboards around you. Please wait a moment.',
-        );
+        ));
       } catch (speechError) {
         debugPrint('Progress announcement failed: $speechError');
       }
@@ -1280,9 +1296,11 @@ class _LiveCameraScreenState
 
       final picked = await picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 100,
-        maxWidth: 2048,
-        maxHeight: 2048,
+        // Avoid passing unnecessarily huge gallery files through model and OCR
+        // processing. Keep enough resolution for sign text while reducing latency.
+        imageQuality: 90,
+        maxWidth: 1600,
+        maxHeight: 1600,
         requestFullMetadata: false,
       );
 
@@ -1305,7 +1323,8 @@ class _LiveCameraScreenState
       visibleContexts = [];
 
       if (mounted) setState(() => status = copy('analyzingImage'));
-      await speak(copy('analyzingImage'));
+      // Start voice feedback without blocking image decoding and detection.
+      unawaited(speak(copy('analyzingImage')));
 
       final contexts = await _analyzeFile(file, demo: true);
       visibleContexts = contexts;
