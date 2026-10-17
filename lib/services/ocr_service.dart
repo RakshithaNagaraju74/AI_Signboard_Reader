@@ -70,6 +70,7 @@ class OCRService {
         script,
       );
       if (fullFrameText.isNotEmpty) {
+        debugPrint('[OCR] full-frame candidate chars=${fullFrameText.length}: $fullFrameText');
         candidates.add(_OCRCandidate(
           text: fullFrameText,
           variant: -1,

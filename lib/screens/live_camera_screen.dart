@@ -39,6 +39,8 @@ class _LiveCameraScreenState
 
   bool ready = false;
   bool processing = false;
+  bool pickingImage = false;
+  DateTime? _lastHoldStillAnnouncement;
   bool _announcedAnalyzingThisSession = false;
   bool stopped = false;
   bool listening = false;
@@ -104,6 +106,27 @@ class _LiveCameraScreenState
 
 
   String _permissionPrompt(String feature) {
+    if (language.code == 'ta') {
+      switch (feature) {
+        case 'camera': return 'இப்போது கேமரா அனுமதி கேட்கப்படும். பலகைகளைப் படிக்க அனுமதியளிக்கவும்.';
+        case 'microphone': return 'குரல் கட்டளைகளுக்காக மைக்ரோஃபோன் அனுமதியளிக்கவும்.';
+        default: return 'இடம் சார்ந்த வழிகாட்டுதலுக்காக இருப்பிட அனுமதியளிக்கவும்.';
+      }
+    }
+    if (language.code == 'te') {
+      switch (feature) {
+        case 'camera': return 'ఇప్పుడు కెమెరా అనుమతి అడుగుతుంది. బోర్డులను చదవడానికి అనుమతించండి.';
+        case 'microphone': return 'వాయిస్ ఆదేశాల కోసం మైక్రోఫోన్ అనుమతించండి.';
+        default: return 'స్థాన ఆధారిత సూచనల కోసం లొకేషన్ అనుమతించండి.';
+      }
+    }
+    if (language.code == 'ml') {
+      switch (feature) {
+        case 'camera': return 'ഇപ്പോൾ ക്യാമറ അനുമതി ചോദിക്കും. ബോർഡുകൾ വായിക്കാൻ അനുവദിക്കുക.';
+        case 'microphone': return 'വോയ്സ് കമാൻഡുകൾക്കായി മൈക്രോഫോൺ അനുവദിക്കുക.';
+        default: return 'സ്ഥലത്തെ അടിസ്ഥാനമാക്കിയുള്ള നിർദ്ദേശങ്ങൾക്കായി ലൊക്കേഷൻ അനുവദിക്കുക.';
+      }
+    }
     if (language.code == 'kn') {
       switch (feature) {
         case 'camera':
@@ -135,6 +158,21 @@ class _LiveCameraScreenState
   }
 
   String _permissionDeniedMessage(String feature, {bool settingsRequired = false}) {
+    if (language.code == 'ta') {
+      return settingsRequired
+          ? 'இந்த அனுமதியை செயலி அமைப்புகளில் இயக்கவும்.'
+          : 'அனுமதி வழங்கப்படவில்லை. இந்த வசதி செயல்படாது.';
+    }
+    if (language.code == 'te') {
+      return settingsRequired
+          ? 'యాప్ సెట్టింగ్‌లలో ఈ అనుమతిని ప్రారంభించండి.'
+          : 'అనుమతి ఇవ్వలేదు. ఈ ఫీచర్ పనిచేయదు.';
+    }
+    if (language.code == 'ml') {
+      return settingsRequired
+          ? 'ആപ്പ് ക്രമീകരണങ്ങളിൽ ഈ അനുമതി പ്രവർത്തനക്ഷമമാക്കുക.'
+          : 'അനുമതി നൽകിയില്ല. ഈ സൗകര്യം പ്രവർത്തിക്കില്ല.';
+    }
     final action = settingsRequired
         ? (language.code == 'kn'
             ? 'ದಯವಿಟ್ಟು ಅಪ್ಲಿಕೇಶನ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಈ ಅನುಮತಿಯನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ.'
@@ -174,7 +212,13 @@ class _LiveCameraScreenState
           ? 'ಅನುಮತಿ ದೊರೆತಿದೆ.'
           : language.code == 'hi'
               ? 'अनुमति मिल गई।'
-              : '$feature permission granted.';
+              : language.code == 'ta'
+                  ? 'அனுமதி வழங்கப்பட்டது.'
+                  : language.code == 'te'
+                      ? 'అనుమతి ఇచ్చారు.'
+                      : language.code == 'ml'
+                          ? 'അനുമതി നൽകി.'
+                          : '$feature permission granted.';
       await speakRaw(confirmation);
       return true;
     }
@@ -345,6 +389,16 @@ class _LiveCameraScreenState
   String localizedLocationSentenceFor(LocationSnapshot snapshot) {
     final place = snapshot.displayPlace;
 
+    if (language.code == 'ta') {
+      return 'தற்போதைய இடம்: $place. GPS துல்லியம் சுமார் ${snapshot.accuracy.toStringAsFixed(0)} மீட்டர்.';
+    }
+    if (language.code == 'te') {
+      return 'ప్రస్తుత స్థానం: $place. GPS ఖచ్చితత్వం సుమారు ${snapshot.accuracy.toStringAsFixed(0)} మీటర్లు.';
+    }
+    if (language.code == 'ml') {
+      return 'നിലവിലെ സ്ഥലം: $place. GPS കൃത്യത ഏകദേശം ${snapshot.accuracy.toStringAsFixed(0)} മീറ്റർ.';
+    }
+
     if (language.code == 'hi') {
       return 'वर्तमान स्थान: ' + place + '। GPS सटीकता लगभग ' +
           snapshot.accuracy.toStringAsFixed(0) + ' मीटर।';
@@ -361,6 +415,10 @@ class _LiveCameraScreenState
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // The gallery picker backgrounds the app on Android; avoid racing it
+    // by creating or disposing a second camera controller while it is open.
+    if (pickingImage) return;
+
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       timer?.cancel();
@@ -376,7 +434,8 @@ class _LiveCameraScreenState
 
     if (state == AppLifecycleState.resumed &&
         !onboarding &&
-        !demoMode) {
+        !demoMode &&
+        !pickingImage) {
       unawaited(_resumeCameraSafely());
     }
   }
@@ -398,7 +457,7 @@ class _LiveCameraScreenState
   }
 
   Future<void> _resumeCameraSafely() async {
-    if (!mounted || onboarding || demoMode || camera != null) return;
+    if (!mounted || onboarding || demoMode || pickingImage || camera != null) return;
 
     try {
       await _initializeCamera();
@@ -417,15 +476,14 @@ class _LiveCameraScreenState
   }
 
   String _locationLocale() {
-    if (language.code == 'hi') {
-      return 'hi_IN';
+    switch (language.code) {
+      case 'hi': return 'hi_IN';
+      case 'kn': return 'kn_IN';
+      case 'ta': return 'ta_IN';
+      case 'te': return 'te_IN';
+      case 'ml': return 'ml_IN';
+      default: return 'en_US';
     }
-
-    if (language.code == 'kn') {
-      return 'kn_IN';
-    }
-
-    return 'en_US';
   }
 
   Future<void> chooseLanguage({bool force = false}) async {
@@ -537,6 +595,29 @@ class _LiveCameraScreenState
       return [];
     }
 
+    // Tell the user to keep the phone still when a live sign is detected.
+    // Throttle the voice prompt so it does not repeat on every camera frame.
+    if (!demo) {
+      final now = DateTime.now();
+      if (_lastHoldStillAnnouncement == null ||
+          now.difference(_lastHoldStillAnnouncement!) >= const Duration(seconds: 15)) {
+        _lastHoldStillAnnouncement = now;
+        final message = language.code == 'hi'
+            ? 'संकेत मिल गया है। कृपया फोन को इसी दिशा में स्थिर रखें। मैं इसे पढ़ने की कोशिश कर रहा हूँ।'
+            : language.code == 'kn'
+                ? 'ಫಲಕ ಕಂಡುಬಂದಿದೆ. ದಯವಿಟ್ಟು ಫೋನ್ ಅನ್ನು ಇದೇ ದಿಕ್ಕಿನಲ್ಲಿ ಸ್ಥಿರವಾಗಿ ಹಿಡಿಯಿರಿ. ನಾನು ಅದನ್ನು ಓದಲು ಪ್ರಯತ್ನಿಸುತ್ತಿದ್ದೇನೆ.'
+                : language.code == 'ta'
+                    ? 'பலகை கண்டறியப்பட்டது. தயவுசெய்து தொலைபேசியை இதே திசையில் அசைக்காமல் பிடியுங்கள். நான் அதைப் படிக்க முயற்சிக்கிறேன்.'
+                    : language.code == 'te'
+                        ? 'బోర్డు కనిపించింది. దయచేసి ఫోన్‌ను ఇదే దిశలో కదపకుండా స్థిరంగా పట్టుకోండి. నేను దాన్ని చదవడానికి ప్రయత్నిస్తున్నాను.'
+                        : language.code == 'ml'
+                            ? 'ബോർഡ് കണ്ടെത്തി. ദയവായി ഫോൺ ഇതേ ദിശയിൽ അനക്കാതെ പിടിക്കുക. ഞാൻ അത് വായിക്കാൻ ശ്രമിക്കുകയാണ്.'
+                            : 'I detected a sign. Please hold the phone steady in this direction while I try to read it.';
+        if (mounted) setState(() => status = message);
+        unawaited(speak(message, priority: true));
+      }
+    }
+
     // Keep all useful detections instead of exposing only the highest one.
     raw = raw.take(8).toList();
 
@@ -549,7 +630,7 @@ class _LiveCameraScreenState
     // Track once per frame. OCR is attached to those same contexts so one
     // camera frame does not artificially advance stability twice.
     final preliminary = intel.analyze(raw);
-    final ocrLimit = demo ? 6 : 4;
+    final ocrLimit = demo ? 8 : 8;
     final ocrKeys = preliminary
         .take(ocrLimit)
         .where((context) {
@@ -827,11 +908,12 @@ class _LiveCameraScreenState
           .trim();
       final textKey = cleanedText
           .toLowerCase()
-          .replaceAll(RegExp(r'[^a-z0-9\u0900-\u097f\u0c80-\u0cff]'), '');
+          .replaceAll(RegExp(r'[^a-z0-9\u0900-\u0d7f]'), '');
       final signKey = context.detection.className.toLowerCase();
+      // Preserve every distinct OCR result for Groq. Repeated text can be
+      // deduplicated, but do not cap the payload to only the first four signs.
       if (textKey.isNotEmpty && !seenSignText.add(textKey)) continue;
       if (textKey.isEmpty && !seenSignKeys.add(signKey)) continue;
-      if (inputs.length >= 4) break;
       final text = context.detection.ocrText.trim();
       var placeContext = '';
 
@@ -872,6 +954,14 @@ class _LiveCameraScreenState
       );
     }
 
+    final totalOcrChars = inputs.fold<int>(
+      0,
+      (sum, input) => sum + input.text.length,
+    );
+    debugPrint('[OCR->Groq] forwarding ${inputs.length} unique detections; total OCR chars=$totalOcrChars');
+    for (var i = 0; i < inputs.length; i++) {
+      debugPrint('[OCR->Groq] item=${i + 1} label=${inputs[i].label} chars=${inputs[i].text.length} text=${inputs[i].text}');
+    }
     debugPrint(
       '[Groq] live_camera -> sending detection(s): '
       + inputs.length.toString()
@@ -898,6 +988,36 @@ class _LiveCameraScreenState
   }
 
   String localizedGuidance(SignPosition position) {
+    if (language.code == 'ta') {
+      const map = <SignPosition, String>{
+        SignPosition.left: 'அதை நோக்க தொலைபேசியை மெதுவாக இடப்புறம் திருப்புங்கள்.',
+        SignPosition.slightlyLeft: 'சற்று இடப்புறம் திருப்புங்கள்.',
+        SignPosition.front: 'பலகை நேராக முன்னால் உள்ளது. தொலைபேசியை அசைக்காமல் பிடியுங்கள்.',
+        SignPosition.slightlyRight: 'சற்று வலப்புறம் திருப்புங்கள்.',
+        SignPosition.right: 'அதை நோக்க தொலைபேசியை மெதுவாக வலப்புறம் திருப்புங்கள்.',
+      };
+      return map[position]!;
+    }
+    if (language.code == 'te') {
+      const map = <SignPosition, String>{
+        SignPosition.left: 'దాన్ని చూడటానికి ఫోన్‌ను నెమ్మదిగా ఎడమవైపు తిప్పండి.',
+        SignPosition.slightlyLeft: 'కొద్దిగా ఎడమవైపు చూడండి.',
+        SignPosition.front: 'బోర్డు నేరుగా ఎదురుగా ఉంది. ఫోన్‌ను స్థిరంగా పట్టుకోండి.',
+        SignPosition.slightlyRight: 'కొద్దిగా కుడివైపు చూడండి.',
+        SignPosition.right: 'దాన్ని చూడటానికి ఫోన్‌ను నెమ్మదిగా కుడివైపు తిప్పండి.',
+      };
+      return map[position]!;
+    }
+    if (language.code == 'ml') {
+      const map = <SignPosition, String>{
+        SignPosition.left: 'അത് കാണാൻ ഫോൺ പതുക്കെ ഇടത്തേക്ക് തിരിക്കുക.',
+        SignPosition.slightlyLeft: 'അൽപ്പം ഇടത്തേക്ക് നോക്കുക.',
+        SignPosition.front: 'ബോർഡ് നേരെ മുന്നിലാണ്. ഫോൺ സ്ഥിരമായി പിടിക്കുക.',
+        SignPosition.slightlyRight: 'അൽപ്പം വലത്തേക്ക് നോക്കുക.',
+        SignPosition.right: 'അത് കാണാൻ ഫോൺ പതുക്കെ വലത്തേക്ക് തിരിക്കുക.',
+      };
+      return map[position]!;
+    }
     if (language.code == 'hi') {
       const map = <SignPosition, String>{
         SignPosition.left:
@@ -971,6 +1091,15 @@ class _LiveCameraScreenState
   }
 
   String localizedAdvertisementWarning() {
+    if (language.code == 'ta') {
+      return 'இந்த உரை விளம்பரமாக இருக்கலாம். கடை அல்லது சேவை இங்கேயே உள்ளது என்று கருத வேண்டாம்.';
+    }
+    if (language.code == 'te') {
+      return 'ఈ వచనం ప్రకటనలా ఉంది. దుకాణం లేదా సేవ ఇక్కడే ఉందని అనుకోకండి.';
+    }
+    if (language.code == 'ml') {
+      return 'ഈ വാചകം പരസ്യമായിരിക്കാം. കടയോ സേവനമോ ഇവിടെ തന്നെയാണെന്ന് കരുതരുത്.';
+    }
     if (language.code == 'hi') {
       return 'यह पाठ विज्ञापन जैसा लगता है। इसे देखकर यह न मानें कि दुकान या सेवा यहीं स्थित है।';
     }
@@ -1004,6 +1133,34 @@ class _LiveCameraScreenState
         return 'ನಕ್ಷೆಯಲ್ಲಿ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಈ ಫಲಕ ಆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಅಥವಾ ದಿಕ್ಕು ಸೂಚನೆ ಆಗಿರಬಹುದು.';
       }
       return 'ನಕ್ಷೆಯಲ್ಲಿ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಆದ್ದರಿಂದ ಈ ಫಲಕ ಇಲ್ಲಿನ ಸ್ಥಳವಲ್ಲ, ಬೇರೆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಆಗಿರಬಹುದು.';
+    }
+
+    if (language.code == 'ta') {
+      if (value.relation == PlaceRelation.onSite) {
+        return 'வரைபடத் தகவலின்படி $name சுமார் $distance தொலைவில் உள்ளது. இந்தப் பலகை நுழைவாயில் என்பதை மட்டும் இது உறுதிப்படுத்தாது.';
+      }
+      if (value.relation == PlaceRelation.nearby) {
+        return 'வரைபடத்தில் $name சுமார் $distance தொலைவில் உள்ளது. இந்தப் பலகை அந்த இடத்தைக் குறிக்கலாம் அல்லது விளம்பரப்படுத்தலாம்.';
+      }
+      return 'வரைபடத்தில் $name சுமார் $distance தொலைவில் உள்ளது. இந்தப் பலகை வேறு இடத்திற்கான விளம்பரமாக இருக்கலாம்.';
+    }
+    if (language.code == 'te') {
+      if (value.relation == PlaceRelation.onSite) {
+        return 'మ్యాప్ ప్రకారం $name సుమారు $distance దూరంలో ఉంది. ఈ బోర్డు ప్రవేశద్వారాన్ని నిర్ధారించదు.';
+      }
+      if (value.relation == PlaceRelation.nearby) {
+        return 'మ్యాప్‌లో $name సుమారు $distance దూరంలో ఉంది. ఈ బోర్డు ఆ ప్రదేశాన్ని సూచించవచ్చు లేదా ప్రకటన కావచ్చు.';
+      }
+      return 'మ్యాప్‌లో $name సుమారు $distance దూరంలో ఉంది. ఈ బోర్డు వేరే ప్రదేశానికి సంబంధించిన ప్రకటన కావచ్చు.';
+    }
+    if (language.code == 'ml') {
+      if (value.relation == PlaceRelation.onSite) {
+        return 'മാപ്പ് പ്രകാരം $name ഏകദേശം $distance അകലെയാണ്. ഈ ബോർഡ് പ്രവേശന കവാടമാണെന്ന് ഇതു മാത്രം ഉറപ്പാക്കുന്നില്ല.';
+      }
+      if (value.relation == PlaceRelation.nearby) {
+        return 'മാപ്പിൽ $name ഏകദേശം $distance അകലെയാണ്. ഈ ബോർഡ് ആ സ്ഥലത്തെ സൂചിപ്പിക്കുകയോ പരസ്യപ്പെടുത്തുകയോ ചെയ്യാം.';
+      }
+      return 'മാപ്പിൽ $name ഏകദേശം $distance അകലെയാണ്. ഈ ബോർഡ് മറ്റൊരു സ്ഥലത്തിന്റെ പരസ്യമായിരിക്കാം.';
     }
 
     if (value.relation == PlaceRelation.onSite) {
@@ -1100,9 +1257,10 @@ class _LiveCameraScreenState
   }
 
   Future<void> pickDemoImage() async {
-    if (processing) return;
+    if (processing || pickingImage) return;
 
     processing = true;
+    pickingImage = true;
     timer?.cancel();
     timer = null;
 
@@ -1117,21 +1275,28 @@ class _LiveCameraScreenState
 
       final picked = await picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 82,
-        maxWidth: 1280,
-        maxHeight: 1280,
+        imageQuality: 100,
+        maxWidth: 2048,
+        maxHeight: 2048,
         requestFullMetadata: false,
       );
 
       if (picked == null) {
+        pickingImage = false;
         processing = false;
         await _resumeCameraSafely();
         return;
       }
 
       final file = File(picked.path);
+      // Keep the lifecycle guard active during the asynchronous file checks.
+      // Only switch out of picker mode once the image is known to be readable.
+      if (!await file.exists() || await file.length() == 0) {
+        throw StateError('The selected image could not be read.');
+      }
       demoMode = true;
       demoImage = file;
+      pickingImage = false;
       visibleContexts = [];
 
       if (mounted) setState(() => status = copy('analyzingImage'));
@@ -1158,8 +1323,12 @@ class _LiveCameraScreenState
       if (mounted) setState(() => status = copy('analysisFailed'));
       await speak(copy('analysisFailed'));
     } finally {
+      pickingImage = false;
       processing = false;
       if (mounted) setState(() {});
+      if (mounted && !onboarding && !demoMode && camera == null) {
+        unawaited(_resumeCameraSafely());
+      }
     }
   }
 
@@ -1179,9 +1348,119 @@ class _LiveCameraScreenState
   String localizedClass(
     String raw,
   ) {
-    final value =
-        raw.toLowerCase()
-            .replaceAll('_', ' ');
+    final value = raw.toLowerCase().replaceAll('_', ' ');
+
+    if (language.code == 'ta') {
+      const map = <String, String>{
+        'warning sign': 'எச்சரிக்கை பலகை',
+        'construction sign': 'கட்டுமான பலகை',
+        'turn left sign': 'இடதுபுறம் திரும்பும் பலகை',
+        'turn right sign': 'வலதுபுறம் திரும்பும் பலகை',
+        'junction or merge sign': 'சாலை சந்திப்பு பலகை',
+        'school zone sign': 'பள்ளி பகுதி பலகை',
+        'speed limit sign': 'வேக வரம்பு பலகை',
+        'bus stop sign': 'பேருந்து நிறுத்தப் பலகை',
+        'shop sign': 'கடைப் பலகை',
+        'public info sign': 'பொது தகவல் பலகை',
+        'mrt sign': 'மெட்ரோ ரயில் பலகை',
+        'traffic sign': 'போக்குவரத்து பலகை',
+        'stop request bell sign': 'நிறுத்தக் கோரிக்கை பொத்தான்',
+        'wet floor sign': 'ஈரமான தரை எச்சரிக்கை',
+        'pedestrian crossing sign': 'பாதசாரி கடக்கும் பலகை',
+        'accessibility sign': 'அணுகல் வசதி பலகை',
+        'restroom ladies': 'பெண்கள் கழிப்பறை பலகை',
+        'restroom men': 'ஆண்கள் கழிப்பறை பலகை',
+        'pedestrian dont walk sign': 'பாதசாரிகள் செல்ல வேண்டாம் என்ற பலகை',
+        'tactile paving': 'தொட்டுணர்வு நடைபாதை',
+        'hospital': 'மருத்துவமனை பலகை',
+        'bus': 'பேருந்து',
+        'bus stop': 'பேருந்து நிறுத்தம்',
+        'railway': 'ரயில்வே',
+        'train': 'ரயில்',
+        'traffic': 'போக்குவரத்து பலகை',
+        'warning': 'எச்சரிக்கை பலகை',
+        'construction': 'கட்டுமான பலகை',
+        'road blocked': 'சாலை மூடப்பட்டுள்ளது',
+        'shop': 'கடைப் பலகை',
+        'street': 'தெருப் பலகை',
+        'notice': 'அறிவிப்பு பலகை',
+      };
+      return map[value] ?? (value.endsWith('sign') ? 'பலகை' : value);
+    }
+    if (language.code == 'te') {
+      const map = <String, String>{
+        'warning sign': 'హెచ్చరిక బోర్డు',
+        'construction sign': 'నిర్మాణ బోర్డు',
+        'turn left sign': 'ఎడమవైపు తిరగండి బోర్డు',
+        'turn right sign': 'కుడివైపు తిరగండి బోర్డు',
+        'junction or merge sign': 'రోడ్డు కూడలి బోర్డు',
+        'school zone sign': 'పాఠశాల ప్రాంత బోర్డు',
+        'speed limit sign': 'వేగ పరిమితి బోర్డు',
+        'bus stop sign': 'బస్ స్టాప్ బోర్డు',
+        'shop sign': 'దుకాణం బోర్డు',
+        'public info sign': 'ప్రజా సమాచార బోర్డు',
+        'mrt sign': 'మెట్రో రైలు బోర్డు',
+        'traffic sign': 'ట్రాఫిక్ బోర్డు',
+        'stop request bell sign': 'ఆపమని కోరే బటన్',
+        'wet floor sign': 'తడి నేల హెచ్చరిక',
+        'pedestrian crossing sign': 'పాదచారుల దాటే బోర్డు',
+        'accessibility sign': 'అందుబాటు సౌకర్యాల బోర్డు',
+        'restroom ladies': 'మహిళల మరుగుదొడ్డి బోర్డు',
+        'restroom men': 'పురుషుల మరుగుదొడ్డి బోర్డు',
+        'pedestrian dont walk sign': 'పాదచారులు వెళ్లవద్దు బోర్డు',
+        'tactile paving': 'స్పర్శ ద్వారా గుర్తించే పాదచారి మార్గం',
+        'hospital': 'ఆసుపత్రి బోర్డు',
+        'bus': 'బస్సు',
+        'bus stop': 'బస్ స్టాప్',
+        'railway': 'రైల్వే',
+        'train': 'రైలు',
+        'traffic': 'ట్రాఫిక్ బోర్డు',
+        'warning': 'హెచ్చరిక బోర్డు',
+        'construction': 'నిర్మాణ బోర్డు',
+        'road blocked': 'రోడ్డు మూసివేయబడింది',
+        'shop': 'దుకాణం బోర్డు',
+        'street': 'వీధి బోర్డు',
+        'notice': 'సమాచార బోర్డు',
+      };
+      return map[value] ?? (value.endsWith('sign') ? 'బోర్డు' : value);
+    }
+    if (language.code == 'ml') {
+      const map = <String, String>{
+        'warning sign': 'മുന്നറിയിപ്പ് ബോർഡ്',
+        'construction sign': 'നിർമാണ ബോർഡ്',
+        'turn left sign': 'ഇടത്തേക്ക് തിരിയുക ബോർഡ്',
+        'turn right sign': 'വലത്തേക്ക് തിരിയുക ബോർഡ്',
+        'junction or merge sign': 'റോഡ് ജംഗ്ഷൻ ബോർഡ്',
+        'school zone sign': 'സ്കൂൾ മേഖല ബോർഡ്',
+        'speed limit sign': 'വേഗപരിധി ബോർഡ്',
+        'bus stop sign': 'ബസ് സ്റ്റോപ്പ് ബോർഡ്',
+        'shop sign': 'കടയുടെ ബോർഡ്',
+        'public info sign': 'പൊതു വിവര ബോർഡ്',
+        'mrt sign': 'മെട്രോ റെയിൽ ബോർഡ്',
+        'traffic sign': 'ട്രാഫിക് ബോർഡ്',
+        'stop request bell sign': 'നിർത്താൻ ആവശ്യപ്പെടുന്ന ബട്ടൺ',
+        'wet floor sign': 'നനഞ്ഞ നില മുന്നറിയിപ്പ്',
+        'pedestrian crossing sign': 'കാൽനട ക്രോസിംഗ് ബോർഡ്',
+        'accessibility sign': 'പ്രവേശന സൗകര്യ ബോർഡ്',
+        'restroom ladies': 'സ്ത്രീകളുടെ ശൗചാലയ ബോർഡ്',
+        'restroom men': 'പുരുഷന്മാരുടെ ശൗചാലയ ബോർഡ്',
+        'pedestrian dont walk sign': 'കാൽനടക്കാർ കടക്കരുത് ബോർഡ്',
+        'tactile paving': 'സ്പർശിച്ച് തിരിച്ചറിയാവുന്ന നടപ്പാത',
+        'hospital': 'ആശുപത്രി ബോർഡ്',
+        'bus': 'ബസ്',
+        'bus stop': 'ബസ് സ്റ്റോപ്പ്',
+        'railway': 'റെയിൽവേ',
+        'train': 'ട്രെയിൻ',
+        'traffic': 'ട്രാഫിക് ബോർഡ്',
+        'warning': 'മുന്നറിയിപ്പ് ബോർഡ്',
+        'construction': 'നിർമാണ ബോർഡ്',
+        'road blocked': 'റോഡ് അടച്ചിരിക്കുന്നു',
+        'shop': 'കടയുടെ ബോർഡ്',
+        'street': 'തെരുവ് ബോർഡ്',
+        'notice': 'അറിയിപ്പ് ബോർഡ്',
+      };
+      return map[value] ?? (value.endsWith('sign') ? 'ബോർഡ്' : value);
+    }
 
     if (language.code == 'hi') {
       const map =
@@ -1232,6 +1511,36 @@ class _LiveCameraScreenState
   String localizedPosition(
     SignPosition position,
   ) {
+    if (language.code == 'ta') {
+      const map = <SignPosition, String>{
+        SignPosition.left: 'மிகவும் இடப்புறம்',
+        SignPosition.slightlyLeft: 'சற்று இடப்புறம்',
+        SignPosition.front: 'நேராக முன்னால்',
+        SignPosition.slightlyRight: 'சற்று வலப்புறம்',
+        SignPosition.right: 'மிகவும் வலப்புறம்',
+      };
+      return map[position]!;
+    }
+    if (language.code == 'te') {
+      const map = <SignPosition, String>{
+        SignPosition.left: 'చాలా ఎడమవైపు',
+        SignPosition.slightlyLeft: 'కొద్దిగా ఎడమవైపు',
+        SignPosition.front: 'నేరుగా ఎదురుగా',
+        SignPosition.slightlyRight: 'కొద్దిగా కుడివైపు',
+        SignPosition.right: 'చాలా కుడివైపు',
+      };
+      return map[position]!;
+    }
+    if (language.code == 'ml') {
+      const map = <SignPosition, String>{
+        SignPosition.left: 'വളരെ ഇടതുവശത്ത്',
+        SignPosition.slightlyLeft: 'അൽപ്പം ഇടതുവശത്ത്',
+        SignPosition.front: 'നേരെ മുന്നിൽ',
+        SignPosition.slightlyRight: 'അൽപ്പം വലതുവശത്ത്',
+        SignPosition.right: 'വളരെ വലതുവശത്ത്',
+      };
+      return map[position]!;
+    }
     if (language.code == 'hi') {
       const map =
           <SignPosition, String>{
@@ -1274,6 +1583,27 @@ class _LiveCameraScreenState
   String localizedMovement(
     String movement,
   ) {
+    if (language.code == 'ta') {
+      return movement
+          .replaceAll('getting closer', 'பலகை அருகில் வருகிறது')
+          .replaceAll('moving farther away', 'பலகை விலகிச் செல்கிறது')
+          .replaceAll('moving to your left', 'உங்கள் இடப்புறமாக நகர்கிறது')
+          .replaceAll('moving to your right', 'உங்கள் வலப்புறமாக நகர்கிறது');
+    }
+    if (language.code == 'te') {
+      return movement
+          .replaceAll('getting closer', 'బోర్డు దగ్గరగా వస్తోంది')
+          .replaceAll('moving farther away', 'బోర్డు దూరంగా వెళుతోంది')
+          .replaceAll('moving to your left', 'మీ ఎడమవైపుకు కదులుతోంది')
+          .replaceAll('moving to your right', 'మీ కుడివైపుకు కదులుతోంది');
+    }
+    if (language.code == 'ml') {
+      return movement
+          .replaceAll('getting closer', 'ബോർഡ് അടുത്തേക്ക് വരുന്നു')
+          .replaceAll('moving farther away', 'ബോർഡ് അകന്നുപോകുന്നു')
+          .replaceAll('moving to your left', 'നിങ്ങളുടെ ഇടത്തേക്ക് നീങ്ങുന്നു')
+          .replaceAll('moving to your right', 'നിങ്ങളുടെ വലത്തേക്ക് നീങ്ങുന്നു');
+    }
     if (language.code == 'hi') {
       return movement
           .replaceAll(
@@ -1320,6 +1650,21 @@ class _LiveCameraScreenState
   String localizedProximity(
     String proximity,
   ) {
+    if (language.code == 'ta') {
+      if (proximity == 'far') return 'பலகை தொலைவில் உள்ளது';
+      if (proximity == 'approaching') return 'பலகை அருகில் வருகிறது';
+      return 'பலகை அருகில் உள்ளது';
+    }
+    if (language.code == 'te') {
+      if (proximity == 'far') return 'బోర్డు దూరంగా ఉంది';
+      if (proximity == 'approaching') return 'బోర్డు దగ్గరగా వస్తోంది';
+      return 'బోర్డు దగ్గరలో ఉంది';
+    }
+    if (language.code == 'ml') {
+      if (proximity == 'far') return 'ബോർഡ് ദൂരെയാണ്';
+      if (proximity == 'approaching') return 'ബോർഡ് അടുത്തേക്ക് വരുന്നു';
+      return 'ബോർഡ് സമീപത്തുണ്ട്';
+    }
     if (language.code == 'hi') {
       if (proximity == 'far') {
         return 'संकेत दूर है';
@@ -1391,13 +1736,20 @@ class _LiveCameraScreenState
         currentLocation;
 
     if (snapshot == null) {
-      return copy(
-        'locationUnavailable',
-      );
+      return copy('locationUnavailable');
     }
 
-    final place =
-        snapshot.displayPlace;
+    final place = snapshot.displayPlace;
+
+    if (language.code == 'ta') {
+      return 'தற்போதைய இடம்: $place. GPS துல்லியம் சுமார் ${snapshot.accuracy.toStringAsFixed(0)} மீட்டர்.';
+    }
+    if (language.code == 'te') {
+      return 'ప్రస్తుత స్థానం: $place. GPS ఖచ్చితత్వం సుమారు ${snapshot.accuracy.toStringAsFixed(0)} మీటర్లు.';
+    }
+    if (language.code == 'ml') {
+      return 'നിലവിലെ സ്ഥലം: $place. GPS കൃത്യത ഏകദേശം ${snapshot.accuracy.toStringAsFixed(0)} മീറ്റർ.';
+    }
 
     if (language.code == 'hi') {
       return 'वर्तमान स्थान: $place. '
@@ -1412,6 +1764,15 @@ class _LiveCameraScreenState
           '${snapshot.accuracy.toStringAsFixed(0)} '
           'ಮೀಟರ್.';
     }
+    if (language.code == 'ta') {
+      return 'தற்போதைய இடம்: $place. GPS துல்லியம் சுமார் ${snapshot.accuracy.toStringAsFixed(0)} மீட்டர்.';
+    }
+    if (language.code == 'te') {
+      return 'ప్రస్తుత స్థానం: $place. GPS ఖచ్చితత్వం సుమారు ${snapshot.accuracy.toStringAsFixed(0)} మీటర్లు.';
+    }
+    if (language.code == 'ml') {
+      return 'നിലവിലെ സ്ഥലം: $place. GPS കൃത്യത ഏകദേശം ${snapshot.accuracy.toStringAsFixed(0)} മീറ്റർ.';
+    }
 
     return 'Current location: $place. '
         'GPS accuracy is about '
@@ -1425,6 +1786,10 @@ class _LiveCameraScreenState
     if (language.code == 'hi') {
       const map =
           <String, String>{
+        'live': 'लाइव',
+        'paused': 'रोका गया',
+        'focusMode': 'फ़ोकस',
+        'safetyMode': 'सुरक्षा',
         'scanning':
             'लाइव स्कैनिंग शुरू है। वॉइस कमांड के लिए वॉइस कमांड बटन दबाएँ और माइक्रोफ़ोन की अनुमति दें। तस्वीर पढ़ने के लिए तस्वीर चुनें, और स्थान की जानकारी के लिए लोकेशन की अनुमति दें।',
         'languageSelected':
@@ -1501,6 +1866,10 @@ class _LiveCameraScreenState
     if (language.code == 'kn') {
       const map =
           <String, String>{
+        'live': 'ಲೈವ್',
+        'paused': 'ವಿರಾಮಗೊಳಿಸಲಾಗಿದೆ',
+        'focusMode': 'ಫೋಕಸ್',
+        'safetyMode': 'ಸುರಕ್ಷತೆ',
         'scanning':
             'ಲೈವ್ ಸ್ಕ್ಯಾನಿಂಗ್ ಪ್ರಾರಂಭವಾಗಿದೆ. ಧ್ವನಿ ಆಜ್ಞೆಗಳಿಗೆ ವಾಯ್ಸ್ ಕಮಾಂಡ್ ಬಟನ್ ಒತ್ತಿ ಮೈಕ್ರೋಫೋನ್ ಅನುಮತಿ ನೀಡಿ. ಚಿತ್ರ ಓದಲು ಚಿತ್ರ ಆಯ್ಕೆಮಾಡಿ; ಸ್ಥಳದ ಮಾಹಿತಿ ಪಡೆಯಲು ಸ್ಥಳ ಅನುಮತಿ ನೀಡಿ.',
         'languageSelected':
@@ -1577,8 +1946,165 @@ class _LiveCameraScreenState
       return map[key] ?? key;
     }
 
+    if (language.code == 'ta') {
+      const map = <String, String>{
+        'live': 'நேரடி',
+        'paused': 'இடைநிறுத்தப்பட்டது',
+        'focusMode': 'கவனம்',
+        'safetyMode': 'பாதுகாப்பு',
+        'scanning': 'நேரடி ஸ்கேன் தொடங்கியுள்ளது. பலகையை கேமரா முன் வைத்து நிலையாகப் பிடியுங்கள்.',
+        'languageSelected': 'மொழி தேர்ந்தெடுக்கப்பட்டது. இனி அனைத்து வழிகாட்டுதல்களும் இந்த மொழியில் இருக்கும்.',
+        'detected': 'கண்டறியப்பட்டது',
+        'result': 'தற்போதைய முடிவு',
+        'scanningNow': 'ஸ்கேன் செய்கிறது',
+        'waitingForScan': 'கேமரா தயாராக உள்ளது. பலகையை முன்புறம் காட்டுங்கள்.',
+        'retryCamera': 'கேமராவை மீண்டும் தொடங்கு',
+        'position': 'இடம்',
+        'class': 'வகை',
+        'confidence': 'நம்பகத்தன்மை',
+        'text': 'உரை',
+        'warning': 'எச்சரிக்கை.',
+        'aheadHold': 'நேராக முன்னால் உள்ளது. கேமராவை அசைக்காமல் பிடியுங்கள்.',
+        'locationUnavailable': 'தற்போதைய GPS இடம் கிடைக்கவில்லை.',
+        'analyzingImage': 'தேர்ந்தெடுத்த படத்தை ஆய்வு செய்கிறேன். தயவுசெய்து காத்திருக்கவும்.',
+        'noSigns': 'தெளிவான பலகை எதுவும் கிடைக்கவில்லை.',
+        'analysisFailed': 'படத்தை ஆய்வு செய்ய முடியவில்லை. வேறொரு படத்தைத் தேர்ந்தெடுக்கவும்.',
+        'cameraError': 'கேமரா கிடைக்கவில்லை. அனுமதிகளைச் சரிபார்த்து செயலியை மீண்டும் திறக்கவும்.',
+        'voicePrompt': 'குரல் கட்டளைக்குத் தயாராக உள்ளது. ஸ்கேன், நிறுத்து, மீண்டும் சொல், உதவி அல்லது மொழியை மாற்று என்று சொல்லுங்கள்.',
+        'stopDone': 'ஸ்கேனிங் நிறுத்தப்பட்டது.',
+        'nothingToRepeat': 'மீண்டும் சொல்ல எதுவும் இல்லை.',
+        'noFocus': 'கவனம் செலுத்த பலகை எதுவும் கிடைக்கவில்லை.',
+        'focusOn': 'கவனம் செலுத்தப்பட்டது',
+        'focusGuide': 'பலகையை நடுவில் வைக்க தொலைபேசியை மெதுவாக நகர்த்துங்கள்.',
+        'focusStopped': 'கவனம் செலுத்தும் முறை நிறுத்தப்பட்டது.',
+        'safetyOn': 'பாதுகாப்பு முறை இயக்கப்பட்டுள்ளது. முக்கிய எச்சரிக்கைகள் முதலில் சொல்லப்படும்.',
+        'safetyOff': 'பாதுகாப்பு முன்னுரிமை நிறுத்தப்பட்டுள்ளது.',
+        'scanningSurroundings': 'சுற்றியுள்ள பலகைகளை ஸ்கேன் செய்கிறேன்.',
+        'noHistory': 'சமீபத்திய பலகைகள் இல்லை.',
+        'historyHas': 'வரலாற்றில் சமீபத்திய கண்டறிதல்கள் உள்ளன:',
+        'navigationLimit': 'நம்பகமான தூரம் கிடைக்கும்போது மட்டுமே திசை கூறப்படும்.',
+        'notUnderstood': 'புரியவில்லை. உதவி என்று சொல்லுங்கள்.',
+        'demoComplete': 'பட ஆய்வு முடிந்தது.',
+        'items': 'உருப்படிகள்',
+        'visible': 'எனக்குத் தெரிகிறது',
+        'help': 'ஸ்கேன், நிறுத்து, மீண்டும் சொல், கவனம், சுற்றியுள்ள பலகைகள், வரலாறு, மொழியை மாற்று அல்லது வழிசெலுத்து என்று சொல்லுங்கள்.',
+        'upload': 'படத்தைத் தேர்ந்தெடு',
+        'backCamera': 'கேமராவுக்குத் திரும்பு',
+        'voiceCommands': 'குரல் கட்டளைகள்',
+        'demoResults': 'பட முடிவுகள்',
+        'lastSeen': 'கடைசியாகக் கண்டது',
+      };
+      return map[key] ?? key;
+    }
+
+    if (language.code == 'te') {
+      const map = <String, String>{
+        'live': 'లైవ్',
+        'paused': 'నిలిపివేయబడింది',
+        'focusMode': 'ఫోకస్',
+        'safetyMode': 'భద్రత',
+        'scanning': 'లైవ్ స్కానింగ్ ప్రారంభమైంది. బోర్డును కెమెరా ముందు స్థిరంగా పట్టుకోండి.',
+        'languageSelected': 'భాష ఎంపికైంది. ఇకపై అన్ని సూచనలు ఈ భాషలో ఉంటాయి.',
+        'detected': 'గుర్తించబడింది',
+        'result': 'ప్రస్తుత ఫలితం',
+        'scanningNow': 'స్కాన్ చేస్తోంది',
+        'waitingForScan': 'కెమెరా సిద్ధంగా ఉంది. బోర్డును ముందుగా చూపించండి.',
+        'retryCamera': 'కెమెరాను మళ్లీ ప్రారంభించండి',
+        'position': 'స్థానం',
+        'class': 'వర్గం',
+        'confidence': 'నమ్మకం',
+        'text': 'వచనం',
+        'warning': 'హెచ్చరిక.',
+        'aheadHold': 'నేరుగా ఎదురుగా ఉంది. ఫోన్‌ను స్థిరంగా పట్టుకోండి.',
+        'locationUnavailable': 'ప్రస్తుత GPS స్థానం అందుబాటులో లేదు.',
+        'analyzingImage': 'ఎంచుకున్న చిత్రాన్ని విశ్లేషిస్తున్నాను. దయచేసి వేచి ఉండండి.',
+        'noSigns': 'స్పష్టమైన బోర్డు కనిపించలేదు.',
+        'analysisFailed': 'చిత్రాన్ని విశ్లేషించలేకపోయాను. మరో చిత్రాన్ని ప్రయత్నించండి.',
+        'cameraError': 'కెమెరా అందుబాటులో లేదు. అనుమతులను తనిఖీ చేసి యాప్‌ను మళ్లీ తెరవండి.',
+        'voicePrompt': 'వాయిస్ ఆదేశాలు సిద్ధంగా ఉన్నాయి. స్కాన్, ఆపు, మళ్లీ చెప్పు, సహాయం లేదా భాష మార్చు అని చెప్పండి.',
+        'stopDone': 'స్కానింగ్ ఆపబడింది.',
+        'nothingToRepeat': 'మళ్లీ చెప్పడానికి ఏమీ లేదు.',
+        'noFocus': 'ఫోకస్ చేయడానికి బోర్డు కనిపించలేదు.',
+        'focusOn': 'ఫోకస్ చేయబడింది',
+        'focusGuide': 'బోర్డును మధ్యలోకి తీసుకురావడానికి ఫోన్‌ను నెమ్మదిగా కదపండి.',
+        'focusStopped': 'ఫోకస్ మోడ్ ఆపబడింది.',
+        'safetyOn': 'భద్రతా మోడ్ ఆన్‌లో ఉంది. ముఖ్యమైన హెచ్చరికలు ముందుగా చెబుతాను.',
+        'safetyOff': 'భద్రతా ప్రాధాన్యత ఆఫ్‌లో ఉంది.',
+        'scanningSurroundings': 'చుట్టుపక్కల బోర్డులను స్కాన్ చేస్తున్నాను.',
+        'noHistory': 'ఇటీవలి బోర్డులు లేవు.',
+        'historyHas': 'చరిత్రలో ఇటీవలి గుర్తింపులు ఉన్నాయి:',
+        'navigationLimit': 'నమ్మదగిన దూరం లభించినప్పుడు మాత్రమే దిశను చెబుతాను.',
+        'notUnderstood': 'నాకు అర్థం కాలేదు. సహాయం అని చెప్పండి.',
+        'demoComplete': 'చిత్ర విశ్లేషణ పూర్తయింది.',
+        'items': 'అంశాలు',
+        'visible': 'నాకు కనిపిస్తున్నవి',
+        'help': 'స్కాన్, ఆపు, మళ్లీ చెప్పు, ఫోకస్, చుట్టుపక్కల బోర్డులు, చరిత్ర, భాష మార్చు లేదా నావిగేట్ అని చెప్పండి.',
+        'upload': 'చిత్రాన్ని ఎంచుకోండి',
+        'backCamera': 'కెమెరాకు తిరిగి వెళ్ళండి',
+        'voiceCommands': 'వాయిస్ ఆదేశాలు',
+        'demoResults': 'చిత్ర ఫలితాలు',
+        'lastSeen': 'చివరిగా కనిపించింది',
+      };
+      return map[key] ?? key;
+    }
+
+    if (language.code == 'ml') {
+      const map = <String, String>{
+        'live': 'ലൈവ്',
+        'paused': 'താൽക്കാലികമായി നിർത്തി',
+        'focusMode': 'ഫോക്കസ്',
+        'safetyMode': 'സുരക്ഷ',
+        'scanning': 'ലൈവ് സ്കാനിംഗ് ആരംഭിച്ചു. ബോർഡ് ക്യാമറയ്ക്ക് മുന്നിൽ സ്ഥിരമായി പിടിക്കുക.',
+        'languageSelected': 'ഭാഷ തിരഞ്ഞെടുത്തു. ഇനി എല്ലാ നിർദ്ദേശങ്ങളും ഈ ഭാഷയിലായിരിക്കും.',
+        'detected': 'കണ്ടെത്തി',
+        'result': 'നിലവിലെ ഫലം',
+        'scanningNow': 'സ്കാൻ ചെയ്യുന്നു',
+        'waitingForScan': 'ക്യാമറ തയ്യാറാണ്. ബോർഡ് മുന്നിൽ പിടിക്കുക.',
+        'retryCamera': 'ക്യാമറ വീണ്ടും ആരംഭിക്കുക',
+        'position': 'സ്ഥാനം',
+        'class': 'വിഭാഗം',
+        'confidence': 'വിശ്വാസനില',
+        'text': 'വാചകം',
+        'warning': 'മുന്നറിയിപ്പ്.',
+        'aheadHold': 'നേരെ മുന്നിലാണ്. ഫോൺ സ്ഥിരമായി പിടിക്കുക.',
+        'locationUnavailable': 'നിലവിലെ GPS സ്ഥലം ലഭ്യമല്ല.',
+        'analyzingImage': 'തിരഞ്ഞെടുത്ത ചിത്രം പരിശോധിക്കുന്നു. ദയവായി കാത്തിരിക്കുക.',
+        'noSigns': 'വ്യക്തമായ ബോർഡ് കണ്ടെത്താനായില്ല.',
+        'analysisFailed': 'ചിത്രം പരിശോധിക്കാൻ കഴിഞ്ഞില്ല. മറ്റൊരു ചിത്രം തിരഞ്ഞെടുക്കുക.',
+        'cameraError': 'ക്യാമറ ലഭ്യമല്ല. അനുമതികൾ പരിശോധിച്ച് ആപ്പ് വീണ്ടും തുറക്കുക.',
+        'voicePrompt': 'വോയ്സ് കമാൻഡുകൾ തയ്യാറാണ്. സ്കാൻ, നിർത്തുക, വീണ്ടും പറയുക, സഹായം അല്ലെങ്കിൽ ഭാഷ മാറ്റുക എന്ന് പറയുക.',
+        'stopDone': 'സ്കാനിംഗ് നിർത്തി.',
+        'nothingToRepeat': 'വീണ്ടും പറയാൻ ഒന്നുമില്ല.',
+        'noFocus': 'ഫോക്കസ് ചെയ്യാൻ ബോർഡ് കണ്ടെത്തിയില്ല.',
+        'focusOn': 'ഫോക്കസ് ചെയ്തു',
+        'focusGuide': 'ബോർഡ് നടുവിലാക്കാൻ ഫോൺ പതുക്കെ നീക്കുക.',
+        'focusStopped': 'ഫോക്കസ് മോഡ് നിർത്തി.',
+        'safetyOn': 'സുരക്ഷാ മോഡ് ഓണാണ്. പ്രധാന മുന്നറിയിപ്പുകൾ ആദ്യം അറിയിക്കും.',
+        'safetyOff': 'സുരക്ഷാ മുൻഗണന ഓഫാക്കി.',
+        'scanningSurroundings': 'ചുറ്റുമുള്ള ബോർഡുകൾ സ്കാൻ ചെയ്യുന്നു.',
+        'noHistory': 'സമീപകാല ബോർഡുകളില്ല.',
+        'historyHas': 'ചരിത്രത്തിൽ സമീപകാല കണ്ടെത്തലുകൾ ഉണ്ട്:',
+        'navigationLimit': 'വിശ്വസനീയമായ ദൂരം ലഭിക്കുമ്പോൾ മാത്രമേ ദിശ അറിയിക്കൂ.',
+        'notUnderstood': 'മനസ്സിലായില്ല. സഹായം എന്ന് പറയുക.',
+        'demoComplete': 'ചിത്ര പരിശോധന പൂർത്തിയായി.',
+        'items': 'ഇനങ്ങൾ',
+        'visible': 'എനിക്ക് കാണുന്നത്',
+        'help': 'സ്കാൻ, നിർത്തുക, വീണ്ടും പറയുക, ഫോക്കസ്, ചുറ്റുമുള്ള ബോർഡുകൾ, ചരിത്രം, ഭാഷ മാറ്റുക അല്ലെങ്കിൽ നാവിഗേറ്റ് എന്ന് പറയുക.',
+        'upload': 'ചിത്രം തിരഞ്ഞെടുക്കുക',
+        'backCamera': 'ക്യാമറയിലേക്ക് മടങ്ങുക',
+        'voiceCommands': 'വോയ്സ് കമാൻഡുകൾ',
+        'demoResults': 'ചിത്ര ഫലങ്ങൾ',
+        'lastSeen': 'അവസാനം കണ്ടത്',
+      };
+      return map[key] ?? key;
+    }
+
     const map =
         <String, String>{
+      'live': 'Live',
+      'paused': 'Paused',
+      'focusMode': 'Focus',
+      'safetyMode': 'Safety',
       'scanning':
           'Live scanning is on. To use voice commands, tap Voice Commands and allow microphone access. Choose Upload Image to read a photo, and allow location access for location-aware guidance.',
       'languageSelected':
@@ -1905,7 +2431,13 @@ class _LiveCameraScreenState
             ? 'मैं अभी इस बोर्ड से किसी जगह की विश्वसनीय पुष्टि नहीं कर पाया।'
             : language.code == 'kn'
                 ? 'ಈ ಫಲಕದಿಂದ ಯಾವುದೇ ಸ್ಥಳವನ್ನು ವಿಶ್ವಾಸಾರ್ಹವಾಗಿ ಖಚಿತಪಡಿಸಲು ನನಗೆ ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.'
-                : 'I could not reliably verify a destination from this sign yet.',
+                : language.code == 'ta'
+                    ? 'இந்தப் பலகையிலிருந்து ஒரு இடத்தை நம்பகமாக உறுதிப்படுத்த முடியவில்லை.'
+                    : language.code == 'te'
+                        ? 'ఈ బోర్డు ఆధారంగా గమ్యస్థానాన్ని నమ్మకంగా నిర్ధారించలేకపోయాను.'
+                        : language.code == 'ml'
+                            ? 'ഈ ബോർഡിൽ നിന്ന് ഒരു ലക്ഷ്യസ്ഥാനം വിശ്വസനീയമായി സ്ഥിരീകരിക്കാനായില്ല.'
+                            : 'I could not reliably verify a destination from this sign yet.',
       );
       return;
     }
@@ -1924,10 +2456,16 @@ class _LiveCameraScreenState
     if (opened) {
       await speak(
         language.code == 'hi'
-? 'मैंने ${place.matchedName} के लिए पैदल नेविगेशन खोला है।'
+            ? 'मैंने ${place.matchedName} के लिए पैदल नेविगेशन खोला है।'
             : language.code == 'kn'
                 ? '${place.matchedName} ಗೆ ನಡೆದುಹೋಗುವ ನ್ಯಾವಿಗೇಶನ್ ತೆರೆಯಲಾಗಿದೆ.'
-                : 'I opened walking navigation to ${place.matchedName}.',
+                : language.code == 'ta'
+                    ? '${place.matchedName} இடத்திற்கு நடந்து செல்லும் வழிகாட்டுதலைத் திறந்துள்ளேன்.'
+                    : language.code == 'te'
+                        ? '${place.matchedName}కు నడక మార్గదర్శకాన్ని తెరిచాను.'
+                        : language.code == 'ml'
+                            ? '${place.matchedName} ലേക്കുള്ള നടപ്പാത നാവിഗേഷൻ തുറന്നു.'
+                            : 'I opened walking navigation to ${place.matchedName}.',
       );
     } else {
       await speak(copy('navigationLimit'));
@@ -1999,6 +2537,52 @@ class _LiveCameraScreenState
             'The sign is nearby',
             'संकेत पास है',
           );
+    }
+
+    if (language.code == 'ta') {
+      return speech
+          .replaceAll('far left', 'மிகவும் இடப்புறம்')
+          .replaceAll('slightly left', 'சற்று இடப்புறம்')
+          .replaceAll('directly ahead', 'நேராக முன்னால்')
+          .replaceAll('slightly right', 'சற்று வலப்புறம்')
+          .replaceAll('far right', 'மிகவும் வலப்புறம்')
+          .replaceAll('Warning', 'எச்சரிக்கை')
+          .replaceAll('Text:', 'உரை:')
+          .replaceAll('getting closer', 'அருகில் வருகிறது')
+          .replaceAll('moving farther away', 'விலகிச் செல்கிறது')
+          .replaceAll('The sign is far away', 'பலகை தொலைவில் உள்ளது')
+          .replaceAll('The sign is approaching', 'பலகை அருகில் வருகிறது')
+          .replaceAll('The sign is nearby', 'பலகை அருகில் உள்ளது');
+    }
+    if (language.code == 'te') {
+      return speech
+          .replaceAll('far left', 'చాలా ఎడమవైపు')
+          .replaceAll('slightly left', 'కొద్దిగా ఎడమవైపు')
+          .replaceAll('directly ahead', 'నేరుగా ఎదురుగా')
+          .replaceAll('slightly right', 'కొద్దిగా కుడివైపు')
+          .replaceAll('far right', 'చాలా కుడివైపు')
+          .replaceAll('Warning', 'హెచ్చరిక')
+          .replaceAll('Text:', 'వచనం:')
+          .replaceAll('getting closer', 'దగ్గరగా వస్తోంది')
+          .replaceAll('moving farther away', 'దూరంగా వెళుతోంది')
+          .replaceAll('The sign is far away', 'బోర్డు దూరంగా ఉంది')
+          .replaceAll('The sign is approaching', 'బోర్డు దగ్గరగా వస్తోంది')
+          .replaceAll('The sign is nearby', 'బోర్డు దగ్గరలో ఉంది');
+    }
+    if (language.code == 'ml') {
+      return speech
+          .replaceAll('far left', 'വളരെ ഇടതുവശത്ത്')
+          .replaceAll('slightly left', 'അൽപ്പം ഇടതുവശത്ത്')
+          .replaceAll('directly ahead', 'നേരെ മുന്നിൽ')
+          .replaceAll('slightly right', 'അൽപ്പം വലതുവശത്ത്')
+          .replaceAll('far right', 'വളരെ വലതുവശത്ത്')
+          .replaceAll('Warning', 'മുന്നറിയിപ്പ്')
+          .replaceAll('Text:', 'വാചകം:')
+          .replaceAll('getting closer', 'അടുത്തേക്ക് വരുന്നു')
+          .replaceAll('moving farther away', 'അകന്നുപോകുന്നു')
+          .replaceAll('The sign is far away', 'ബോർഡ് ദൂരെയാണ്')
+          .replaceAll('The sign is approaching', 'ബോർഡ് അടുത്തേക്ക് വരുന്നു')
+          .replaceAll('The sign is nearby', 'ബോർഡ് സമീപത്തുണ്ട്');
     }
 
     return speech
@@ -2442,8 +3026,8 @@ class _LiveCameraScreenState
                           const SizedBox(width: 8),
                           Text(
                             stopped
-                                ? 'Paused'
-                                : 'Live • ${language.name}${focusMode ? ' • Focus' : ''}${safetyMode ? ' • Safety' : ''}',
+                                ? copy('paused')
+                                : '${copy('live')} • ${language.name}${focusMode ? ' • ' + copy('focusMode') : ''}${safetyMode ? ' • ' + copy('safetyMode') : ''}',
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                             ),

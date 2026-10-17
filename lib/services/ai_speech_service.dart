@@ -28,13 +28,16 @@ String? _parkingMeaning(String label, String text) {
   final noParking = RegExp(
     r'\bno\s+parking\b|\bdo\s+not\s+park\b|\bno\s+park\b|'
     r'ನೋ\s*ಪಾರ್ಕಿಂಗ್|ಪಾರ್ಕಿಂಗ್\s*ನಿಷೇಧ|ಪಾರ್ಕಿಂಗ್\s*ಮಾಡಬೇಡಿ|'
-    r'नो\s*पार्किंग|पार्किंग\s*निषेध|पार्किंग\s*मना',
+    r'नो\s*पार्किंग|पार्किंग\s*निषेध|पार्किंग\s*मना|'
+    r'நோ\s*பார்க்கிங்|வாகனம்\s*நிறுத்த\s*தடை|நிறுத்த\s*தடை|'
+    r'నో\s*పార్కింగ్|పార్కింగ్\s*నిషేధం|వాహనాలు\s*నిలపరాదు|'
+    r'നോ\s*പാർക്കിംഗ്|പാർക്കിംഗ്\s*നിരോധനം|വാഹനം\s*നിർത്തരുത്',
     caseSensitive: false,
   );
   if (noParking.hasMatch(source)) return 'no_parking';
 
   final positiveParking = RegExp(
-    r'\bparking\b|\bpark\b|ಪಾರ್ಕಿಂಗ್|पार्किंग',
+    r'\bparking\b|\bpark\b|ಪಾರ್ಕಿಂಗ್|पार्किंग|பார்க்கிங்|పార్కింగ్|പാർക്കിംഗ്',
     caseSensitive: false,
   );
   if (positiveParking.hasMatch(source)) return 'parking';
@@ -50,6 +53,18 @@ bool _outputClearlySaysNoParking(String text, String languageCode) {
   }
   if (languageCode == 'hi') {
     return RegExp(r'नो\s*पार्किंग|पार्किंग\s*निषेध|पार्किंग\s*मना')
+        .hasMatch(value);
+  }
+  if (languageCode == 'ta') {
+    return RegExp(r'நோ\s*பார்க்கிங்|வாகனம்\s*நிறுத்த\s*தடை|நிறுத்த\s*தடை')
+        .hasMatch(value);
+  }
+  if (languageCode == 'te') {
+    return RegExp(r'నో\s*పార్కింగ్|పార్కింగ్\s*నిషేధం|వాహనాలు\s*నిలపరాదు')
+        .hasMatch(value);
+  }
+  if (languageCode == 'ml') {
+    return RegExp(r'നോ\s*പാർക്കിംഗ്|പാർക്കിംഗ്\s*നിരോധനം|വാഹനം\s*നിർത്തരുത്')
         .hasMatch(value);
   }
   return RegExp(r'\bno[ -]parking\b|\bdo not park\b|\bno park\b')
@@ -178,18 +193,19 @@ class AISpeechService {
 
         // One translation-only retry prevents a useful sign name from being
         // lost when the first narration mixes too much English into Kannada/Hindi.
-        if (languageCode == 'kn' || languageCode == 'hi') {
+        if (languageCode != 'en') {
           final translated = await _translateNarrationWithGroq(
             cleaned,
             languageCode,
           );
           if (translated != null &&
-              _matchesRequestedLanguage(translated, languageCode)) {
+              _matchesRequestedLanguage(translated, languageCode) &&
+              _preservesParkingMeaning(translated, detections, languageCode)) {
             _debug('TRANSLATION RETRY ACCEPTED -> language=$languageCode');
             _debug('FINAL SPOKEN RESULT -> $translated');
             return translated;
           }
-          _debug('Translation retry failed language validation; using local fallback.');
+          _debug('Translation retry failed language/meaning validation; using localized fallback.');
         }
       }
     } else if (useGroq) {
@@ -211,7 +227,17 @@ class AISpeechService {
   ) async {
     HttpClient? client;
     try {
-      final languageName = languageCode == 'kn' ? 'Kannada' : 'Hindi';
+      final languageName = languageCode == 'kn'
+          ? 'Kannada'
+          : languageCode == 'ta'
+              ? 'Tamil'
+              : languageCode == 'te'
+                  ? 'Telugu'
+                  : languageCode == 'ml'
+                      ? 'Malayalam'
+                      : languageCode == 'hi'
+                          ? 'Hindi'
+                          : 'English';
       final base = _endpoint.endsWith('/')
           ? _endpoint.substring(0, _endpoint.length - 1)
           : _endpoint;
@@ -305,6 +331,18 @@ class AISpeechService {
                           : 'English';
 
       final evidence = detections.map((d) => d.toJson()).toList();
+      final serializedEvidence = jsonEncode(evidence);
+      final visibleTextChars = detections.fold<int>(
+        0,
+        (sum, detection) => sum + _cleanOcrForNarration(detection.text).length,
+      );
+      _debug('OCR EVIDENCE -> detections=${detections.length}, visibleTextChars=$visibleTextChars, evidenceJsonChars=${serializedEvidence.length}');
+      for (var i = 0; i < detections.length; i++) {
+        final visible = _cleanOcrForNarration(detections[i].text);
+        if (visible.isNotEmpty) {
+          _debug('OCR EVIDENCE item=${i + 1} chars=${visible.length} text=$visible');
+        }
+      }
 
       final payload = {
         'model': _model,
@@ -567,16 +605,54 @@ EXAMPLES:
 
     if (languageCode == 'ta' || languageCode == 'te' || languageCode == 'ml') {
       final selected = _selectFallbackDetections(detections);
-      final readableText = selected
-          .map((item) => _cleanOcrForNarration(item.text))
-          .where((text) => text.isNotEmpty)
-          .join('. ');
-      if (readableText.isNotEmpty) return readableText;
-      return languageCode == 'ta'
-          ? 'தெளிவான பலகை எதுவும் கிடைக்கவில்லை.'
-          : languageCode == 'te'
-              ? 'స్పష్టమైన బోర్డు కనిపించలేదు.'
-              : 'വ്യക്തമായ ബോർഡ് കണ്ടെത്താനായില്ല.';
+      final parts = selected.map((item) {
+        final visible = _cleanOcrForNarration(item.text);
+        if (languageCode == 'ta') {
+          final label = item.label.toLowerCase().contains('warning')
+              ? 'எச்சரிக்கை பலகை'
+              : item.label.toLowerCase().contains('shop')
+                  ? 'கடைப் பலகை'
+                  : 'பலகை';
+          final position = item.position.toLowerCase().contains('left')
+              ? 'இடது புறத்தில்'
+              : item.position.toLowerCase().contains('right')
+                  ? 'வலது புறத்தில்'
+                  : 'நேரே முன்னால்';
+          return visible.isEmpty ? '$label $position உள்ளது' : '$label $position உள்ளது. அதில் $visible என்று உள்ளது';
+        }
+        if (languageCode == 'te') {
+          final label = item.label.toLowerCase().contains('warning')
+              ? 'హెచ్చరిక బోర్డు'
+              : item.label.toLowerCase().contains('shop')
+                  ? 'దుకాణం బోర్డు'
+                  : 'బోర్డు';
+          final position = item.position.toLowerCase().contains('left')
+              ? 'ఎడమ వైపున'
+              : item.position.toLowerCase().contains('right')
+                  ? 'కుడి వైపున'
+                  : 'నేరుగా ఎదురుగా';
+          return visible.isEmpty ? '$label $position ఉంది' : '$label $position ఉంది. దానిపై $visible అని ఉంది';
+        }
+        final label = item.label.toLowerCase().contains('warning')
+            ? 'హెచ్చరిక బోర్డు'
+            : item.label.toLowerCase().contains('shop')
+                ? 'കടയുടെ ബോർഡ്'
+                : 'ബോർഡ്';
+        final position = item.position.toLowerCase().contains('left')
+            ? 'ഇടതുവശത്ത്'
+            : item.position.toLowerCase().contains('right')
+                ? 'വലതുവശത്ത്'
+                : 'നേരെ മുന്നിൽ';
+        return visible.isEmpty ? '$label $position ഉണ്ട്' : '$label $position ഉണ്ട്. അതിൽ $visible എന്ന് എഴുതിയിരിക്കുന്നു';
+      }).join(languageCode == 'ta' ? '। ' : '. ');
+      final prefix = safety
+          ? languageCode == 'ta'
+              ? 'எச்சரிக்கை. '
+              : languageCode == 'te'
+                  ? 'జాగ్రత్త. '
+                  : 'ശ്രദ്ധിക്കുക. '
+          : '';
+      return '$prefix$parts';
     }
 
     if (languageCode == 'kn') {
