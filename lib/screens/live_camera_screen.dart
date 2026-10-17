@@ -2336,11 +2336,96 @@ class _LiveCameraScreenState
     await command(result);
   }
 
+  String _normalizeVoiceCommand(String raw) {
+    var value = raw.toLowerCase();
+
+    // Some Android recognizers return phonetic Chinese characters when the
+    // requested Indic language pack is missing or ignored. Normalize the
+    // common transcript seen for "Sahaya" before the normal script filter.
+    const phoneticFixes = <String, String>{
+      '萨哈亚沙哈药': 'sahaya',
+      '萨哈亚': 'sahaya',
+      '萨哈雅': 'sahaya',
+      '萨哈亚哈': 'sahaya',
+      '我在哪里': 'where am i',
+      '我在哪': 'where am i',
+      '我在哪儿': 'where am i',
+    };
+    for (final entry in phoneticFixes.entries) {
+      value = value.replaceAll(entry.key, entry.value);
+    }
+
+    return LanguageService.normalize(value);
+  }
+
+  bool _matchesVoiceIntent(String speech, String intent) {
+    final aliases = intent == 'help'
+        ? <String>[
+            'help', 'sahaya', 'sahaaya', 'sahayya', 'sahaiya',
+            'sahayam', 'sahaya maadi', 'sahaya madi', 'sahaya please',
+            'madad', 'madat', 'sahaaya maadi', 'ಸಹಾಯ', 'ಮદદ',
+            'मदद', 'मदद करो', 'உதவி', 'సహాయం', 'സഹായം',
+          ]
+        : <String>[
+            'where am i', 'where am', 'where', 'last seen',
+            'yelli', 'elli', 'elli iddini', 'elli iddene',
+            'nanu elli', 'naanu elli', 'nanu elli iddini',
+            'naanu elli iddini', 'nanu elli iddene', 'elli idiya',
+            'ellide', 'naan enga', 'nenu ekkada', 'njan evide',
+            'कहाँ', 'मैं कहाँ', 'நான் எங்கே', 'நான் எங்கு',
+            'నేను ఎక్కడ', 'ഞാൻ എവിടെ', 'ಎಲ್ಲಿ', 'ನಾನು ಎಲ್ಲಿದ್ದೇನೆ',
+          ];
+
+    final compactSpeech = speech.replaceAll(' ', '');
+    for (final alias in aliases) {
+      if (speech.contains(alias) ||
+          (alias.replaceAll(' ', '').length >= 5 &&
+              compactSpeech.contains(alias.replaceAll(' ', '')))) {
+        return true;
+      }
+    }
+
+    // Allow small speech-to-text spelling mistakes in the key command words
+    // without requiring the whole sentence to match exactly.
+    final words = speech.split(' ').where((word) => word.isNotEmpty).toList();
+    final fuzzyTargets = intent == 'help'
+        ? <String>['help', 'sahaya', 'sahaaya', 'madad']
+        : <String>['where', 'yelli', 'elli', 'ekka', 'evide'];
+    for (final word in words) {
+      for (final target in fuzzyTargets) {
+        final maxDistance = target.length >= 6 ? 2 : 1;
+        if ((word.length - target.length).abs() <= maxDistance &&
+            _voiceEditDistance(word, target) <= maxDistance) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  int _voiceEditDistance(String a, String b) {
+    var previous = List<int>.generate(b.length + 1, (index) => index);
+    for (var i = 1; i <= a.length; i++) {
+      final current = List<int>.filled(b.length + 1, 0);
+      current[0] = i;
+      for (var j = 1; j <= b.length; j++) {
+        final cost = a[i - 1] == b[j - 1] ? 0 : 1;
+        current[j] = [
+          current[j - 1] + 1,
+          previous[j] + 1,
+          previous[j - 1] + cost,
+        ].reduce((x, y) => x < y ? x : y);
+      }
+      previous = current;
+    }
+    return previous[b.length];
+  }
+
   Future<void> command(
     String raw,
   ) async {
-    final speech =
-        LanguageService.normalize(raw);
+    final speech = _normalizeVoiceCommand(raw);
+    debugPrint('[VoiceCommand] raw="$raw" normalized="$speech"');
 
     if (speech.contains('stop focus') ||
         speech.contains('release focus') ||
@@ -2461,24 +2546,7 @@ class _LiveCameraScreenState
       return;
     }
 
-    if (speech.contains('where') ||
-        speech.contains('last seen') ||
-        speech.contains('yelli') ||
-        speech.contains('elli iddini') ||
-        speech.contains('elli iddene') ||
-        speech.contains('nanu elli') ||
-        speech.contains('naanu elli') ||
-        speech.contains('elli idiya') ||
-        speech.contains('ellide') ||
-        speech.contains('naan enga') ||
-        speech.contains('nenu ekkada') ||
-        speech.contains('njan evide') ||
-        speech.contains('कहाँ') ||
-        speech.contains('मैं कहाँ') ||
-        speech.contains('நான் எங்கே') ||
-        speech.contains('నేను ఎక్కడ') ||
-        speech.contains('ഞാൻ എവിടെ') ||
-        speech.contains('ಎಲ್ಲಿ')) {
+    if (_matchesVoiceIntent(speech, 'where')) {
       if (lastDetections.isEmpty) {
         await _speakCurrentLocationNow();
       } else {
@@ -2498,18 +2566,8 @@ class _LiveCameraScreenState
       return;
     }
 
-    // Kannada commands are commonly spoken in Latin transliteration too.
-    if (speech.contains('help') ||
-        speech.contains('sahaya') ||
-        speech.contains('sahaaya') ||
-        speech.contains('sahayya') ||
-        speech.contains('sahaya maadi') ||
-        speech.contains('madad') ||
-        speech.contains('मदद') ||
-        speech.contains('ಸಹಾಯ') ||
-        speech.contains('உதவி') ||
-        speech.contains('సహాయం') ||
-        speech.contains('സഹായം')) {
+    // Accept regional words, Latin transliterations, and minor STT errors.
+    if (_matchesVoiceIntent(speech, 'help')) {
       await speak(
         copy('help'),
       );
