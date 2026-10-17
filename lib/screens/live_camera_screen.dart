@@ -42,6 +42,7 @@ class _LiveCameraScreenState
   bool pickingImage = false;
   DateTime? _lastHoldStillAnnouncement;
   DateTime? _lastAnalysisAnnouncement;
+  DateTime? _lastBusyAnnouncement;
   bool stopped = false;
   bool listening = false;
   bool focusMode = false;
@@ -1277,11 +1278,70 @@ class _LiveCameraScreenState
     }
   }
 
+  String _busyMessage(String activity) {
+    switch (language.code) {
+      case 'kn':
+        switch (activity) {
+          case 'gallery': return 'ಗ್ಯಾಲರಿ ತೆರೆಯುತ್ತಿದೆ. ದಯವಿಟ್ಟು ಕಾಯಿರಿ.';
+          case 'image': return 'ನಿಮ್ಮ ಚಿತ್ರವನ್ನು ವಿಶ್ಲೇಷಿಸಲಾಗುತ್ತಿದೆ. ದಯವಿಟ್ಟು ಕಾಯಿರಿ.';
+          default: return 'ಲೈವ್ ಕ್ಯಾಮೆರಾ ಫಲಕಗಳನ್ನು ಪತ್ತೆಹಚ್ಚುತ್ತಿದೆ. ದಯವಿಟ್ಟು ಕಾಯಿರಿ.';
+        }
+      case 'hi':
+        switch (activity) {
+          case 'gallery': return 'गैलरी खुल रही है। कृपया प्रतीक्षा करें।';
+          case 'image': return 'आपकी तस्वीर का विश्लेषण हो रहा है। कृपया प्रतीक्षा करें।';
+          default: return 'लाइव कैमरा संकेतों का पता लगा रहा है। कृपया प्रतीक्षा करें।';
+        }
+      case 'ta':
+        switch (activity) {
+          case 'gallery': return 'படத்தொகுப்பு திறக்கப்படுகிறது. காத்திருக்கவும்.';
+          case 'image': return 'உங்கள் படம் பகுப்பாய்வு செய்யப்படுகிறது. காத்திருக்கவும்.';
+          default: return 'நேரடி கேமரா பலகைகளைக் கண்டறிகிறது. காத்திருக்கவும்.';
+        }
+      case 'te':
+        switch (activity) {
+          case 'gallery': return 'గ్యాలరీ తెరుచుకుంటోంది. దయచేసి వేచి ఉండండి.';
+          case 'image': return 'మీ చిత్రాన్ని విశ్లేషిస్తున్నాము. దయచేసి వేచి ఉండండి.';
+          default: return 'లైవ్ కెమెరా బోర్డులను గుర్తిస్తోంది. దయచేసి వేచి ఉండండి.';
+        }
+      case 'ml':
+        switch (activity) {
+          case 'gallery': return 'ഗാലറി തുറക്കുന്നു. ദയവായി കാത്തിരിക്കുക.';
+          case 'image': return 'നിങ്ങളുടെ ചിത്രം വിശകലനം ചെയ്യുന്നു. ദയവായി കാത്തിരിക്കുക.';
+          default: return 'ലൈവ് ക്യാമറ ബോർഡുകൾ കണ്ടെത്തുന്നു. ദയവായി കാത്തിരിക്കുക.';
+        }
+      default:
+        switch (activity) {
+          case 'gallery': return 'Opening your gallery. Please wait.';
+          case 'image': return 'Your picture is being analyzed. Please wait.';
+          default: return 'Live camera is detecting signboards. Please wait.';
+        }
+    }
+  }
+
   Future<void> pickDemoImage() async {
     if (processing || pickingImage) {
       debugPrint(
-        '[Gallery] ignored tap: processing=$processing pickingImage=$pickingImage',
+        '[Gallery] repeated tap: processing=$processing pickingImage=$pickingImage demoMode=$demoMode',
       );
+
+      // Never leave repeated taps feeling like the button is broken. Update
+      // the visible status immediately and throttle speech so rapid taps do
+      // not flood the announcement queue.
+      final message = pickingImage
+          ? _busyMessage('gallery')
+          : demoMode
+              ? _busyMessage('image')
+              : _busyMessage('camera');
+      if (mounted) setState(() => status = message);
+
+      final now = DateTime.now();
+      if (_lastBusyAnnouncement == null ||
+          now.difference(_lastBusyAnnouncement!) >=
+              const Duration(seconds: 3)) {
+        _lastBusyAnnouncement = now;
+        unawaited(speak(message, priority: true));
+      }
       return;
     }
 
