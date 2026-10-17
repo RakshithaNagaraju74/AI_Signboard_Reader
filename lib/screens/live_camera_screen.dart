@@ -1135,6 +1135,34 @@ class _LiveCameraScreenState
       return 'ನಕ್ಷೆಯಲ್ಲಿ $name ಸುಮಾರು $distance ದೂರದಲ್ಲಿದೆ. ಆದ್ದರಿಂದ ಈ ಫಲಕ ಇಲ್ಲಿನ ಸ್ಥಳವಲ್ಲ, ಬೇರೆ ಸ್ಥಳದ ಜಾಹೀರಾತು ಆಗಿರಬಹುದು.';
     }
 
+    if (language.code == 'ta') {
+      if (value.relation == PlaceRelation.onSite) {
+        return 'வரைபடத் தகவலின்படி $name சுமார் $distance தொலைவில் உள்ளது. இந்தப் பலகை நுழைவாயில் என்பதை மட்டும் இது உறுதிப்படுத்தாது.';
+      }
+      if (value.relation == PlaceRelation.nearby) {
+        return 'வரைபடத்தில் $name சுமார் $distance தொலைவில் உள்ளது. இந்தப் பலகை அந்த இடத்தைக் குறிக்கலாம் அல்லது விளம்பரப்படுத்தலாம்.';
+      }
+      return 'வரைபடத்தில் $name சுமார் $distance தொலைவில் உள்ளது. இந்தப் பலகை வேறு இடத்திற்கான விளம்பரமாக இருக்கலாம்.';
+    }
+    if (language.code == 'te') {
+      if (value.relation == PlaceRelation.onSite) {
+        return 'మ్యాప్ ప్రకారం $name సుమారు $distance దూరంలో ఉంది. ఈ బోర్డు ప్రవేశద్వారాన్ని నిర్ధారించదు.';
+      }
+      if (value.relation == PlaceRelation.nearby) {
+        return 'మ్యాప్‌లో $name సుమారు $distance దూరంలో ఉంది. ఈ బోర్డు ఆ ప్రదేశాన్ని సూచించవచ్చు లేదా ప్రకటన కావచ్చు.';
+      }
+      return 'మ్యాప్‌లో $name సుమారు $distance దూరంలో ఉంది. ఈ బోర్డు వేరే ప్రదేశానికి సంబంధించిన ప్రకటన కావచ్చు.';
+    }
+    if (language.code == 'ml') {
+      if (value.relation == PlaceRelation.onSite) {
+        return 'മാപ്പ് പ്രകാരം $name ഏകദേശം $distance അകലെയാണ്. ഈ ബോർഡ് പ്രവേശന കവാടമാണെന്ന് ഇതു മാത്രം ഉറപ്പാക്കുന്നില്ല.';
+      }
+      if (value.relation == PlaceRelation.nearby) {
+        return 'മാപ്പിൽ $name ഏകദേശം $distance അകലെയാണ്. ഈ ബോർഡ് ആ സ്ഥലത്തെ സൂചിപ്പിക്കുകയോ പരസ്യപ്പെടുത്തുകയോ ചെയ്യാം.';
+      }
+      return 'മാപ്പിൽ $name ഏകദേശം $distance അകലെയാണ്. ഈ ബോർഡ് മറ്റൊരു സ്ഥലത്തിന്റെ പരസ്യമായിരിക്കാം.';
+    }
+
     if (value.relation == PlaceRelation.onSite) {
       return 'Map data suggests $name is about $distance away. The sign itself does not prove that this is the entrance.';
     }
@@ -1253,22 +1281,22 @@ class _LiveCameraScreenState
         requestFullMetadata: false,
       );
 
-      // Clear the guard immediately when the native picker returns.
-      // No await occurs before entering image mode, avoiding a resume race.
-      pickingImage = false;
-
       if (picked == null) {
+        pickingImage = false;
         processing = false;
         await _resumeCameraSafely();
         return;
       }
 
       final file = File(picked.path);
+      // Keep the lifecycle guard active during the asynchronous file checks.
+      // Only switch out of picker mode once the image is known to be readable.
       if (!await file.exists() || await file.length() == 0) {
         throw StateError('The selected image could not be read.');
       }
       demoMode = true;
       demoImage = file;
+      pickingImage = false;
       visibleContexts = [];
 
       if (mounted) setState(() => status = copy('analyzingImage'));
@@ -1298,6 +1326,9 @@ class _LiveCameraScreenState
       pickingImage = false;
       processing = false;
       if (mounted) setState(() {});
+      if (mounted && !onboarding && !demoMode && camera == null) {
+        unawaited(_resumeCameraSafely());
+      }
     }
   }
 
@@ -1909,6 +1940,8 @@ class _LiveCameraScreenState
 
     if (language.code == 'ta') {
       const map = <String, String>{
+        'live': 'நேரடி',
+        'paused': 'இடைநிறுத்தப்பட்டது',
         'scanning': 'நேரடி ஸ்கேன் தொடங்கியுள்ளது. பலகையை கேமரா முன் வைத்து நிலையாகப் பிடியுங்கள்.',
         'languageSelected': 'மொழி தேர்ந்தெடுக்கப்பட்டது. இனி அனைத்து வழிகாட்டுதல்களும் இந்த மொழியில் இருக்கும்.',
         'detected': 'கண்டறியப்பட்டது',
@@ -1956,6 +1989,8 @@ class _LiveCameraScreenState
 
     if (language.code == 'te') {
       const map = <String, String>{
+        'live': 'లైవ్',
+        'paused': 'నిలిపివేయబడింది',
         'scanning': 'లైవ్ స్కానింగ్ ప్రారంభమైంది. బోర్డును కెమెరా ముందు స్థిరంగా పట్టుకోండి.',
         'languageSelected': 'భాష ఎంపికైంది. ఇకపై అన్ని సూచనలు ఈ భాషలో ఉంటాయి.',
         'detected': 'గుర్తించబడింది',
@@ -2003,6 +2038,8 @@ class _LiveCameraScreenState
 
     if (language.code == 'ml') {
       const map = <String, String>{
+        'live': 'ലൈവ്',
+        'paused': 'താൽക്കാലികമായി നിർത്തി',
         'scanning': 'ലൈവ് സ്കാനിംഗ് ആരംഭിച്ചു. ബോർഡ് ക്യാമറയ്ക്ക് മുന്നിൽ സ്ഥിരമായി പിടിക്കുക.',
         'languageSelected': 'ഭാഷ തിരഞ്ഞെടുത്തു. ഇനി എല്ലാ നിർദ്ദേശങ്ങളും ഈ ഭാഷയിലായിരിക്കും.',
         'detected': 'കണ്ടെത്തി',
@@ -2971,8 +3008,8 @@ class _LiveCameraScreenState
                           const SizedBox(width: 8),
                           Text(
                             stopped
-                                ? 'Paused'
-                                : 'Live • ${language.name}${focusMode ? ' • Focus' : ''}${safetyMode ? ' • Safety' : ''}',
+                                ? copy('paused')
+                                : '${copy('live')} • ${language.name}${focusMode ? ' • Focus' : ''}${safetyMode ? ' • Safety' : ''}',
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                             ),
