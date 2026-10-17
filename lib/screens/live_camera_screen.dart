@@ -106,6 +106,27 @@ class _LiveCameraScreenState
 
 
   String _permissionPrompt(String feature) {
+    if (language.code == 'ta') {
+      switch (feature) {
+        case 'camera': return 'இப்போது கேமரா அனுமதி கேட்கப்படும். பலகைகளைப் படிக்க அனுமதியளிக்கவும்.';
+        case 'microphone': return 'குரல் கட்டளைகளுக்காக மைக்ரோஃபோன் அனுமதியளிக்கவும்.';
+        default: return 'இடம் சார்ந்த வழிகாட்டுதலுக்காக இருப்பிட அனுமதியளிக்கவும்.';
+      }
+    }
+    if (language.code == 'te') {
+      switch (feature) {
+        case 'camera': return 'ఇప్పుడు కెమెరా అనుమతి అడుగుతుంది. బోర్డులను చదవడానికి అనుమతించండి.';
+        case 'microphone': return 'వాయిస్ ఆదేశాల కోసం మైక్రోఫోన్ అనుమతించండి.';
+        default: return 'స్థాన ఆధారిత సూచనల కోసం లొకేషన్ అనుమతించండి.';
+      }
+    }
+    if (language.code == 'ml') {
+      switch (feature) {
+        case 'camera': return 'ഇപ്പോൾ ക്യാമറ അനുമതി ചോദിക്കും. ബോർഡുകൾ വായിക്കാൻ അനുവദിക്കുക.';
+        case 'microphone': return 'വോയ്സ് കമാൻഡുകൾക്കായി മൈക്രോഫോൺ അനുവദിക്കുക.';
+        default: return 'സ്ഥലത്തെ അടിസ്ഥാനമാക്കിയുള്ള നിർദ്ദേശങ്ങൾക്കായി ലൊക്കേഷൻ അനുവദിക്കുക.';
+      }
+    }
     if (language.code == 'kn') {
       switch (feature) {
         case 'camera':
@@ -137,6 +158,21 @@ class _LiveCameraScreenState
   }
 
   String _permissionDeniedMessage(String feature, {bool settingsRequired = false}) {
+    if (language.code == 'ta') {
+      return settingsRequired
+          ? 'இந்த அனுமதியை செயலி அமைப்புகளில் இயக்கவும்.'
+          : 'அனுமதி வழங்கப்படவில்லை. இந்த வசதி செயல்படாது.';
+    }
+    if (language.code == 'te') {
+      return settingsRequired
+          ? 'యాప్ సెట్టింగ్‌లలో ఈ అనుమతిని ప్రారంభించండి.'
+          : 'అనుమతి ఇవ్వలేదు. ఈ ఫీచర్ పనిచేయదు.';
+    }
+    if (language.code == 'ml') {
+      return settingsRequired
+          ? 'ആപ്പ് ക്രമീകരണങ്ങളിൽ ഈ അനുമതി പ്രവർത്തനക്ഷമമാക്കുക.'
+          : 'അനുമതി നൽകിയില്ല. ഈ സൗകര്യം പ്രവർത്തിക്കില്ല.';
+    }
     final action = settingsRequired
         ? (language.code == 'kn'
             ? 'ದಯವಿಟ್ಟು ಅಪ್ಲಿಕೇಶನ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಈ ಅನುಮತಿಯನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ.'
@@ -176,7 +212,13 @@ class _LiveCameraScreenState
           ? 'ಅನುಮತಿ ದೊರೆತಿದೆ.'
           : language.code == 'hi'
               ? 'अनुमति मिल गई।'
-              : '$feature permission granted.';
+              : language.code == 'ta'
+                  ? 'அனுமதி வழங்கப்பட்டது.'
+                  : language.code == 'te'
+                      ? 'అనుమతి ఇచ్చారు.'
+                      : language.code == 'ml'
+                          ? 'അനുമതി നൽകി.'
+                          : '$feature permission granted.';
       await speakRaw(confirmation);
       return true;
     }
@@ -1049,6 +1091,15 @@ class _LiveCameraScreenState
   }
 
   String localizedAdvertisementWarning() {
+    if (language.code == 'ta') {
+      return 'இந்த உரை விளம்பரமாக இருக்கலாம். கடை அல்லது சேவை இங்கேயே உள்ளது என்று கருத வேண்டாம்.';
+    }
+    if (language.code == 'te') {
+      return 'ఈ వచనం ప్రకటనలా ఉంది. దుకాణం లేదా సేవ ఇక్కడే ఉందని అనుకోకండి.';
+    }
+    if (language.code == 'ml') {
+      return 'ഈ വാചകം പരസ്യമായിരിക്കാം. കടയോ സേവനമോ ഇവിടെ തന്നെയാണെന്ന് കരുതരുത്.';
+    }
     if (language.code == 'hi') {
       return 'यह पाठ विज्ञापन जैसा लगता है। इसे देखकर यह न मानें कि दुकान या सेवा यहीं स्थित है।';
     }
@@ -1654,13 +1705,20 @@ class _LiveCameraScreenState
         currentLocation;
 
     if (snapshot == null) {
-      return copy(
-        'locationUnavailable',
-      );
+      return copy('locationUnavailable');
     }
 
-    final place =
-        snapshot.displayPlace;
+    final place = snapshot.displayPlace;
+
+    if (language.code == 'ta') {
+      return 'தற்போதைய இடம்: $place. GPS துல்லியம் சுமார் ${snapshot.accuracy.toStringAsFixed(0)} மீட்டர்.';
+    }
+    if (language.code == 'te') {
+      return 'ప్రస్తుత స్థానం: $place. GPS ఖచ్చితత్వం సుమారు ${snapshot.accuracy.toStringAsFixed(0)} మీటర్లు.';
+    }
+    if (language.code == 'ml') {
+      return 'നിലവിലെ സ്ഥലം: $place. GPS കൃത്യത ഏകദേശം ${snapshot.accuracy.toStringAsFixed(0)} മീറ്റർ.';
+    }
 
     if (language.code == 'hi') {
       return 'वर्तमान स्थान: $place. '
@@ -2318,7 +2376,13 @@ class _LiveCameraScreenState
             ? 'मैं अभी इस बोर्ड से किसी जगह की विश्वसनीय पुष्टि नहीं कर पाया।'
             : language.code == 'kn'
                 ? 'ಈ ಫಲಕದಿಂದ ಯಾವುದೇ ಸ್ಥಳವನ್ನು ವಿಶ್ವಾಸಾರ್ಹವಾಗಿ ಖಚಿತಪಡಿಸಲು ನನಗೆ ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.'
-                : 'I could not reliably verify a destination from this sign yet.',
+                : language.code == 'ta'
+                    ? 'இந்தப் பலகையிலிருந்து ஒரு இடத்தை நம்பகமாக உறுதிப்படுத்த முடியவில்லை.'
+                    : language.code == 'te'
+                        ? 'ఈ బోర్డు ఆధారంగా గమ్యస్థానాన్ని నమ్మకంగా నిర్ధారించలేకపోయాను.'
+                        : language.code == 'ml'
+                            ? 'ഈ ബോർഡിൽ നിന്ന് ഒരു ലക്ഷ്യസ്ഥാനം വിശ്വസനീയമായി സ്ഥിരീകരിക്കാനായില്ല.'
+                            : 'I could not reliably verify a destination from this sign yet.',
       );
       return;
     }
@@ -2337,10 +2401,16 @@ class _LiveCameraScreenState
     if (opened) {
       await speak(
         language.code == 'hi'
-? 'मैंने ${place.matchedName} के लिए पैदल नेविगेशन खोला है।'
+            ? 'मैंने ${place.matchedName} के लिए पैदल नेविगेशन खोला है।'
             : language.code == 'kn'
                 ? '${place.matchedName} ಗೆ ನಡೆದುಹೋಗುವ ನ್ಯಾವಿಗೇಶನ್ ತೆರೆಯಲಾಗಿದೆ.'
-                : 'I opened walking navigation to ${place.matchedName}.',
+                : language.code == 'ta'
+                    ? '${place.matchedName} இடத்திற்கு நடந்து செல்லும் வழிகாட்டுதலைத் திறந்துள்ளேன்.'
+                    : language.code == 'te'
+                        ? '${place.matchedName}కు నడక మార్గదర్శకాన్ని తెరిచాను.'
+                        : language.code == 'ml'
+                            ? '${place.matchedName} ലേക്കുള്ള നടപ്പാത നാവിഗേഷൻ തുറന്നു.'
+                            : 'I opened walking navigation to ${place.matchedName}.',
       );
     } else {
       await speak(copy('navigationLimit'));
