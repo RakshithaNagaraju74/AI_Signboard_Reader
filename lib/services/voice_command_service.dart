@@ -74,10 +74,13 @@ class VoiceCommandService {
           .cast<String?>()
           .firstWhere((_) => true, orElse: () => null);
 
-      effectiveLocale ??=
-          locales.isNotEmpty ? locales.first.localeId : localeId;
-
-      debugPrint('STT requested=$localeId effective=$effectiveLocale');
+      // Never fall back to the first device locale: on some phones that is
+      // Chinese or another unrelated language, producing unusable command text.
+      effectiveLocale ??= localeId;
+      debugPrint(
+        'STT requested=$localeId effective=$effectiveLocale '
+        'availableLocales=${locales.length}',
+      );
 
       await _speech.listen(
         onResult: (result) {
