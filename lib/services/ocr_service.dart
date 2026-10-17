@@ -193,7 +193,7 @@ class OCRService {
 
   bool _isIndicLanguage(String languageCode) {
     final code = languageCode.toLowerCase().split(RegExp('[-_]')).first;
-    return const {'hi', 'kn', 'ta', 'te', 'kan', 'tam', 'tel'}.contains(code);
+    return const {'hi', 'kn', 'ta', 'te', 'ml', 'kan', 'tam', 'tel', 'mal'}.contains(code);
   }
 
   String get _ocrSpaceApiKey =>
