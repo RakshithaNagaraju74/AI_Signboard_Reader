@@ -1786,6 +1786,10 @@ class _LiveCameraScreenState
     if (language.code == 'hi') {
       const map =
           <String, String>{
+        'live': 'लाइव',
+        'paused': 'रोका गया',
+        'focusMode': 'फ़ोकस',
+        'safetyMode': 'सुरक्षा',
         'scanning':
             'लाइव स्कैनिंग शुरू है। वॉइस कमांड के लिए वॉइस कमांड बटन दबाएँ और माइक्रोफ़ोन की अनुमति दें। तस्वीर पढ़ने के लिए तस्वीर चुनें, और स्थान की जानकारी के लिए लोकेशन की अनुमति दें।',
         'languageSelected':
@@ -1862,6 +1866,10 @@ class _LiveCameraScreenState
     if (language.code == 'kn') {
       const map =
           <String, String>{
+        'live': 'ಲೈವ್',
+        'paused': 'ವಿರಾಮಗೊಳಿಸಲಾಗಿದೆ',
+        'focusMode': 'ಫೋಕಸ್',
+        'safetyMode': 'ಸುರಕ್ಷತೆ',
         'scanning':
             'ಲೈವ್ ಸ್ಕ್ಯಾನಿಂಗ್ ಪ್ರಾರಂಭವಾಗಿದೆ. ಧ್ವನಿ ಆಜ್ಞೆಗಳಿಗೆ ವಾಯ್ಸ್ ಕಮಾಂಡ್ ಬಟನ್ ಒತ್ತಿ ಮೈಕ್ರೋಫೋನ್ ಅನುಮತಿ ನೀಡಿ. ಚಿತ್ರ ಓದಲು ಚಿತ್ರ ಆಯ್ಕೆಮಾಡಿ; ಸ್ಥಳದ ಮಾಹಿತಿ ಪಡೆಯಲು ಸ್ಥಳ ಅನುಮತಿ ನೀಡಿ.',
         'languageSelected':
@@ -1942,6 +1950,8 @@ class _LiveCameraScreenState
       const map = <String, String>{
         'live': 'நேரடி',
         'paused': 'இடைநிறுத்தப்பட்டது',
+        'focusMode': 'கவனம்',
+        'safetyMode': 'பாதுகாப்பு',
         'scanning': 'நேரடி ஸ்கேன் தொடங்கியுள்ளது. பலகையை கேமரா முன் வைத்து நிலையாகப் பிடியுங்கள்.',
         'languageSelected': 'மொழி தேர்ந்தெடுக்கப்பட்டது. இனி அனைத்து வழிகாட்டுதல்களும் இந்த மொழியில் இருக்கும்.',
         'detected': 'கண்டறியப்பட்டது',
@@ -1991,6 +2001,8 @@ class _LiveCameraScreenState
       const map = <String, String>{
         'live': 'లైవ్',
         'paused': 'నిలిపివేయబడింది',
+        'focusMode': 'ఫోకస్',
+        'safetyMode': 'భద్రత',
         'scanning': 'లైవ్ స్కానింగ్ ప్రారంభమైంది. బోర్డును కెమెరా ముందు స్థిరంగా పట్టుకోండి.',
         'languageSelected': 'భాష ఎంపికైంది. ఇకపై అన్ని సూచనలు ఈ భాషలో ఉంటాయి.',
         'detected': 'గుర్తించబడింది',
@@ -2040,6 +2052,8 @@ class _LiveCameraScreenState
       const map = <String, String>{
         'live': 'ലൈവ്',
         'paused': 'താൽക്കാലികമായി നിർത്തി',
+        'focusMode': 'ഫോക്കസ്',
+        'safetyMode': 'സുരക്ഷ',
         'scanning': 'ലൈവ് സ്കാനിംഗ് ആരംഭിച്ചു. ബോർഡ് ക്യാമറയ്ക്ക് മുന്നിൽ സ്ഥിരമായി പിടിക്കുക.',
         'languageSelected': 'ഭാഷ തിരഞ്ഞെടുത്തു. ഇനി എല്ലാ നിർദ്ദേശങ്ങളും ഈ ഭാഷയിലായിരിക്കും.',
         'detected': 'കണ്ടെത്തി',
@@ -2087,6 +2101,10 @@ class _LiveCameraScreenState
 
     const map =
         <String, String>{
+      'live': 'Live',
+      'paused': 'Paused',
+      'focusMode': 'Focus',
+      'safetyMode': 'Safety',
       'scanning':
           'Live scanning is on. To use voice commands, tap Voice Commands and allow microphone access. Choose Upload Image to read a photo, and allow location access for location-aware guidance.',
       'languageSelected':
@@ -3009,7 +3027,7 @@ class _LiveCameraScreenState
                           Text(
                             stopped
                                 ? copy('paused')
-                                : '${copy('live')} • ${language.name}${focusMode ? ' • Focus' : ''}${safetyMode ? ' • Safety' : ''}',
+                                : '${copy('live')} • ${language.name}${focusMode ? ' • ' + copy('focusMode') : ''}${safetyMode ? ' • ' + copy('safetyMode') : ''}',
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                             ),
