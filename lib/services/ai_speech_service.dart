@@ -347,7 +347,7 @@ class AISpeechService {
       final payload = {
         'model': _model,
         'temperature': 0.0,
-        'max_completion_tokens': 450,
+        'max_completion_tokens': 600,
         'reasoning_effort': 'low',
         'include_reasoning': false,
         'messages': [
@@ -438,13 +438,13 @@ CRITICAL RULES:
 13. Use supplied place context when it helps the user understand where they are or where the sign points.
 14. Never translate detector labels word-for-word when that creates an unnatural sentence in Hindi or Kannada. Translate the real-world meaning naturally.
 15. When a safety sign is detected, give the safety message first and a simple helpful caution when appropriate.
-16. When multiple detections are present, combine related detections into ONE concise scene summary. Do not produce repetitive sentences for every detection.
+16. When multiple detections are present, merge boxes that refer to the same physical sign, but do NOT let the first detection or a road-name sign crowd out other distinct readable signs. If there are two or more distinct signs, use 2-3 short spoken sentences: lead with safety/restrictions or useful road directions, then describe the clearest additional business/service sign(s) and their useful readable details. A short road name alone is NOT an adequate response when another sign clearly contains a business name, service, opening hours, doctor name, or contact number.
 17. Prefer meaning over literal OCR. Never spell ordinary words letter by letter. "P H A R M A C Y" and "PHARNACY" should become "pharmacy" when context is strong.
 18. If OCR contains a likely business name with one obvious spelling error, silently correct that error and speak the corrected name. Do not announce that OCR was corrected.
 19. If the OCR is mostly noise, do not repeat the noise. Fall back to the reliable sign category and position.
 20. If several detections describe the same physical sign, merge them instead of repeating the same sign.
 21. Put the most useful information first: safety/restriction, readable sign meaning, position, then relevant proximity or guidance, then useful location context.
-22. When several different readable signs are present, do not omit useful distinct names or restrictions just because one item is safety-related. Include the safety item first, then the clearest one or two additional readable sign items, using one or two short sentences.
+22. When several different readable signs are present, include the safety item first, then the clearest one or two additional signs. For business signs, preserve the readable business/service name and any clearly readable opening hours, professional name, and contact number. If OCR is partly noisy, omit only the noisy fragments; retain the reliable details around them. Use at least two sentences when needed to communicate distinct signs.
 23. Output ONLY the final spoken sentence. No quotes, headings, labels, explanations, or alternatives.
 23. Be concise but information-preserving: use up to three short spoken sentences when the sign contains several readable lines or important details. Include all clearly readable useful text; never arbitrarily truncate a long sign name, road name, destination, phone number, route number or multi-line message.
 24. Speak ONLY in $languageName. Do not answer in English when Hindi or Kannada is requested.
