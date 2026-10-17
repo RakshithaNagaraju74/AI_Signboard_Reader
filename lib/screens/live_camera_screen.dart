@@ -2982,7 +2982,7 @@ class _LiveCameraScreenState
                   children: [
                     Expanded(
                       child: FilledButton.icon(
-                        onPressed: processing ? null : pickDemoImage,
+                        onPressed: pickDemoImage,
                         icon: const Icon(Icons.image_search),
                         label: Text(copy('upload')),
                         style: FilledButton.styleFrom(
