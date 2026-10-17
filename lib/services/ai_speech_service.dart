@@ -305,6 +305,18 @@ class AISpeechService {
                           : 'English';
 
       final evidence = detections.map((d) => d.toJson()).toList();
+      final serializedEvidence = jsonEncode(evidence);
+      final visibleTextChars = detections.fold<int>(
+        0,
+        (sum, detection) => sum + _cleanOcrForNarration(detection.text).length,
+      );
+      _debug('OCR EVIDENCE -> detections=${detections.length}, visibleTextChars=$visibleTextChars, evidenceJsonChars=${serializedEvidence.length}');
+      for (var i = 0; i < detections.length; i++) {
+        final visible = _cleanOcrForNarration(detections[i].text);
+        if (visible.isNotEmpty) {
+          _debug('OCR EVIDENCE item=${i + 1} chars=${visible.length} text=$visible');
+        }
+      }
 
       final payload = {
         'model': _model,
