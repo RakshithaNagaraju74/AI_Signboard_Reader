@@ -66,20 +66,34 @@ class VoiceCommandService {
       }
 
       effectiveLocale ??= locales
-          .where((l) => l.localeId
-              .toLowerCase()
-              .replaceAll('_', '-')
-              .startsWith('$base-'))
+          .where((l) {
+            final id = l.localeId.toLowerCase().replaceAll('_', '-');
+            return id == base || id.startsWith('$base-');
+          })
           .map((l) => l.localeId)
           .cast<String?>()
           .firstWhere((_) => true, orElse: () => null);
 
-      // Never fall back to the first device locale: on some phones that is
-      // Chinese or another unrelated language, producing unusable command text.
+      // If the selected language is not installed in Android's recognizer,
+      // never silently use the phone's first locale (which may be Chinese).
+      // Prefer an installed English recognizer as a predictable fallback.
+      if (effectiveLocale == null) {
+        for (final fallback in ['en-IN', 'en-US', 'en']) {
+          for (final locale in locales) {
+            final id = locale.localeId.toLowerCase().replaceAll('_', '-');
+            if (id == fallback.toLowerCase()) {
+              effectiveLocale = locale.localeId;
+              break;
+            }
+          }
+          if (effectiveLocale != null) break;
+        }
+      }
+
       effectiveLocale ??= localeId;
       debugPrint(
         'STT requested=$localeId effective=$effectiveLocale '
-        'availableLocales=${locales.length}',
+        'availableLocales=${locales.map((l) => l.localeId).join(',')}',
       );
 
       await _speech.listen(
