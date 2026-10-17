@@ -2300,40 +2300,53 @@ class _LiveCameraScreenState
   }
 
   Future<void> commands() async {
+    // The microphone button toggles a voice-command session. Keep listening
+    // after each command until the user taps the button again.
     if (listening) {
+      listening = false;
+      await voice.stop();
+      if (mounted) setState(() {});
       return;
     }
 
     listening = true;
+    if (mounted) setState(() {});
 
     await announcements.stopAndClear();
     await tts.stop();
 
-    final microphoneAllowed = await _requestPermissionWithVoice(
-      Permission.microphone,
-      'microphone',
-    );
-    if (!microphoneAllowed) {
+    try {
+      final microphoneAllowed = await _requestPermissionWithVoice(
+        Permission.microphone,
+        'microphone',
+      );
+      if (!microphoneAllowed || !mounted) return;
+
+      await speakRaw(copy('voicePrompt'));
+
+      while (listening && mounted) {
+        final result = await voice.listen(
+          localeId: language.speechLocale,
+          timeout: const Duration(seconds: 8),
+        );
+
+        // A button tap cancels the active listen and exits the loop.
+        if (!listening || !mounted) break;
+
+        if (result == null || result.trim().isEmpty) {
+          // Speech recognizers can finish a quiet listen without a result.
+          // Keep the session available for the next spoken command.
+          continue;
+        }
+
+        await command(result);
+      }
+    } catch (error) {
+      debugPrint('[VoiceCommand] session failed: $error');
+    } finally {
       listening = false;
-      return;
+      if (mounted) setState(() {});
     }
-
-    await speakRaw(copy('voicePrompt'));
-
-    final result =
-        await voice.listen(
-      localeId:
-          language.speechLocale,
-    );
-
-    listening = false;
-
-    if (result == null ||
-        result.trim().isEmpty) {
-      return;
-    }
-
-    await command(result);
   }
 
   String _normalizeVoiceCommand(String raw) {
@@ -2866,9 +2879,18 @@ class _LiveCameraScreenState
       });
     }
 
+    if (priority) {
+      // Safety/location/action feedback should not wait behind an old,
+      // lengthy sign narration. Stop the active utterance and discard stale
+      // queued speech before announcing the new priority message.
+      await announcements.stopAndClear();
+      await tts.stop();
+    }
+
     await announcements.enqueue(
       localizedSpeech,
       priority: priority,
+      interrupt: priority,
     );
   }
 
