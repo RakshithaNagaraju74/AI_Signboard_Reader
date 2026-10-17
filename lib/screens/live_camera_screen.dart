@@ -45,6 +45,8 @@ class _LiveCameraScreenState
   DateTime? _lastBusyAnnouncement;
   bool stopped = false;
   bool listening = false;
+  bool _voiceSessionActive = false;
+  bool _executingVoiceCommand = false;
   bool focusMode = false;
   bool sceneScanMode = false;
   bool safetyMode = true;
@@ -711,6 +713,7 @@ class _LiveCameraScreenState
         processing ||
         stopped ||
         listening ||
+        _executingVoiceCommand ||
         demoMode ||
         camera == null ||
         !camera!.value.isInitialized) {
@@ -2300,16 +2303,17 @@ class _LiveCameraScreenState
   }
 
   Future<void> commands() async {
-    // The microphone button toggles a voice-command session. Keep listening
-    // after each command until the user taps the button again.
-    if (listening) {
+    // The microphone button toggles a voice-command session. Each command
+    // gets a fresh recognition turn, and listening resumes after its reply.
+    if (_voiceSessionActive) {
+      _voiceSessionActive = false;
       listening = false;
       await voice.stop();
       if (mounted) setState(() {});
       return;
     }
 
-    listening = true;
+    _voiceSessionActive = true;
     if (mounted) setState(() {});
 
     await announcements.stopAndClear();
@@ -2322,29 +2326,45 @@ class _LiveCameraScreenState
       );
       if (!microphoneAllowed || !mounted) return;
 
+      _executingVoiceCommand = true;
       await speakRaw(copy('voicePrompt'));
+      _executingVoiceCommand = false;
 
-      while (listening && mounted) {
+      while (_voiceSessionActive && mounted) {
+        listening = true;
+        if (mounted) setState(() {});
+
         final result = await voice.listen(
           localeId: language.speechLocale,
           timeout: const Duration(seconds: 8),
         );
 
+        listening = false;
+        if (mounted) setState(() {});
+
         // A button tap cancels the active listen and exits the loop.
-        if (!listening || !mounted) break;
+        if (!_voiceSessionActive || !mounted) break;
 
         if (result == null || result.trim().isEmpty) {
-          // Speech recognizers can finish a quiet listen without a result.
-          // Keep the session available for the next spoken command.
+          // An empty recognition result should not close the command session.
           continue;
         }
 
-        await command(result);
+        // Pause new camera scans only while the command response is being
+        // handled, so speech output and live detection do not compete.
+        _executingVoiceCommand = true;
+        try {
+          await command(result);
+        } finally {
+          _executingVoiceCommand = false;
+        }
       }
     } catch (error) {
       debugPrint('[VoiceCommand] session failed: $error');
     } finally {
       listening = false;
+      _voiceSessionActive = false;
+      _executingVoiceCommand = false;
       if (mounted) setState(() {});
     }
   }
@@ -3367,13 +3387,13 @@ class _LiveCameraScreenState
                         child: FilledButton.icon(
                           onPressed: commands,
                           icon: Icon(
-                            listening
+                            _voiceSessionActive
                                 ? Icons.hearing
                                 : Icons.mic_none_rounded,
                           ),
                           label: Text(
-                            listening
-                                ? 'Listening…'
+                            _voiceSessionActive
+                                ? 'Voice commands on · tap to stop'
                                 : copy('voiceCommands'),
                           ),
                           style: FilledButton.styleFrom(
