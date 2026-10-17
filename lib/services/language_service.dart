@@ -19,6 +19,9 @@ class LanguageService {
     AppLanguage(code: 'en', speechLocale: 'en-US', name: 'English'),
     AppLanguage(code: 'hi', speechLocale: 'hi-IN', name: 'Hindi'),
     AppLanguage(code: 'kn', speechLocale: 'kn-IN', name: 'Kannada'),
+    AppLanguage(code: 'ta', speechLocale: 'ta-IN', name: 'Tamil'),
+    AppLanguage(code: 'te', speechLocale: 'te-IN', name: 'Telugu'),
+    AppLanguage(code: 'ml', speechLocale: 'ml-IN', name: 'Malayalam'),
   ];
 
   Future<AppLanguage?> load() async {
@@ -47,7 +50,7 @@ class LanguageService {
     return text
         .toLowerCase()
         .replaceAll(
-          RegExp(r'[^a-zA-Z\u0900-\u097F\u0C80-\u0CFF0-9 ]'),
+          RegExp(r'[^a-zA-Z\u0900-\u097F\u0C00-\u0C7F\u0C80-\u0CFF\u0B80-\u0BFF\u0D00-\u0D7F0-9 ]'),
           ' ',
         )
         .replaceAll(RegExp(r'\s+'), ' ')
@@ -63,6 +66,9 @@ class LanguageService {
     if (RegExp(r'(^|\s)(one|1|first|english|inglish)(\s|$)').hasMatch(value)) return 'en';
     if (RegExp(r'(^|\s)(two|2|second|hindi|hindee|hindy|indi)(\s|$)').hasMatch(value) || value.contains('हिंदी') || value.contains('हिन्दी')) return 'hi';
     if (RegExp(r'(^|\s)(three|3|third|kannada|kanada|kannad|canada)(\s|$)').hasMatch(value) || value.contains('ಕನ್ನಡ')) return 'kn';
+    if (RegExp(r'(^|\s)(four|4|fourth|tamil|tamizh)(\s|$)').hasMatch(value) || value.contains('தமிழ்')) return 'ta';
+    if (RegExp(r'(^|\s)(five|5|fifth|telugu)(\s|$)').hasMatch(value) || value.contains('తెలుగు')) return 'te';
+    if (RegExp(r'(^|\s)(six|6|sixth|malayalam)(\s|$)').hasMatch(value) || value.contains('മലയാളം')) return 'ml';
 
     // Common Android STT phonetic outputs for the numbers.
     if (RegExp(r'(^|\s)(won|wan)(\s|$)').hasMatch(value)) return 'en';
