@@ -74,23 +74,19 @@ class VoiceCommandService {
           .cast<String?>()
           .firstWhere((_) => true, orElse: () => null);
 
-      // If the selected language is not installed in Android's recognizer,
-      // never silently use the phone's first locale (which may be Chinese).
-      // Prefer an installed English recognizer as a predictable fallback.
-      if (effectiveLocale == null) {
-        for (final fallback in ['en-IN', 'en-US', 'en']) {
-          for (final locale in locales) {
-            final id = locale.localeId.toLowerCase().replaceAll('_', '-');
-            if (id == fallback.toLowerCase()) {
-              effectiveLocale = locale.localeId;
-              break;
-            }
-          }
-          if (effectiveLocale != null) break;
-        }
-      }
-
+      // Never switch an Indic-language command session to English just
+      // because its language pack is missing. That creates misleading Latin
+      // transcripts (for example, Kannada words returned as "mattelu").
+      // Request the selected locale and log whether Android lists a matching
+      // recognizer locale so the device configuration can be diagnosed.
+      final hasMatchingLocale = effectiveLocale != null;
       effectiveLocale ??= localeId;
+      if (!hasMatchingLocale) {
+        debugPrint(
+          'STT WARNING: no installed recognizer locale matches $localeId; '
+          'requesting it explicitly instead of silently switching languages.',
+        );
+      }
       debugPrint(
         'STT requested=$localeId effective=$effectiveLocale '
         'availableLocales=${locales.map((l) => l.localeId).join(',')}',
@@ -111,7 +107,7 @@ class VoiceCommandService {
         listenOptions: SpeechListenOptions(
           localeId: effectiveLocale,
           listenFor: timeout,
-          pauseFor: const Duration(seconds: 3),
+          pauseFor: const Duration(seconds: 4),
           partialResults: true,
           cancelOnError: false,
           autoPunctuation: false,
