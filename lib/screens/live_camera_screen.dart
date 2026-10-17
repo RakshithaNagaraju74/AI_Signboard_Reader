@@ -39,6 +39,7 @@ class _LiveCameraScreenState
 
   bool ready = false;
   bool processing = false;
+  bool _announcedAnalyzingThisSession = false;
   bool stopped = false;
   bool listening = false;
   bool focusMode = false;
@@ -467,8 +468,8 @@ class _LiveCameraScreenState
       await tts.setLanguage('en-US');
 
       final prompt = attempt == 0
-          ? 'Choose your language. Say one for English, two for Hindi, or three for Kannada.'
-          : 'Please say only one, two, or three.';
+          ? 'Choose your language. Say one for English, two for Hindi, three for Kannada, four for Tamil, five for Telugu, or six for Malayalam.'
+          : 'Please say a number from one to six.';
 
       await speakRaw(prompt);
       await Future<void>.delayed(const Duration(milliseconds: 900));
@@ -499,11 +500,11 @@ class _LiveCameraScreenState
     // Never trap a blind user in speech onboarding.
     await tts.setLanguage('en-US');
     await speakRaw(
-      'Voice selection was not clear. The three large buttons below can be used to choose your language.',
+      'Voice selection was not clear. Use one of the six language buttons to choose your language.',
     );
 
     if (mounted) {
-      setState(() => status = 'Choose English, Hindi, or Kannada');
+      setState(() => status = 'Choose English, Hindi, Kannada, Tamil, Telugu, or Malayalam');
     }
   }
 
@@ -621,6 +622,33 @@ class _LiveCameraScreenState
     if (!TFLiteService().isInitialized) return;
 
     processing = true;
+    if (mounted) {
+      setState(() => status = language.code == 'kn'
+          ? 'ಫಲಕದ ಪಠ್ಯವನ್ನು ಓದುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಒಂದು ಕ್ಷಣ ಕಾಯಿರಿ.'
+          : language.code == 'hi'
+              ? 'संकेत का पाठ पढ़ा जा रहा है। कृपया एक क्षण प्रतीक्षा करें।'
+              : language.code == 'ta'
+                  ? 'பலகையின் உரையைப் படிக்கிறேன். ஒரு கணம் காத்திருக்கவும்.'
+                  : language.code == 'te'
+                      ? 'బోర్డులోని వచనాన్ని చదువుతున్నాను. దయచేసి కాసేపు వేచి ఉండండి.'
+                      : language.code == 'ml'
+                          ? 'ബോർഡിലെ എഴുത്ത് വായിക്കുന്നു. ദയവായി ഒരു നിമിഷം കാത്തിരിക്കുക.'
+                          : 'Reading the signboard text. Please wait a moment.');
+    }
+    if (!_announcedAnalyzingThisSession) {
+      _announcedAnalyzingThisSession = true;
+      unawaited(speak(language.code == 'kn'
+          ? 'ಫಲಕವನ್ನು ವಿಶ್ಲೇಷಿಸುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಒಂದು ಕ್ಷಣ ಕಾಯಿರಿ.'
+          : language.code == 'hi'
+              ? 'संकेत का विश्लेषण हो रहा है। कृपया एक क्षण प्रतीक्षा करें।'
+              : language.code == 'ta'
+                  ? 'பலகையை ஆய்வு செய்கிறேன். ஒரு கணம் காத்திருக்கவும்.'
+                  : language.code == 'te'
+                      ? 'బోర్డును విశ్లేషిస్తున్నాను. దయచేసి కాసేపు వేచి ఉండండి.'
+                      : language.code == 'ml'
+                          ? 'ബോർഡ് പരിശോധിക്കുന്നു. ദയവായി ഒരു നിമിഷം കാത്തിരിക്കുക.'
+                          : 'I am analyzing the signboard. Please wait a moment.'));
+    }
 
     try {
       try {
