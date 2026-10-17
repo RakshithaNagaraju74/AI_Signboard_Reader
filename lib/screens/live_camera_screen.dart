@@ -39,6 +39,8 @@ class _LiveCameraScreenState
 
   bool ready = false;
   bool processing = false;
+  bool pickingImage = false;
+  DateTime? _lastHoldStillAnnouncement;
   bool _announcedAnalyzingThisSession = false;
   bool stopped = false;
   bool listening = false;
@@ -345,6 +347,16 @@ class _LiveCameraScreenState
   String localizedLocationSentenceFor(LocationSnapshot snapshot) {
     final place = snapshot.displayPlace;
 
+    if (language.code == 'ta') {
+      return 'தற்போதைய இடம்: $place. GPS துல்லியம் சுமார் ${snapshot.accuracy.toStringAsFixed(0)} மீட்டர்.';
+    }
+    if (language.code == 'te') {
+      return 'ప్రస్తుత స్థానం: $place. GPS ఖచ్చితత్వం సుమారు ${snapshot.accuracy.toStringAsFixed(0)} మీటర్లు.';
+    }
+    if (language.code == 'ml') {
+      return 'നിലവിലെ സ്ഥലം: $place. GPS കൃത്യത ഏകദേശം ${snapshot.accuracy.toStringAsFixed(0)} മീറ്റർ.';
+    }
+
     if (language.code == 'hi') {
       return 'वर्तमान स्थान: ' + place + '। GPS सटीकता लगभग ' +
           snapshot.accuracy.toStringAsFixed(0) + ' मीटर।';
@@ -361,6 +373,10 @@ class _LiveCameraScreenState
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // The gallery picker backgrounds the app on Android; avoid racing it
+    // by creating or disposing a second camera controller while it is open.
+    if (pickingImage) return;
+
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       timer?.cancel();
@@ -376,7 +392,8 @@ class _LiveCameraScreenState
 
     if (state == AppLifecycleState.resumed &&
         !onboarding &&
-        !demoMode) {
+        !demoMode &&
+        !pickingImage) {
       unawaited(_resumeCameraSafely());
     }
   }
@@ -398,7 +415,7 @@ class _LiveCameraScreenState
   }
 
   Future<void> _resumeCameraSafely() async {
-    if (!mounted || onboarding || demoMode || camera != null) return;
+    if (!mounted || onboarding || demoMode || pickingImage || camera != null) return;
 
     try {
       await _initializeCamera();
@@ -417,15 +434,14 @@ class _LiveCameraScreenState
   }
 
   String _locationLocale() {
-    if (language.code == 'hi') {
-      return 'hi_IN';
+    switch (language.code) {
+      case 'hi': return 'hi_IN';
+      case 'kn': return 'kn_IN';
+      case 'ta': return 'ta_IN';
+      case 'te': return 'te_IN';
+      case 'ml': return 'ml_IN';
+      default: return 'en_US';
     }
-
-    if (language.code == 'kn') {
-      return 'kn_IN';
-    }
-
-    return 'en_US';
   }
 
   Future<void> chooseLanguage({bool force = false}) async {
@@ -535,6 +551,29 @@ class _LiveCameraScreenState
     if (raw.isEmpty) {
       lastDetections = [];
       return [];
+    }
+
+    // Tell the user to keep the phone still when a live sign is detected.
+    // Throttle the voice prompt so it does not repeat on every camera frame.
+    if (!demo) {
+      final now = DateTime.now();
+      if (_lastHoldStillAnnouncement == null ||
+          now.difference(_lastHoldStillAnnouncement!) >= const Duration(seconds: 15)) {
+        _lastHoldStillAnnouncement = now;
+        final message = language.code == 'hi'
+            ? 'संकेत मिल गया है। कृपया फोन को इसी दिशा में स्थिर रखें। मैं इसे पढ़ने की कोशिश कर रहा हूँ।'
+            : language.code == 'kn'
+                ? 'ಫಲಕ ಕಂಡುಬಂದಿದೆ. ದಯವಿಟ್ಟು ಫೋನ್ ಅನ್ನು ಇದೇ ದಿಕ್ಕಿನಲ್ಲಿ ಸ್ಥಿರವಾಗಿ ಹಿಡಿಯಿರಿ. ನಾನು ಅದನ್ನು ಓದಲು ಪ್ರಯತ್ನಿಸುತ್ತಿದ್ದೇನೆ.'
+                : language.code == 'ta'
+                    ? 'பலகை கண்டறியப்பட்டது. தயவுசெய்து தொலைபேசியை இதே திசையில் அசைக்காமல் பிடியுங்கள். நான் அதைப் படிக்க முயற்சிக்கிறேன்.'
+                    : language.code == 'te'
+                        ? 'బోర్డు కనిపించింది. దయచేసి ఫోన్‌ను ఇదే దిశలో కదపకుండా స్థిరంగా పట్టుకోండి. నేను దాన్ని చదవడానికి ప్రయత్నిస్తున్నాను.'
+                        : language.code == 'ml'
+                            ? 'ബോർഡ് കണ്ടെത്തി. ദയവായി ഫോൺ ഇതേ ദിശയിൽ അനക്കാതെ പിടിക്കുക. ഞാൻ അത് വായിക്കാൻ ശ്രമിക്കുകയാണ്.'
+                            : 'I detected a sign. Please hold the phone steady in this direction while I try to read it.';
+        if (mounted) setState(() => status = message);
+        unawaited(speak(message, priority: true));
+      }
     }
 
     // Keep all useful detections instead of exposing only the highest one.
@@ -907,6 +946,36 @@ class _LiveCameraScreenState
   }
 
   String localizedGuidance(SignPosition position) {
+    if (language.code == 'ta') {
+      const map = <SignPosition, String>{
+        SignPosition.left: 'அதை நோக்க தொலைபேசியை மெதுவாக இடப்புறம் திருப்புங்கள்.',
+        SignPosition.slightlyLeft: 'சற்று இடப்புறம் திருப்புங்கள்.',
+        SignPosition.front: 'பலகை நேராக முன்னால் உள்ளது. தொலைபேசியை அசைக்காமல் பிடியுங்கள்.',
+        SignPosition.slightlyRight: 'சற்று வலப்புறம் திருப்புங்கள்.',
+        SignPosition.right: 'அதை நோக்க தொலைபேசியை மெதுவாக வலப்புறம் திருப்புங்கள்.',
+      };
+      return map[position]!;
+    }
+    if (language.code == 'te') {
+      const map = <SignPosition, String>{
+        SignPosition.left: 'దాన్ని చూడటానికి ఫోన్‌ను నెమ్మదిగా ఎడమవైపు తిప్పండి.',
+        SignPosition.slightlyLeft: 'కొద్దిగా ఎడమవైపు చూడండి.',
+        SignPosition.front: 'బోర్డు నేరుగా ఎదురుగా ఉంది. ఫోన్‌ను స్థిరంగా పట్టుకోండి.',
+        SignPosition.slightlyRight: 'కొద్దిగా కుడివైపు చూడండి.',
+        SignPosition.right: 'దాన్ని చూడటానికి ఫోన్‌ను నెమ్మదిగా కుడివైపు తిప్పండి.',
+      };
+      return map[position]!;
+    }
+    if (language.code == 'ml') {
+      const map = <SignPosition, String>{
+        SignPosition.left: 'അത് കാണാൻ ഫോൺ പതുക്കെ ഇടത്തേക്ക് തിരിക്കുക.',
+        SignPosition.slightlyLeft: 'അൽപ്പം ഇടത്തേക്ക് നോക്കുക.',
+        SignPosition.front: 'ബോർഡ് നേരെ മുന്നിലാണ്. ഫോൺ സ്ഥിരമായി പിടിക്കുക.',
+        SignPosition.slightlyRight: 'അൽപ്പം വലത്തേക്ക് നോക്കുക.',
+        SignPosition.right: 'അത് കാണാൻ ഫോൺ പതുക്കെ വലത്തേക്ക് തിരിക്കുക.',
+      };
+      return map[position]!;
+    }
     if (language.code == 'hi') {
       const map = <SignPosition, String>{
         SignPosition.left:
@@ -1109,9 +1178,10 @@ class _LiveCameraScreenState
   }
 
   Future<void> pickDemoImage() async {
-    if (processing) return;
+    if (processing || pickingImage) return;
 
     processing = true;
+    pickingImage = true;
     timer?.cancel();
     timer = null;
 
@@ -1126,11 +1196,15 @@ class _LiveCameraScreenState
 
       final picked = await picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 82,
-        maxWidth: 1280,
-        maxHeight: 1280,
+        imageQuality: 100,
+        maxWidth: 2048,
+        maxHeight: 2048,
         requestFullMetadata: false,
       );
+
+      // Clear the guard immediately when the native picker returns.
+      // No await occurs before entering image mode, avoiding a resume race.
+      pickingImage = false;
 
       if (picked == null) {
         processing = false;
@@ -1139,6 +1213,9 @@ class _LiveCameraScreenState
       }
 
       final file = File(picked.path);
+      if (!await file.exists() || await file.length() == 0) {
+        throw StateError('The selected image could not be read.');
+      }
       demoMode = true;
       demoImage = file;
       visibleContexts = [];
@@ -1167,6 +1244,7 @@ class _LiveCameraScreenState
       if (mounted) setState(() => status = copy('analysisFailed'));
       await speak(copy('analysisFailed'));
     } finally {
+      pickingImage = false;
       processing = false;
       if (mounted) setState(() {});
     }
@@ -1241,6 +1319,36 @@ class _LiveCameraScreenState
   String localizedPosition(
     SignPosition position,
   ) {
+    if (language.code == 'ta') {
+      const map = <SignPosition, String>{
+        SignPosition.left: 'மிகவும் இடப்புறம்',
+        SignPosition.slightlyLeft: 'சற்று இடப்புறம்',
+        SignPosition.front: 'நேராக முன்னால்',
+        SignPosition.slightlyRight: 'சற்று வலப்புறம்',
+        SignPosition.right: 'மிகவும் வலப்புறம்',
+      };
+      return map[position]!;
+    }
+    if (language.code == 'te') {
+      const map = <SignPosition, String>{
+        SignPosition.left: 'చాలా ఎడమవైపు',
+        SignPosition.slightlyLeft: 'కొద్దిగా ఎడమవైపు',
+        SignPosition.front: 'నేరుగా ఎదురుగా',
+        SignPosition.slightlyRight: 'కొద్దిగా కుడివైపు',
+        SignPosition.right: 'చాలా కుడివైపు',
+      };
+      return map[position]!;
+    }
+    if (language.code == 'ml') {
+      const map = <SignPosition, String>{
+        SignPosition.left: 'വളരെ ഇടതുവശത്ത്',
+        SignPosition.slightlyLeft: 'അൽപ്പം ഇടതുവശത്ത്',
+        SignPosition.front: 'നേരെ മുന്നിൽ',
+        SignPosition.slightlyRight: 'അൽപ്പം വലതുവശത്ത്',
+        SignPosition.right: 'വളരെ വലതുവശത്ത്',
+      };
+      return map[position]!;
+    }
     if (language.code == 'hi') {
       const map =
           <SignPosition, String>{
