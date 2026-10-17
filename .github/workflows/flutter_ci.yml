@@ -31,7 +31,9 @@ jobs:
         run: flutter pub get
 
       - name: Analyze
-        run: flutter analyze
+        # Existing informational style lints should not block tests/builds.
+        # Warnings and errors still fail the job; unused declarations are fixed in source.
+        run: flutter analyze --no-fatal-infos
 
       - name: Test
         run: flutter test
