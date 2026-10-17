@@ -565,6 +565,20 @@ EXAMPLES:
           '$placePart';
     }
 
+    if (languageCode == 'ta' || languageCode == 'te' || languageCode == 'ml') {
+      final selected = _selectFallbackDetections(detections);
+      final readableText = selected
+          .map((item) => _cleanOcrForNarration(item.text))
+          .where((text) => text.isNotEmpty)
+          .join('. ');
+      if (readableText.isNotEmpty) return readableText;
+      return languageCode == 'ta'
+          ? 'தெளிவான பலகை எதுவும் கிடைக்கவில்லை.'
+          : languageCode == 'te'
+              ? 'స్పష్టమైన బోర్డు కనిపించలేదు.'
+              : 'വ്യക്തമായ ബോർഡ് കണ്ടെത്താനായില്ല.';
+    }
+
     if (languageCode == 'kn') {
       final selected = _selectFallbackDetections(detections);
       final parts = selected.map(_kannadaItem).join('. ');
@@ -982,6 +996,22 @@ EXAMPLES:
       return hindiLetters >= 8 &&
           totalLetters > 0 &&
           hindiLetters / totalLetters >= 0.35;
+    }
+
+    final scriptRange = languageCode == 'ta'
+        ? RegExp(r'[\u0B80-\u0BFF]')
+        : languageCode == 'te'
+            ? RegExp(r'[\u0C00-\u0C7F]')
+            : languageCode == 'ml'
+                ? RegExp(r'[\u0D00-\u0D7F]')
+                : null;
+    if (scriptRange != null) {
+      final nativeLetters = scriptRange.allMatches(text).length;
+      final latinLetters = RegExp(r'[A-Za-z]').allMatches(text).length;
+      final totalLetters = nativeLetters + latinLetters;
+      return nativeLetters >= 5 &&
+          totalLetters > 0 &&
+          nativeLetters / totalLetters >= 0.30;
     }
 
     return true;
