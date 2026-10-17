@@ -28,13 +28,16 @@ String? _parkingMeaning(String label, String text) {
   final noParking = RegExp(
     r'\bno\s+parking\b|\bdo\s+not\s+park\b|\bno\s+park\b|'
     r'ನೋ\s*ಪಾರ್ಕಿಂಗ್|ಪಾರ್ಕಿಂಗ್\s*ನಿಷೇಧ|ಪಾರ್ಕಿಂಗ್\s*ಮಾಡಬೇಡಿ|'
-    r'नो\s*पार्किंग|पार्किंग\s*निषेध|पार्किंग\s*मना',
+    r'नो\s*पार्किंग|पार्किंग\s*निषेध|पार्किंग\s*मना|'
+    r'நோ\s*பார்க்கிங்|வாகனம்\s*நிறுத்த\s*தடை|நிறுத்த\s*தடை|'
+    r'నో\s*పార్కింగ్|పార్కింగ్\s*నిషేధం|వాహనాలు\s*నిలపరాదు|'
+    r'നോ\s*പാർക്കിംഗ്|പാർക്കിംഗ്\s*നിരോധനം|വാഹനം\s*നിർത്തരുത്',
     caseSensitive: false,
   );
   if (noParking.hasMatch(source)) return 'no_parking';
 
   final positiveParking = RegExp(
-    r'\bparking\b|\bpark\b|ಪಾರ್ಕಿಂಗ್|पार्किंग',
+    r'\bparking\b|\bpark\b|ಪಾರ್ಕಿಂಗ್|पार्किंग|பார்க்கிங்|పార్కింగ్|പാർക്കിംഗ്',
     caseSensitive: false,
   );
   if (positiveParking.hasMatch(source)) return 'parking';
