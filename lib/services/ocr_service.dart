@@ -505,13 +505,13 @@ class OCRService {
     if (value.isEmpty) return -1000;
 
     final compact = value.replaceAll(RegExp(r'\s+'), '');
-    final readable = RegExp(r'[A-Za-z0-9\u0900-\u0CFF]')
+    final readable = RegExp(r'[A-Za-z0-9\u0900-\u0D7F]')
         .allMatches(compact)
         .length;
     final ratio = compact.isEmpty ? 0.0 : readable / compact.length;
     final words = value.split(' ').where((e) => e.isNotEmpty).length;
     final suspicious = RegExp(
-      r'[^A-Za-z0-9\u0900-\u0CFF\s.,:/&()\-+#%]',
+      r'[^A-Za-z0-9\u0900-\u0D7F\s.,:/&()\-+#%]',
     ).allMatches(value).length;
 
     return (compact.length * 0.55) +
@@ -556,7 +556,7 @@ class OCRService {
   String _normalizeForComparison(String text) {
     return _cleanText(text)
         .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9\u0900-\u0CFF]'), '');
+        .replaceAll(RegExp(r'[^a-z0-9\u0900-\u0D7F]'), '');
   }
 
   String _normalizeOCRText(String text) {
