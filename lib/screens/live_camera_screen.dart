@@ -2336,7 +2336,7 @@ class _LiveCameraScreenState
 
         final result = await voice.listen(
           localeId: language.speechLocale,
-          timeout: const Duration(seconds: 8),
+          timeout: const Duration(seconds: 10),
         );
 
         listening = false;
@@ -2346,7 +2346,9 @@ class _LiveCameraScreenState
         if (!_voiceSessionActive || !mounted) break;
 
         if (result == null || result.trim().isEmpty) {
-          // An empty recognition result should not close the command session.
+          // Keep the session active without spinning rapidly when Android
+          // returns no transcript for a listening turn.
+          await Future<void>.delayed(const Duration(milliseconds: 300));
           continue;
         }
 
