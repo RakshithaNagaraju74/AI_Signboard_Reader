@@ -827,11 +827,12 @@ class _LiveCameraScreenState
           .trim();
       final textKey = cleanedText
           .toLowerCase()
-          .replaceAll(RegExp(r'[^a-z0-9\u0900-\u097f\u0c80-\u0cff]'), '');
+          .replaceAll(RegExp(r'[^a-z0-9\u0900-\u0d7f]'), '');
       final signKey = context.detection.className.toLowerCase();
+      // Preserve every distinct OCR result for Groq. Repeated text can be
+      // deduplicated, but do not cap the payload to only the first four signs.
       if (textKey.isNotEmpty && !seenSignText.add(textKey)) continue;
       if (textKey.isEmpty && !seenSignKeys.add(signKey)) continue;
-      if (inputs.length >= 4) break;
       final text = context.detection.ocrText.trim();
       var placeContext = '';
 
@@ -872,6 +873,14 @@ class _LiveCameraScreenState
       );
     }
 
+    final totalOcrChars = inputs.fold<int>(
+      0,
+      (sum, input) => sum + input.text.length,
+    );
+    debugPrint('[OCR->Groq] forwarding ${inputs.length} unique detections; total OCR chars=$totalOcrChars');
+    for (var i = 0; i < inputs.length; i++) {
+      debugPrint('[OCR->Groq] item=${i + 1} label=${inputs[i].label} chars=${inputs[i].text.length} text=${inputs[i].text}');
+    }
     debugPrint(
       '[Groq] live_camera -> sending detection(s): '
       + inputs.length.toString()
