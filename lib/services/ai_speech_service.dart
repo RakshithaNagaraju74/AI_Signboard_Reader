@@ -164,18 +164,18 @@ class AISpeechService {
         'Bearer $_apiKey',
       );
 
-      final languageName = languageCode == 'hi'
-          ? 'Hindi'
-          : languageCode == 'kn'
-              ? 'Kannada'
-              : 'English';
+      const languageNames = <String, String>{
+        'en': 'English', 'hi': 'Hindi', 'kn': 'Kannada',
+        'ta': 'Tamil', 'te': 'Telugu', 'ml': 'Malayalam',
+      };
+      final languageName = languageNames[languageCode] ?? 'English';
 
       final evidence = detections.map((d) => d.toJson()).toList();
 
       final payload = {
         'model': _model,
         'temperature': 0.0,
-        'max_completion_tokens': 320,
+        'max_completion_tokens': 480,
         'reasoning_effort': 'low',
         'include_reasoning': false,
         'messages': [
@@ -405,6 +405,9 @@ EXAMPLES:
       if (languageCode == 'kn') {
         return 'ಯಾವುದೇ ಸ್ಪಷ್ಟ ಫಲಕ ಕಂಡುಬಂದಿಲ್ಲ.';
       }
+      if (languageCode == 'ta') return 'தெளிவான பெயர்ப்பலகை எதுவும் தெரியவில்லை.';
+      if (languageCode == 'te') return 'స్పష్టమైన సైన్‌బోర్డు కనిపించలేదు.';
+      if (languageCode == 'ml') return 'വ്യക്തമായ സൈൻബോർഡ് കാണാനായില്ല.';
 
       return 'I cannot see a clear signboard.';
     }
@@ -428,6 +431,10 @@ EXAMPLES:
           '$parts।'
           '$placePart';
     }
+
+    if (languageCode == 'ta') return _indicFallbackNotice('Tamil');
+    if (languageCode == 'te') return _indicFallbackNotice('Telugu');
+    if (languageCode == 'ml') return _indicFallbackNotice('Malayalam');
 
     if (languageCode == 'kn') {
       final selected = _selectFallbackDetections(detections);
@@ -455,6 +462,9 @@ EXAMPLES:
     return '$prefix$parts.$placePart';
   }
 
+
+  String _indicFallbackNotice(String language) =>
+      'The sign was detected, but the $language narration service is unavailable. Please check your internet connection and try again. The app is not giving an English translation as if it were $language.';
 
   List<SpeechDetectionInput> _selectFallbackDetections(
     List<SpeechDetectionInput> detections,
