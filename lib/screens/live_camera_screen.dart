@@ -2511,7 +2511,10 @@ class _LiveCameraScreenState
 
     if (speech.contains('repeat') ||
         speech.contains('दोहर') ||
-        speech.contains('ಮತ್ತೆ')) {
+        speech.contains('ಮತ್ತೆ') ||
+        speech == 'matte' ||
+        speech == 'mattelu' ||
+        speech == 'matte heli') {
       final repeatText = last.isEmpty ? copy('nothingToRepeat') : last;
       await announcements.stopAndClear();
       await tts.stop();
