@@ -1278,7 +1278,12 @@ class _LiveCameraScreenState
   }
 
   Future<void> pickDemoImage() async {
-    if (processing || pickingImage) return;
+    if (processing || pickingImage) {
+      debugPrint(
+        '[Gallery] ignored tap: processing=$processing pickingImage=$pickingImage',
+      );
+      return;
+    }
 
     processing = true;
     pickingImage = true;
@@ -1290,19 +1295,26 @@ class _LiveCameraScreenState
     ready = false;
 
     try {
-      await oldCamera?.dispose();
-
-      if (mounted) setState(() => status = copy('upload'));
+      if (mounted) {
+        setState(() => status = copy('upload'));
+      }
+      debugPrint('[Gallery] opening Android image picker');
+      // A camera disposal failure should not prevent the user from choosing a
+      // photo. Log it and continue into the picker.
+      try {
+        await oldCamera?.dispose();
+      } catch (cameraError) {
+        debugPrint('[Gallery] camera dispose failed: $cameraError');
+      }
 
       final picked = await picker.pickImage(
         source: ImageSource.gallery,
-        // Avoid passing unnecessarily huge gallery files through model and OCR
-        // processing. Keep enough resolution for sign text while reducing latency.
         imageQuality: 90,
         maxWidth: 1600,
         maxHeight: 1600,
         requestFullMetadata: false,
       );
+      debugPrint('[Gallery] picker returned: ${picked?.path ?? 'cancelled'}');
 
       if (picked == null) {
         pickingImage = false;
@@ -1353,6 +1365,9 @@ class _LiveCameraScreenState
       if (mounted && !onboarding && !demoMode && camera == null) {
         unawaited(_resumeCameraSafely());
       }
+      debugPrint(
+        '[Gallery] finished: demoMode=$demoMode cameraReady=${camera != null}',
+      );
     }
   }
 
@@ -2388,7 +2403,21 @@ class _LiveCameraScreenState
 
     if (speech.contains('where') ||
         speech.contains('last seen') ||
+        speech.contains('yelli') ||
+        speech.contains('elli iddini') ||
+        speech.contains('elli iddene') ||
+        speech.contains('nanu elli') ||
+        speech.contains('naanu elli') ||
+        speech.contains('elli idiya') ||
+        speech.contains('ellide') ||
+        speech.contains('naan enga') ||
+        speech.contains('nenu ekkada') ||
+        speech.contains('njan evide') ||
         speech.contains('कहाँ') ||
+        speech.contains('मैं कहाँ') ||
+        speech.contains('நான் எங்கே') ||
+        speech.contains('నేను ఎక్కడ') ||
+        speech.contains('ഞാൻ എവിടെ') ||
         speech.contains('ಎಲ್ಲಿ')) {
       if (lastDetections.isEmpty) {
         await _speakCurrentLocationNow();
@@ -2409,9 +2438,18 @@ class _LiveCameraScreenState
       return;
     }
 
+    // Kannada commands are commonly spoken in Latin transliteration too.
     if (speech.contains('help') ||
+        speech.contains('sahaya') ||
+        speech.contains('sahaaya') ||
+        speech.contains('sahayya') ||
+        speech.contains('sahaya maadi') ||
+        speech.contains('madad') ||
         speech.contains('मदद') ||
-        speech.contains('ಸಹಾಯ')) {
+        speech.contains('ಸಹಾಯ') ||
+        speech.contains('உதவி') ||
+        speech.contains('సహాయం') ||
+        speech.contains('സഹായം')) {
       await speak(
         copy('help'),
       );
