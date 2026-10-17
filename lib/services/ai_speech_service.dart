@@ -296,14 +296,20 @@ class AISpeechService {
           ? 'Hindi'
           : languageCode == 'kn'
               ? 'Kannada'
-              : 'English';
+              : languageCode == 'ta'
+                  ? 'Tamil'
+                  : languageCode == 'te'
+                      ? 'Telugu'
+                      : languageCode == 'ml'
+                          ? 'Malayalam'
+                          : 'English';
 
       final evidence = detections.map((d) => d.toJson()).toList();
 
       final payload = {
         'model': _model,
         'temperature': 0.0,
-        'max_completion_tokens': 220,
+        'max_completion_tokens': 450,
         'reasoning_effort': 'low',
         'include_reasoning': false,
         'messages': [
@@ -321,6 +327,7 @@ IMPORTANT EVIDENCE MODEL:
 - "visible_text" is OCR from the sign and may contain spelling errors, split letters, missing spaces, or character substitutions. Treat OCR as evidence, not final text.
 - When visible_text contains a recognizable real-world word, business name, warning, restriction, direction, or number, preserve its meaning and correct only obvious OCR mistakes.
 - NEVER read raw OCR noise aloud. Do not copy a long OCR fragment just because it exists in visible_text.
+- Preserve ALL clearly readable useful words, names, road names, destinations, numbers and separate lines from visible_text. Do not reduce a rich OCR result to only its first few words. Summarize only genuinely noisy fragments; do not discard readable information merely to be concise.
 - Treat mixed-case fragments such as "siNEOARIndNTR", long random uppercase strings, or combinations of unrelated words as unreliable unless they form an obvious real-world word or clearly supported business name.
 - Never put raw OCR in quotation marks in the final narration. If the readable text is uncertain, omit the uncertain fragment and describe the reliable sign category and position instead.
 - If OCR is noisy or contradictory, prefer the detector category plus the reliable OCR fragments instead of inventing a complete sentence from uncertain text.
@@ -401,7 +408,7 @@ CRITICAL RULES:
 21. Put the most useful information first: safety/restriction, readable sign meaning, position, then relevant proximity or guidance, then useful location context.
 22. When several different readable signs are present, do not omit useful distinct names or restrictions just because one item is safety-related. Include the safety item first, then the clearest one or two additional readable sign items, using one or two short sentences.
 23. Output ONLY the final spoken sentence. No quotes, headings, labels, explanations, or alternatives.
-23. Keep it very concise: normally one sentence, maximum two short sentences.
+23. Be concise but information-preserving: use up to three short spoken sentences when the sign contains several readable lines or important details. Include all clearly readable useful text; never arbitrarily truncate a long sign name, road name, destination, phone number, route number or multi-line message.
 24. Speak ONLY in $languageName. Do not answer in English when Hindi or Kannada is requested.
 25. For Kannada output, use natural Kannada for the sentence, but PRESERVE clearly readable brand names, shop names, product names, model names, road names, and destination names exactly as captured when transliteration could change their identity (for example, REDMI NOTE 5 PRO or MI-DUAL CAMERA). These short proper-name fragments may remain in Latin script inside Kannada narration. Do not drop a readable name just to keep the output entirely in Kannada script. Mention the meaningful sign text/name BEFORE optional camera-position guidance. Guidance must never replace the sign's captured name or wording. Translate generic descriptions into Kannada; do not force-translate brand/model identifiers.
 25. Never spell isolated OCR letters as if they were a normal word.
