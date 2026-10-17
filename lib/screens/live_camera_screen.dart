@@ -714,19 +714,23 @@ class _LiveCameraScreenState
         now.difference(_lastAnalysisAnnouncement!) >=
             const Duration(seconds: 15)) {
       _lastAnalysisAnnouncement = now;
-      await speak(
-        language.code == 'hi'
-            ? 'मैं आपके आसपास संकेत बोर्ड खोज रहा हूँ। कृपया थोड़ी देर प्रतीक्षा करें।'
-            : language.code == 'kn'
-                ? 'ನಿಮ್ಮ ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳನ್ನು ಹುಡುಕುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ಕಾಯಿರಿ.'
-                : language.code == 'ta'
-                    ? 'உங்களைச் சுற்றியுள்ள பலகைகளைத் தேடுகிறேன். சிறிது நேரம் காத்திருக்கவும்.'
-                    : language.code == 'te'
-                        ? 'మీ చుట్టూ ఉన్న బోర్డుల కోసం చూస్తున్నాను. దయచేసి కొద్దిసేపు వేచి ఉండండి.'
-                        : language.code == 'ml'
-                            ? 'നിങ്ങളുടെ ചുറ്റുമുള്ള ബോർഡുകൾ പരിശോധിക്കുന്നു. ദയവായി അല്പസമയം കാത്തിരിക്കുക.'
-                            : 'I’m checking for signboards around you. Please wait a moment.',
-      );
+      try {
+        await speak(
+          language.code == 'hi'
+              ? 'मैं आपके आसपास संकेत बोर्ड खोज रहा हूँ। कृपया थोड़ी देर प्रतीक्षा करें।'
+              : language.code == 'kn'
+                  ? 'ನಿಮ್ಮ ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳನ್ನು ಹುಡುಕುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ಕಾಯಿರಿ.'
+                  : language.code == 'ta'
+                      ? 'உங்களைச் சுற்றியுள்ள பலகைகளைத் தேடுகிறேன். சிறிது நேரம் காத்திருக்கவும்.'
+                      : language.code == 'te'
+                          ? 'మీ చుట్టూ ఉన్న బోర్డుల కోసం చూస్తున్నాను. దయచేసి కొద్దిసేపు వేచి ఉండండి.'
+                          : language.code == 'ml'
+                              ? 'നിങ്ങളുടെ ചുറ്റുമുള്ള ബോർഡുകൾ പരിശോധിക്കുന്നു. ദയവായി അല്പസമയം കാത്തിരിക്കുക.'
+                              : 'I’m checking for signboards around you. Please wait a moment.',
+        );
+      } catch (speechError) {
+        debugPrint('Progress announcement failed: $speechError');
+      }
     }
 
     try {
