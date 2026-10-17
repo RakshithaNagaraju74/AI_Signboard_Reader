@@ -27,6 +27,7 @@ class OCRService {
     String languageCode = 'en',
   }) async {
     final normalizedLanguage = languageCode.toLowerCase();
+    debugPrint('[OCR] START language=$normalizedLanguage bbox=$bbox file=${imageFile.path}');
     final script = normalizedLanguage == 'hi'
         ? TextRecognitionScript.devanagiri
         : TextRecognitionScript.latin;
@@ -52,7 +53,11 @@ class OCRService {
       // on-device path and use the API only when local OCR is weak.
       if (_isIndicLanguage(normalizedLanguage)) {
         final cloudText = await _recognizeWithOcrSpace(crop);
-        if (cloudText.isNotEmpty) return cloudText;
+        debugPrint('[OCR] OCR.Space crop result (${cloudText.length} chars): $cloudText');
+        if (cloudText.isNotEmpty) {
+          debugPrint('[OCR] FINAL OCR RESULT (${cloudText.length} chars): $cloudText');
+          return cloudText;
+        }
       }
 
       // Keep full-frame OCR as one candidate, but do not return it immediately.
@@ -115,6 +120,10 @@ class OCRService {
       }
       candidates.sort((a, b) => b.score.compareTo(a.score));
       final best = candidates.first;
+      debugPrint('[OCR] LOCAL CANDIDATES (${candidates.length}):');
+      for (final candidate in candidates) {
+        debugPrint('[OCR] candidate score=${candidate.score.toStringAsFixed(1)} variant=${candidate.variant} chars=${candidate.text.length}: ${candidate.text}');
+      }
 
       final agreeing = candidates
           .skip(1)
@@ -128,13 +137,17 @@ class OCRService {
         final cloudText = await _recognizeWithOcrSpace(crop);
         if (cloudText.isNotEmpty &&
             _score(cloudText) >= _score(best.text)) {
+          debugPrint('[OCR] FINAL OCR RESULT (${cloudText.length} chars, OCR.Space): $cloudText');
           return cloudText;
         }
       }
 
       if (agreeing.isNotEmpty) {
-        return _preferReadable(best.text, agreeing.first.text);
+        final selected = _preferReadable(best.text, agreeing.first.text);
+        debugPrint('[OCR] FINAL OCR RESULT (${selected.length} chars, local agreed): $selected');
+        return selected;
       }
+      debugPrint('[OCR] FINAL OCR RESULT (${best.text.length} chars, local best): ${best.text}');
       return best.text;
     } catch (e) {
       debugPrint('OCR error: $e');
@@ -180,7 +193,7 @@ class OCRService {
 
   bool _isIndicLanguage(String languageCode) {
     final code = languageCode.toLowerCase().split(RegExp('[-_]')).first;
-    return const {'hi', 'kn', 'ta', 'te', 'kan', 'tam', 'tel'}.contains(code);
+    return const {'hi', 'kn', 'ta', 'te', 'ml', 'kan', 'tam', 'tel', 'mal'}.contains(code);
   }
 
   String get _ocrSpaceApiKey =>
@@ -492,13 +505,13 @@ class OCRService {
     if (value.isEmpty) return -1000;
 
     final compact = value.replaceAll(RegExp(r'\s+'), '');
-    final readable = RegExp(r'[A-Za-z0-9\u0900-\u0CFF]')
+    final readable = RegExp(r'[A-Za-z0-9\u0900-\u0D7F]')
         .allMatches(compact)
         .length;
     final ratio = compact.isEmpty ? 0.0 : readable / compact.length;
     final words = value.split(' ').where((e) => e.isNotEmpty).length;
     final suspicious = RegExp(
-      r'[^A-Za-z0-9\u0900-\u0CFF\s.,:/&()\-+#%]',
+      r'[^A-Za-z0-9\u0900-\u0D7F\s.,:/&()\-+#%]',
     ).allMatches(value).length;
 
     return (compact.length * 0.55) +
@@ -543,7 +556,7 @@ class OCRService {
   String _normalizeForComparison(String text) {
     return _cleanText(text)
         .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9\u0900-\u0CFF]'), '');
+        .replaceAll(RegExp(r'[^a-z0-9\u0900-\u0D7F]'), '');
   }
 
   String _normalizeOCRText(String text) {
