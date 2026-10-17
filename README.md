@@ -49,7 +49,7 @@ SightToSound is an assistive aid, not a certified navigation system. It does not
 
 ### Current language scope
 
-- **App language and narration choices:** English, Hindi and Kannada.
+- **App language and narration choices:** English, Hindi, Kannada, Tamil, Telugu and Malayalam. Voice quality and language availability depend on the Android TTS/STT engines installed on the device.
 - **OCR language detection:** OCR.Space is configured for automatic language detection and is used for Kannada, Tamil, Telugu and Hindi paths; the service may also be used as a fallback for other scripts or weak local OCR.
 - **Important distinction:** recognizing Tamil or Telugu text does not mean the app currently offers a complete Tamil or Telugu voice-command/onboarding experience. Speech recognition and TTS support also depend on the Android device and its installed language resources.
 
