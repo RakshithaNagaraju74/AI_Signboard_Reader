@@ -468,8 +468,8 @@ class _LiveCameraScreenState
       await tts.setLanguage('en-US');
 
       final prompt = attempt == 0
-          ? 'Choose your language. Say one for English, two for Hindi, or three for Kannada.'
-          : 'Please say only one, two, or three.';
+          ? 'Choose your language. Say one for English, two for Hindi, three for Kannada, four for Tamil, five for Telugu, or six for Malayalam.'
+          : 'Please say a number from one to six.';
 
       await speakRaw(prompt);
       await Future<void>.delayed(const Duration(milliseconds: 900));
@@ -500,11 +500,11 @@ class _LiveCameraScreenState
     // Never trap a blind user in speech onboarding.
     await tts.setLanguage('en-US');
     await speakRaw(
-      'Voice selection was not clear. The three large buttons below can be used to choose your language.',
+      'Voice selection was not clear. Choose your language using one of the six large buttons below.',
     );
 
     if (mounted) {
-      setState(() => status = 'Choose English, Hindi, or Kannada');
+      setState(() => status = 'Choose English, Hindi, Kannada, Tamil, Telugu, or Malayalam');
     }
   }
 
@@ -2333,6 +2333,12 @@ class _LiveCameraScreenState
                   _languageButton('हिन्दी  •  Hindi', 'hi'),
                   const SizedBox(height: 12),
                   _languageButton('ಕನ್ನಡ  •  Kannada', 'kn'),
+                  const SizedBox(height: 12),
+                  _languageButton('தமிழ்  •  Tamil', 'ta'),
+                  const SizedBox(height: 12),
+                  _languageButton('తెలుగు  •  Telugu', 'te'),
+                  const SizedBox(height: 12),
+                  _languageButton('മലയാളം  •  Malayalam', 'ml'),
                 ],
               ),
             ),
