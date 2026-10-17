@@ -41,7 +41,7 @@ class _LiveCameraScreenState
   bool processing = false;
   bool pickingImage = false;
   DateTime? _lastHoldStillAnnouncement;
-  bool _announcedAnalyzingThisSession = false;
+  DateTime? _lastAnalysisAnnouncement;
   bool stopped = false;
   bool listening = false;
   bool focusMode = false;
@@ -704,31 +704,29 @@ class _LiveCameraScreenState
 
     processing = true;
     if (mounted) {
-      setState(() => status = language.code == 'kn'
-          ? 'ಫಲಕದ ಪಠ್ಯವನ್ನು ಓದುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಒಂದು ಕ್ಷಣ ಕಾಯಿರಿ.'
-          : language.code == 'hi'
-              ? 'संकेत का पाठ पढ़ा जा रहा है। कृपया एक क्षण प्रतीक्षा करें।'
-              : language.code == 'ta'
-                  ? 'பலகையின் உரையைப் படிக்கிறேன். ஒரு கணம் காத்திருக்கவும்.'
-                  : language.code == 'te'
-                      ? 'బోర్డులోని వచనాన్ని చదువుతున్నాను. దయచేసి కాసేపు వేచి ఉండండి.'
-                      : language.code == 'ml'
-                          ? 'ബോർഡിലെ എഴുത്ത് വായിക്കുന്നു. ദയവായി ഒരു നിമിഷം കാത്തിരിക്കുക.'
-                          : 'Reading the signboard text. Please wait a moment.');
+      setState(() => status = copy('analyzingNearby'));
     }
-    if (!_announcedAnalyzingThisSession) {
-      _announcedAnalyzingThisSession = true;
-      unawaited(speak(language.code == 'kn'
-          ? 'ಫಲಕವನ್ನು ವಿಶ್ಲೇಷಿಸುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಒಂದು ಕ್ಷಣ ಕಾಯಿರಿ.'
-          : language.code == 'hi'
-              ? 'संकेत का विश्लेषण हो रहा है। कृपया एक क्षण प्रतीक्षा करें।'
-              : language.code == 'ta'
-                  ? 'பலகையை ஆய்வு செய்கிறேன். ஒரு கணம் காத்திருக்கவும்.'
-                  : language.code == 'te'
-                      ? 'బోర్డును విశ్లేషిస్తున్నాను. దయచేసి కాసేపు వేచి ఉండండి.'
-                      : language.code == 'ml'
-                          ? 'ബോർഡ് പരിശോധിക്കുന്നു. ദയവായി ഒരു നിമിഷം കാത്തിരിക്കുക.'
-                          : 'I am analyzing the signboard. Please wait a moment.'));
+
+    // Give immediate spoken feedback, but throttle it so continuous live
+    // scanning does not become noisy for the user.
+    final now = DateTime.now();
+    if (_lastAnalysisAnnouncement == null ||
+        now.difference(_lastAnalysisAnnouncement!) >=
+            const Duration(seconds: 15)) {
+      _lastAnalysisAnnouncement = now;
+      await speak(
+        language.code == 'hi'
+            ? 'मैं आपके आसपास संकेत बोर्ड खोज रहा हूँ। कृपया थोड़ी देर प्रतीक्षा करें।'
+            : language.code == 'kn'
+                ? 'ನಿಮ್ಮ ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳನ್ನು ಹುಡುಕುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ಕಾಯಿರಿ.'
+                : language.code == 'ta'
+                    ? 'உங்களைச் சுற்றியுள்ள பலகைகளைத் தேடுகிறேன். சிறிது நேரம் காத்திருக்கவும்.'
+                    : language.code == 'te'
+                        ? 'మీ చుట్టూ ఉన్న బోర్డుల కోసం చూస్తున్నాను. దయచేసి కొద్దిసేపు వేచి ఉండండి.'
+                        : language.code == 'ml'
+                            ? 'നിങ്ങളുടെ ചുറ്റുമുള്ള ബോർഡുകൾ പരിശോധിക്കുന്നു. ദയവായി അല്പസമയം കാത്തിരിക്കുക.'
+                            : 'I’m checking for signboards around you. Please wait a moment.',
+      );
     }
 
     try {
@@ -777,6 +775,7 @@ class _LiveCameraScreenState
       if (mounted) setState(() {});
 
       if (contexts.isEmpty) {
+        if (mounted) setState(() => status = copy('noSigns'));
         final now = DateTime.now();
         final canAnnounce = _lastNoSignAnnouncement == null ||
             now.difference(_lastNoSignAnnouncement!) >=
@@ -789,6 +788,7 @@ class _LiveCameraScreenState
       }
 
       _lastNoSignAnnouncement = null;
+      if (mounted) setState(() => status = copy('resultReady'));
 
       if (sceneScanMode) {
         await speakScene(contexts);
@@ -877,6 +877,7 @@ class _LiveCameraScreenState
       await HapticFeedback.mediumImpact();
     } catch (e) {
       debugPrint('scan error: $e');
+      if (mounted) setState(() => status = copy('analysisFailed'));
 
       // A camera plugin failure can leave the controller present but unable
       // to render frames. Recover it instead of leaving the user with a
@@ -1797,6 +1798,8 @@ class _LiveCameraScreenState
         'detected': 'पहचाना गया',
         'result': 'अभी का परिणाम',
         'scanningNow': 'स्कैन किया जा रहा है',
+        'analyzingNearby': 'मैं आसपास के संकेत बोर्ड देख रहा हूँ। कृपया थोड़ी देर प्रतीक्षा करें।',
+        'resultReady': 'संकेत बोर्ड मिल गया। परिणाम तैयार है।'
         'waitingForScan': 'कैमरा तैयार है। संकेत के सामने रखें।',
         'retryCamera': 'कैमरा फिर शुरू करें',
         'position': 'स्थिति',
@@ -1877,6 +1880,8 @@ class _LiveCameraScreenState
         'detected': 'ಗುರುತಿಸಲಾಗಿದೆ',
         'result': 'ಈಗಿನ ಫಲಿತಾಂಶ',
         'scanningNow': 'ಸ್ಕ್ಯಾನ್ ಮಾಡಲಾಗುತ್ತಿದೆ',
+        'analyzingNearby': 'ನಿಮ್ಮ ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳನ್ನು ಹುಡುಕುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ಕಾಯಿರಿ.',
+        'resultReady': 'ಫಲಕ ಕಂಡುಬಂದಿದೆ. ಫಲಿತಾಂಶ ಸಿದ್ಧವಾಗಿದೆ.'
         'waitingForScan': 'ಕ್ಯಾಮೆರಾ ಸಿದ್ಧವಾಗಿದೆ. ಫಲಕವನ್ನು ಮುಂದೆ ಹಿಡಿಯಿರಿ.',
         'retryCamera': 'ಕ್ಯಾಮೆರಾ ಮತ್ತೆ ಪ್ರಾರಂಭಿಸಿ',
         'position': 'ಸ್ಥಾನ',
@@ -1957,6 +1962,8 @@ class _LiveCameraScreenState
         'detected': 'கண்டறியப்பட்டது',
         'result': 'தற்போதைய முடிவு',
         'scanningNow': 'ஸ்கேன் செய்கிறது',
+        'analyzingNearby': 'உங்களைச் சுற்றியுள்ள பலகைகளைத் தேடுகிறேன். சிறிது நேரம் காத்திருக்கவும்.',
+        'resultReady': 'பலகை கண்டறியப்பட்டது. முடிவு தயாராக உள்ளது.'
         'waitingForScan': 'கேமரா தயாராக உள்ளது. பலகையை முன்புறம் காட்டுங்கள்.',
         'retryCamera': 'கேமராவை மீண்டும் தொடங்கு',
         'position': 'இடம்',
@@ -2008,6 +2015,8 @@ class _LiveCameraScreenState
         'detected': 'గుర్తించబడింది',
         'result': 'ప్రస్తుత ఫలితం',
         'scanningNow': 'స్కాన్ చేస్తోంది',
+        'analyzingNearby': 'మీ చుట్టూ ఉన్న బోర్డుల కోసం చూస్తున్నాను. దయచేసి కొద్దిసేపు వేచి ఉండండి.',
+        'resultReady': 'బోర్డు గుర్తించబడింది. ఫలితం సిద్ధంగా ఉంది.'
         'waitingForScan': 'కెమెరా సిద్ధంగా ఉంది. బోర్డును ముందుగా చూపించండి.',
         'retryCamera': 'కెమెరాను మళ్లీ ప్రారంభించండి',
         'position': 'స్థానం',
@@ -2059,6 +2068,8 @@ class _LiveCameraScreenState
         'detected': 'കണ്ടെത്തി',
         'result': 'നിലവിലെ ഫലം',
         'scanningNow': 'സ്കാൻ ചെയ്യുന്നു',
+        'analyzingNearby': 'നിങ്ങളുടെ ചുറ്റുമുള്ള ബോർഡുകൾ പരിശോധിക്കുന്നു. ദയവായി അല്പസമയം കാത്തിരിക്കുക.',
+        'resultReady': 'ബോർഡ് കണ്ടെത്തി. ഫലം തയ്യാറാണ്.'
         'waitingForScan': 'ക്യാമറ തയ്യാറാണ്. ബോർഡ് മുന്നിൽ പിടിക്കുക.',
         'retryCamera': 'ക്യാമറ വീണ്ടും ആരംഭിക്കുക',
         'position': 'സ്ഥാനം',
@@ -2115,6 +2126,8 @@ class _LiveCameraScreenState
           'Current result',
       'scanningNow':
           'Scanning',
+      'analyzingNearby': 'I’m checking for signboards around you. Please wait a moment.',
+      'resultReady': 'I found a signboard. Your result is ready.'
       'waitingForScan':
           'Camera is ready. Hold a signboard in front of it.',
       'retryCamera':
