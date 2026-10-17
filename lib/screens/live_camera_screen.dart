@@ -549,7 +549,7 @@ class _LiveCameraScreenState
     // Track once per frame. OCR is attached to those same contexts so one
     // camera frame does not artificially advance stability twice.
     final preliminary = intel.analyze(raw);
-    final ocrLimit = demo ? 6 : 4;
+    final ocrLimit = demo ? 8 : 8;
     final ocrKeys = preliminary
         .take(ocrLimit)
         .where((context) {
