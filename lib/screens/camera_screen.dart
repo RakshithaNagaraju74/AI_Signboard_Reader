@@ -301,125 +301,170 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     if (_errorMessage != null) {
       return Scaffold(
-        body: Center(
-          child: Padding(
-            padding:
-                const EdgeInsets.all(20),
-            child: Column(
-              mainAxisAlignment:
-                  MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.error_outline,
-                  size: 60,
-                  color: Colors.red,
-                ),
-
-                const SizedBox(height: 20),
-
-                Text(
-                  _errorMessage!,
-                  textAlign:
-                      TextAlign.center,
-                ),
-
-                const SizedBox(height: 20),
-
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _errorMessage = null;
-                    });
-
-                    _initializeCamera();
-                  },
-                  child:
-                      const Text('Retry'),
-                ),
-              ],
+        appBar: AppBar(title: const Text('Live camera')),
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 82,
+                    height: 82,
+                    decoration: BoxDecoration(
+                      color: colors.error.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(26),
+                    ),
+                    child: Icon(Icons.videocam_off_rounded, size: 40, color: colors.error),
+                  ),
+                  const SizedBox(height: 22),
+                  Text('Camera unavailable', style: Theme.of(context).textTheme.headlineSmall),
+                  const SizedBox(height: 10),
+                  Text(
+                    'SightToSound needs camera access to detect signboards. Check the permission and try again.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.onSurfaceVariant, height: 1.45),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.error, fontSize: 12),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: () {
+                      setState(() => _errorMessage = null);
+                      _initializeCamera();
+                    },
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Try again'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       );
     }
 
-    if (!_isCameraInitialized ||
-        _controller == null) {
-      return const Scaffold(
-        body: Center(
-          child:
+    if (!_isCameraInitialized || _controller == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Live camera')),
+        body: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
               CircularProgressIndicator(),
+              SizedBox(height: 18),
+              Text('Getting your camera ready…', style: TextStyle(fontWeight: FontWeight.w600)),
+            ],
+          ),
         ),
       );
     }
 
     return Scaffold(
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
-          CameraPreview(
-            _controller!,
-          ),
-
-          if (_isProcessing)
-            Container(
-              color: Colors.black54,
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment:
-                      MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-
-                    SizedBox(height: 20),
-
-                    Text(
-                      'Analyzing image...',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
+          Positioned.fill(child: CameraPreview(_controller!)),
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: Row(
+                    children: [
+                      Material(
+                        color: Colors.black.withValues(alpha: 0.58),
+                        borderRadius: BorderRadius.circular(18),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          child: Row(
+                            children: [
+                              Icon(Icons.circle, color: Color(0xFF59D6C8), size: 9),
+                              SizedBox(width: 9),
+                              Text('LIVE CAMERA', style: TextStyle(fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w800)),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                      const Spacer(),
+                      IconButton.filledTonal(
+                        tooltip: 'Back',
+                        onPressed: () => Navigator.maybePop(context),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
                 ),
+                const Spacer(),
+                if (_isProcessing)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.72),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Row(
+                      children: [
+                        SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
+                        SizedBox(width: 14),
+                        Expanded(child: Text('Looking for signboards…', style: TextStyle(fontWeight: FontWeight.w700))),
+                      ],
+                    ),
+                  ),
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF101A2B).withValues(alpha: 0.96),
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Ready when you are', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Point your camera at a signboard, then capture to hear what it says.',
+                        style: TextStyle(color: Color(0xFFB8C4D8), height: 1.4),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _isProcessing ? null : _captureAndDetect,
+                          icon: const Icon(Icons.center_focus_strong_rounded),
+                          label: Text(_isProcessing ? 'Analyzing…' : 'Capture and read'),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(58),
+                            backgroundColor: const Color(0xFF59D6C8),
+                            foregroundColor: const Color(0xFF062A2A),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_isProcessing)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ColoredBox(color: Colors.black.withValues(alpha: 0.12)),
               ),
             ),
         ],
-      ),
-
-      bottomNavigationBar:
-          SafeArea(
-        child: Padding(
-          padding:
-              const EdgeInsets.all(16),
-          child: SizedBox(
-            width: double.infinity,
-            child:
-                ElevatedButton.icon(
-              onPressed:
-                  _isProcessing
-                      ? null
-                      : _captureAndDetect,
-
-              icon: const Icon(
-                Icons.camera,
-              ),
-
-              label: const Text(
-                'Capture & Detect',
-              ),
-
-              style:
-                  ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(
-                  vertical: 16,
-                ),
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
