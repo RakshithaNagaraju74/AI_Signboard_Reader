@@ -72,11 +72,11 @@ class SignboardReaderApp extends StatelessWidget {
               letterSpacing: -0.5,
             ),
             titleLarge: TextStyle(
-              fontWeight: FontWeight.w750,
+              fontWeight: FontWeight.w700,
               letterSpacing: -0.2,
             ),
             titleMedium: TextStyle(
-              fontWeight: FontWeight.w650,
+              fontWeight: FontWeight.w600,
             ),
             bodyLarge: TextStyle(height: 1.45),
             bodyMedium: TextStyle(height: 1.4),
