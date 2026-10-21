@@ -3523,7 +3523,7 @@ class _LiveCameraScreenState
           Positioned(
             left: 10,
             right: 10,
-            bottom: 150,
+            bottom: 200,
             child: Semantics(
               liveRegion: true,
               label: status,
