@@ -152,7 +152,7 @@ class HomeScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Designed to be accessible', style: TextStyle(fontWeight: FontWeight.w750)),
+                          Text('Designed to be accessible', style: TextStyle(fontWeight: FontWeight.w700)),
                           SizedBox(height: 4),
                           Text(
                             'Use clear on-screen actions whenever voice commands are not convenient.',
@@ -218,7 +218,7 @@ class _ActionTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w750)),
+                    Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 5),
                     Text(subtitle, style: TextStyle(color: colors.onSurfaceVariant, height: 1.35)),
                   ],
