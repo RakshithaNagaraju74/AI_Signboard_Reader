@@ -3177,25 +3177,56 @@ class _LiveCameraScreenState
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
+      backgroundColor: const Color(0xFF101A2B),
+      barrierColor: Colors.black.withValues(alpha: 0.68),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 26),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                _quickActionText('title'),
-                style: Theme.of(context).textTheme.titleLarge,
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF59D6C8).withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(Icons.grid_view_rounded, color: Color(0xFF7FE4D8)),
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _quickActionText('title'),
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white),
+                        ),
+                        const SizedBox(height: 3),
+                        const Text(
+                          'Tap an action if you prefer not to use voice.',
+                          style: TextStyle(fontSize: 12, color: Color(0xFFB8C4D8)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 children: actions.map((action) {
                   return SizedBox(
                     width: 155,
-                    child: FilledButton.icon(
+                    child: FilledButton.tonalIcon(
                       onPressed: () async {
                         Navigator.of(sheetContext).pop();
                         await command(action['command'] as String);
@@ -3204,12 +3235,17 @@ class _LiveCameraScreenState
                       label: Text(
                         action['label'] as String,
                         textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       style: FilledButton.styleFrom(
-                        minimumSize: const Size(0, 54),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
+                        backgroundColor: const Color(0xFF202D43),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(0, 58),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(color: Colors.white.withValues(alpha: 0.07)),
                         ),
                       ),
                     ),
