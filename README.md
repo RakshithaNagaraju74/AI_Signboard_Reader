@@ -204,10 +204,6 @@ The source of truth for class order is `assets/models/labels.txt` and `assets/mo
                  └────────────────────────┘
 ```
 
-### App screenshots
-
-The screenshots below show the SightToSound app interface.
-
 <div align="center">
 
 <img src="https://github.com/user-attachments/assets/2f38ce8d-11db-4f24-a465-a7fda1f66f40" alt="SightToSound app screenshot 1" width="800" />
