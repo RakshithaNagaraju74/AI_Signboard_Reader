@@ -2513,10 +2513,17 @@ class _LiveCameraScreenState
 
     if (speech.contains('repeat') ||
         speech.contains('दोहर') ||
+        speech.contains('மீண்டும்') ||
+        speech.contains('మళ్లీ') ||
+        speech.contains('വീണ്ടും') ||
         speech.contains('ಮತ್ತೆ') ||
+        speech.contains('ಹೇಳು') ||
         speech == 'matte' ||
+        speech == 'matte helu' ||
+        speech == 'matte heli' ||
         speech == 'mattelu' ||
-        speech == 'matte heli') {
+        speech == 'mathe helu' ||
+        speech == 'matte helu matte') {
       final repeatText = last.isEmpty ? copy('nothingToRepeat') : last;
       await announcements.stopAndClear();
       await tts.stop();
@@ -2605,11 +2612,13 @@ class _LiveCameraScreenState
     }
 
     // Accept regional words, Latin transliterations, and minor STT errors.
-    if (_matchesVoiceIntent(speech, 'help')) {
-      await speak(
-        copy('help'),
-      );
-
+    if (_matchesVoiceIntent(speech, 'help') ||
+        speech == 'help' ||
+        speech == 'ಸಹಾಯ' ||
+        speech == 'sahaya' ||
+        speech == 'sahaaya' ||
+        speech == 'madad') {
+      await speak(copy('help'));
       return;
     }
 
@@ -3066,6 +3075,24 @@ class _LiveCameraScreenState
             child: Image.file(
               image,
               fit: BoxFit.contain,
+            ),
+          ),
+          // One-tap help shortcut: runs the exact same help response as
+          // the voice command, so testing does not depend on microphone STT.
+          Positioned(
+            right: 18,
+            bottom: 94,
+            child: Semantics(
+              button: true,
+              label: copy('help'),
+              child: Tooltip(
+                message: copy('help'),
+                child: FloatingActionButton.small(
+                  heroTag: 'quickHelpButton',
+                  onPressed: () => command('help'),
+                  child: const Icon(Icons.help_outline_rounded),
+                ),
+              ),
             ),
           ),
           Positioned(
