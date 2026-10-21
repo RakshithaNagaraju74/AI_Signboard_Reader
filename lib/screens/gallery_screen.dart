@@ -363,13 +363,6 @@ class _GalleryScreenState
                 ],
               ),
             ),
-            if (_isProcessing)
-              Positioned.fill(
-                child: ColoredBox(
-                  color: Colors.black.withValues(alpha: 0.18),
-                  child: const SizedBox.expand(),
-                ),
-              ),
           ],
         ),
       ),
