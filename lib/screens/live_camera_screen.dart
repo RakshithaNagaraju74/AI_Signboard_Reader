@@ -3061,6 +3061,139 @@ class _LiveCameraScreenState
     );
   }
 
+  String _quickActionText(String key) {
+    const labels = <String, Map<String, String>>{
+      'en': {
+        'title': 'Quick actions',
+        'history': 'History',
+        'repeat': 'Repeat',
+        'scan': 'Scan',
+        'find': 'Find sign',
+        'language': 'Change language',
+      },
+      'hi': {
+        'title': 'त्वरित विकल्प',
+        'history': 'इतिहास',
+        'repeat': 'फिर से सुनें',
+        'scan': 'स्कैन करें',
+        'find': 'संकेत खोजें',
+        'language': 'भाषा बदलें',
+      },
+      'kn': {
+        'title': 'ತ್ವರಿತ ಆಯ್ಕೆಗಳು',
+        'history': 'ಇತಿಹಾಸ',
+        'repeat': 'ಮತ್ತೆ ಹೇಳಿ',
+        'scan': 'ಸ್ಕ್ಯಾನ್',
+        'find': 'ಫಲಕ ಹುಡುಕಿ',
+        'language': 'ಭಾಷೆ ಬದಲಾಯಿಸಿ',
+      },
+      'ta': {
+        'title': 'விரைவு செயல்கள்',
+        'history': 'வரலாறு',
+        'repeat': 'மீண்டும் சொல்லவும்',
+        'scan': 'ஸ்கேன்',
+        'find': 'பலகையைத் தேடு',
+        'language': 'மொழியை மாற்று',
+      },
+      'te': {
+        'title': 'త్వరిత చర్యలు',
+        'history': 'చరిత్ర',
+        'repeat': 'మళ్లీ చెప్పు',
+        'scan': 'స్కాన్',
+        'find': 'బోర్డును కనుగొను',
+        'language': 'భాష మార్చు',
+      },
+      'ml': {
+        'title': 'ദ്രുത പ്രവർത്തനങ്ങൾ',
+        'history': 'ചരിത്രം',
+        'repeat': 'വീണ്ടും പറയുക',
+        'scan': 'സ്കാൻ',
+        'find': 'ബോർഡ് കണ്ടെത്തുക',
+        'language': 'ഭാഷ മാറ്റുക',
+      },
+    };
+    return labels[language.code]?[key] ?? labels['en']![key]!;
+  }
+
+  Future<void> _showQuickActions() async {
+    final actions = <Map<String, Object>>[
+      {
+        'label': _quickActionText('history'),
+        'command': 'history',
+        'icon': Icons.history_rounded,
+      },
+      {
+        'label': _quickActionText('repeat'),
+        'command': 'repeat',
+        'icon': Icons.replay_rounded,
+      },
+      {
+        'label': _quickActionText('scan'),
+        'command': 'scan',
+        'icon': Icons.document_scanner_rounded,
+      },
+      {
+        'label': _quickActionText('find'),
+        'command': 'find sign',
+        'icon': Icons.center_focus_strong_rounded,
+      },
+      {
+        'label': _quickActionText('language'),
+        'command': 'change language',
+        'icon': Icons.language_rounded,
+      },
+    ];
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _quickActionText('title'),
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: actions.map((action) {
+                  return SizedBox(
+                    width: 155,
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        Navigator.of(sheetContext).pop();
+                        await command(action['command'] as String);
+                      },
+                      icon: Icon(action['icon'] as IconData),
+                      label: Text(
+                        action['label'] as String,
+                        textAlign: TextAlign.center,
+                      ),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 54),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _demoResultView() {
     final image = demoImage;
     if (image == null) {
@@ -3077,19 +3210,17 @@ class _LiveCameraScreenState
               fit: BoxFit.contain,
             ),
           ),
-          // One-tap help shortcut: runs the exact same help response as
-          // the voice command, so testing does not depend on microphone STT.
           Positioned(
             right: 18,
             bottom: 94,
             child: Semantics(
               button: true,
-              label: copy('help'),
+              label: _quickActionText('title'),
               child: Tooltip(
-                message: copy('help'),
+                message: _quickActionText('title'),
                 child: FloatingActionButton.small(
                   heroTag: 'quickHelpButton',
-                  onPressed: () => command('help'),
+                  onPressed: _showQuickActions,
                   child: const Icon(Icons.help_outline_rounded),
                 ),
               ),
@@ -3251,6 +3382,22 @@ class _LiveCameraScreenState
                 : CameraPreview(
                     camera!,
                   ),
+          ),
+          Positioned(
+            right: 18,
+            bottom: 94,
+            child: Semantics(
+              button: true,
+              label: _quickActionText('title'),
+              child: Tooltip(
+                message: _quickActionText('title'),
+                child: FloatingActionButton.small(
+                  heroTag: 'liveQuickHelpButton',
+                  onPressed: _showQuickActions,
+                  child: const Icon(Icons.help_outline_rounded),
+                ),
+              ),
+            ),
           ),
           Positioned(
             left: 10,
