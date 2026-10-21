@@ -11,7 +11,6 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../models/detection_result.dart';
 import '../services/detection_intelligence.dart';
-import '../services/history_service.dart';
 import '../services/language_service.dart';
 import '../services/location_service.dart';
 import '../services/ocr_service.dart';
@@ -77,7 +76,6 @@ class _LiveCameraScreenState
   final voice = VoiceCommandService();
   final lang = LanguageService();
   final location = LocationService();
-  final history = HistoryService();
   final ocr = OCRService();
   final intel = DetectionIntelligence();
   final picker = ImagePicker();
@@ -885,17 +883,6 @@ class _LiveCameraScreenState
       for (final context in announceable) {
         intel.markAnnounced(context);
 
-        history.add(
-          DetectionHistoryEntry(
-            label: context.detection.className,
-            text: context.detection.ocrText,
-            position: context.position.label,
-            confidence: context.detection.confidence,
-            latitude: currentLocation?.latitude,
-            longitude: currentLocation?.longitude,
-            timestamp: DateTime.now(),
-          ),
-        ).catchError((_) {});
       }
 
       await HapticFeedback.mediumImpact();
@@ -2286,7 +2273,7 @@ class _LiveCameraScreenState
       'visible':
           'I can see',
       'help':
-          'Say scan, stop, repeat, find sign, stop focus, scan surroundings, what signs, where, safety mode, normal mode, change language, history, or navigate.',
+          'Say scan, stop, repeat, find sign, stop focus, scan surroundings, what signs, where, safety mode, normal mode, change language, or navigate.',
       'upload':
           'Upload image',
       'backCamera':
@@ -2627,23 +2614,6 @@ class _LiveCameraScreenState
         speech.contains('भाषा') ||
         speech.contains('ಭಾಷೆ')) {
       await chooseLanguage(force: true);
-
-      return;
-    }
-
-    if (speech.contains('history') ||
-        speech.contains('इतिहास') ||
-        speech.contains('ಇತಿಹಾಸ')) {
-      final entries =
-          await history.read();
-
-      await speak(
-        entries.isEmpty
-            ? copy('noHistory')
-            : '${copy('historyHas')} '
-              '${entries.length} '
-              '${copy('items')}.',
-      );
 
       return;
     }
@@ -3094,7 +3064,6 @@ class _LiveCameraScreenState
     const labels = <String, Map<String, String>>{
       'en': {
         'title': 'Quick actions',
-        'history': 'History',
         'repeat': 'Repeat',
         'scan': 'Scan',
         'find': 'Find sign',
@@ -3102,7 +3071,6 @@ class _LiveCameraScreenState
       },
       'hi': {
         'title': 'त्वरित विकल्प',
-        'history': 'इतिहास',
         'repeat': 'फिर से सुनें',
         'scan': 'स्कैन करें',
         'find': 'संकेत खोजें',
@@ -3110,7 +3078,6 @@ class _LiveCameraScreenState
       },
       'kn': {
         'title': 'ತ್ವರಿತ ಆಯ್ಕೆಗಳು',
-        'history': 'ಇತಿಹಾಸ',
         'repeat': 'ಮತ್ತೆ ಹೇಳಿ',
         'scan': 'ಸ್ಕ್ಯಾನ್',
         'find': 'ಫಲಕ ಹುಡುಕಿ',
@@ -3118,7 +3085,6 @@ class _LiveCameraScreenState
       },
       'ta': {
         'title': 'விரைவு செயல்கள்',
-        'history': 'வரலாறு',
         'repeat': 'மீண்டும் சொல்லவும்',
         'scan': 'ஸ்கேன்',
         'find': 'பலகையைத் தேடு',
@@ -3126,7 +3092,6 @@ class _LiveCameraScreenState
       },
       'te': {
         'title': 'త్వరిత చర్యలు',
-        'history': 'చరిత్ర',
         'repeat': 'మళ్లీ చెప్పు',
         'scan': 'స్కాన్',
         'find': 'బోర్డును కనుగొను',
@@ -3134,7 +3099,6 @@ class _LiveCameraScreenState
       },
       'ml': {
         'title': 'ദ്രുത പ്രവർത്തനങ്ങൾ',
-        'history': 'ചരിത്രം',
         'repeat': 'വീണ്ടും പറയുക',
         'scan': 'സ്കാൻ',
         'find': 'ബോർഡ് കണ്ടെത്തുക',
@@ -3146,11 +3110,6 @@ class _LiveCameraScreenState
 
   Future<void> _showQuickActions() async {
     final actions = <Map<String, Object>>[
-      {
-        'label': _quickActionText('history'),
-        'command': 'history',
-        'icon': Icons.history_rounded,
-      },
       {
         'label': _quickActionText('repeat'),
         'command': 'repeat',
