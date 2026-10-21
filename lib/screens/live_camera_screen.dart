@@ -2426,7 +2426,12 @@ class _LiveCameraScreenState
 
     if (speech.contains('stop focus') ||
         speech.contains('release focus') ||
-        speech.contains('unfocus')) {
+        speech.contains('unfocus') ||
+        speech.contains('फोकस रोकें') ||
+        speech.contains('ಫೋಕಸ್ ನಿಲ್ಲಿಸು') ||
+        speech.contains('கவனத்தை நிறுத்து') ||
+        speech.contains('ఫోకస్ ఆపు') ||
+        speech.contains('ഫോക്കസ് നിർത്തുക')) {
       focusMode = false;
       intel.clearFocus();
       await speak(copy('focusStopped'), priority: true);
@@ -2454,7 +2459,10 @@ class _LiveCameraScreenState
     if (speech.contains('stop') ||
         speech.contains('रुको') ||
         speech.contains('निल्') ||
-        speech.contains('ನಿಲ್ಲಿಸು')) {
+        speech.contains('ನಿಲ್ಲಿಸು') ||
+        speech.contains('நிறுத்து') ||
+        speech.contains('ఆపు') ||
+        speech.contains('നിർത്തുക')) {
       stopped = true;
       await announcements.stopAndClear();
       await tts.stop();
@@ -2466,7 +2474,10 @@ class _LiveCameraScreenState
         speech.contains('continue') ||
         speech.contains('स्कैन') ||
         speech.contains('ಮುಂದುವರ') ||
-        speech.contains('ಸ್ಕ್ಯಾನ್')) {
+        speech.contains('ಸ್ಕ್ಯಾನ್') ||
+        speech.contains('ஸ்கேன்') ||
+        speech.contains('స్కాన్') ||
+        speech.contains('സ്കാൻ')) {
       stopped = false;
       await announcements.stopAndClear();
       await speak(copy('scanning'), priority: true);
@@ -2497,7 +2508,14 @@ class _LiveCameraScreenState
         speech.contains('focus') ||
         speech.contains('लक्ष्य') ||
         speech.contains('फोकस') ||
-        speech.contains('ಫೋಕಸ್')) {
+        speech.contains('ಫೋಕಸ್') ||
+        speech.contains('கவனம்') ||
+        speech.contains('ఫోకస్') ||
+        speech.contains('ഫോക്കസ്') ||
+        speech.contains('பலகையைக் கண்டுபிடி') ||
+        speech.contains('బోర్డును కనుగొను') ||
+        speech.contains('ബോർഡ് കണ്ടെത്തുക') ||
+        speech.contains('ಫಲಕ ಹುಡುಕಿ')) {
       if (lastDetections.isEmpty) {
         await speak(
           copy('noFocus'),
@@ -2525,7 +2543,13 @@ class _LiveCameraScreenState
         speech.contains('what do you see') ||
         speech.contains('क्या है') ||
         speech.contains('सिर्फ आसपास') ||
-        speech.contains('सುತ್ತ')) {
+        speech.contains('सுற்றியுள்ள') ||
+        speech.contains('சுற்றியுள்ள') ||
+        speech.contains('சுற்றியுள்ள பலகைகள்') ||
+        speech.contains('చుట్టుపక్కల') ||
+        speech.contains('చుట్టుపక్కల బోర్డులు') ||
+        speech.contains('ചുറ്റുമുള്ള') ||
+        speech.contains('ചുറ്റുമുള്ള ബോർഡുകൾ')) {
       sceneScanMode = true;
 
       await speak(
@@ -2537,7 +2561,11 @@ class _LiveCameraScreenState
 
     if (speech.contains('what signs') ||
         speech.contains('nearby signs') ||
-        speech.contains('signs around')) {
+        speech.contains('signs around') ||
+        speech.contains('என்ன பலகைகள்') ||
+        speech.contains('ఏ బోర్డులు') ||
+        speech.contains('ഏത് ബോർഡുകൾ') ||
+        speech.contains('ಯಾವ ಫಲಕಗಳಿವೆ')) {
       if (lastDetections.isEmpty) {
         await speak(
           copy('noSigns'),
@@ -2587,7 +2615,10 @@ class _LiveCameraScreenState
     if (speech.contains('change language') ||
         speech.contains('language') ||
         speech.contains('भाषा') ||
-        speech.contains('ಭಾಷೆ')) {
+        speech.contains('ಭಾಷೆ') ||
+        speech.contains('மொழியை மாற்று') ||
+        speech.contains('భాష మార్చు') ||
+        speech.contains('ഭാഷ മാറ്റുക')) {
       await chooseLanguage(force: true);
 
       return;
@@ -2596,7 +2627,10 @@ class _LiveCameraScreenState
     if (speech.contains('navigate') ||
         speech.contains('direction') ||
         speech.contains('दिशा') ||
-        speech.contains('ನ್ಯಾವಿಗೇಟ್')) {
+        speech.contains('ನ್ಯಾವಿಗೇಟ್') ||
+        speech.contains('வழிசெலுத்து') ||
+        speech.contains('నావిగేట్') ||
+        speech.contains('നാവിഗേറ്റ്')) {
       await _navigateToVerifiedPlace();
       return;
     }
