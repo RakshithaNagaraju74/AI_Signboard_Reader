@@ -66,18 +66,31 @@ class VoiceCommandService {
       }
 
       effectiveLocale ??= locales
-          .where((l) => l.localeId
-              .toLowerCase()
-              .replaceAll('_', '-')
-              .startsWith('$base-'))
+          .where((l) {
+            final id = l.localeId.toLowerCase().replaceAll('_', '-');
+            return id == base || id.startsWith('$base-');
+          })
           .map((l) => l.localeId)
           .cast<String?>()
           .firstWhere((_) => true, orElse: () => null);
 
-      effectiveLocale ??=
-          locales.isNotEmpty ? locales.first.localeId : localeId;
-
-      debugPrint('STT requested=$localeId effective=$effectiveLocale');
+      // Never switch an Indic-language command session to English just
+      // because its language pack is missing. That creates misleading Latin
+      // transcripts (for example, Kannada words returned as "mattelu").
+      // Request the selected locale and log whether Android lists a matching
+      // recognizer locale so the device configuration can be diagnosed.
+      final hasMatchingLocale = effectiveLocale != null;
+      effectiveLocale ??= localeId;
+      if (!hasMatchingLocale) {
+        debugPrint(
+          'STT WARNING: no installed recognizer locale matches $localeId; '
+          'requesting it explicitly instead of silently switching languages.',
+        );
+      }
+      debugPrint(
+        'STT requested=$localeId effective=$effectiveLocale '
+        'availableLocales=${locales.map((l) => l.localeId).join(',')}',
+      );
 
       await _speech.listen(
         onResult: (result) {
@@ -94,7 +107,7 @@ class VoiceCommandService {
         listenOptions: SpeechListenOptions(
           localeId: effectiveLocale,
           listenFor: timeout,
-          pauseFor: const Duration(seconds: 3),
+          pauseFor: const Duration(seconds: 4),
           partialResults: true,
           cancelOnError: false,
           autoPunctuation: false,

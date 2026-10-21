@@ -41,9 +41,12 @@ class _LiveCameraScreenState
   bool processing = false;
   bool pickingImage = false;
   DateTime? _lastHoldStillAnnouncement;
-  bool _announcedAnalyzingThisSession = false;
+  DateTime? _lastAnalysisAnnouncement;
+  DateTime? _lastBusyAnnouncement;
   bool stopped = false;
   bool listening = false;
+  bool _voiceSessionActive = false;
+  bool _executingVoiceCommand = false;
   bool focusMode = false;
   bool sceneScanMode = false;
   bool safetyMode = true;
@@ -88,7 +91,6 @@ class _LiveCameraScreenState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    unawaited(_recoverLostImage());
     start();
   }
 
@@ -232,6 +234,9 @@ class _LiveCameraScreenState
 
   Future<void> start() async {
     try {
+      // Wait for Android's lost-picker recovery before checking whether a
+      // recovered image should be analyzed instead of starting the camera.
+      await _recoverLostImage();
       status = 'Starting SightToSound';
       if (mounted) setState(() {});
 
@@ -271,13 +276,27 @@ class _LiveCameraScreenState
           });
         }
 
+        unawaited(speak(copy('analyzingImage')));
         final recoveredContexts = await _analyzeFile(
           recovered,
           demo: true,
         );
 
         visibleContexts = recoveredContexts;
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() => status = recoveredContexts.isEmpty
+              ? copy('noSigns')
+              : copy('resultReady'));
+        }
+        if (recoveredContexts.isEmpty) {
+          await speak(copy('noSigns'));
+        } else {
+          final recoveredSpeech = await composeDetectionSpeech(
+            recoveredContexts,
+            useGroq: true,
+          );
+          await speak(recoveredSpeech);
+        }
 
         // The user can return to camera explicitly after recovery.
         return;
@@ -694,6 +713,7 @@ class _LiveCameraScreenState
         processing ||
         stopped ||
         listening ||
+        _executingVoiceCommand ||
         demoMode ||
         camera == null ||
         !camera!.value.isInitialized) {
@@ -704,31 +724,33 @@ class _LiveCameraScreenState
 
     processing = true;
     if (mounted) {
-      setState(() => status = language.code == 'kn'
-          ? 'ಫಲಕದ ಪಠ್ಯವನ್ನು ಓದುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಒಂದು ಕ್ಷಣ ಕಾಯಿರಿ.'
-          : language.code == 'hi'
-              ? 'संकेत का पाठ पढ़ा जा रहा है। कृपया एक क्षण प्रतीक्षा करें।'
-              : language.code == 'ta'
-                  ? 'பலகையின் உரையைப் படிக்கிறேன். ஒரு கணம் காத்திருக்கவும்.'
-                  : language.code == 'te'
-                      ? 'బోర్డులోని వచనాన్ని చదువుతున్నాను. దయచేసి కాసేపు వేచి ఉండండి.'
-                      : language.code == 'ml'
-                          ? 'ബോർഡിലെ എഴുത്ത് വായിക്കുന്നു. ദയവായി ഒരു നിമിഷം കാത്തിരിക്കുക.'
-                          : 'Reading the signboard text. Please wait a moment.');
+      setState(() => status = copy('analyzingNearby'));
     }
-    if (!_announcedAnalyzingThisSession) {
-      _announcedAnalyzingThisSession = true;
-      unawaited(speak(language.code == 'kn'
-          ? 'ಫಲಕವನ್ನು ವಿಶ್ಲೇಷಿಸುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಒಂದು ಕ್ಷಣ ಕಾಯಿರಿ.'
-          : language.code == 'hi'
-              ? 'संकेत का विश्लेषण हो रहा है। कृपया एक क्षण प्रतीक्षा करें।'
-              : language.code == 'ta'
-                  ? 'பலகையை ஆய்வு செய்கிறேன். ஒரு கணம் காத்திருக்கவும்.'
-                  : language.code == 'te'
-                      ? 'బోర్డును విశ్లేషిస్తున్నాను. దయచేసి కాసేపు వేచి ఉండండి.'
-                      : language.code == 'ml'
-                          ? 'ബോർഡ് പരിശോധിക്കുന്നു. ദയവായി ഒരു നിമിഷം കാത്തിരിക്കുക.'
-                          : 'I am analyzing the signboard. Please wait a moment.'));
+
+    // Give immediate spoken feedback, but throttle it so continuous live
+    // scanning does not become noisy for the user.
+    final now = DateTime.now();
+    if (_lastAnalysisAnnouncement == null ||
+        now.difference(_lastAnalysisAnnouncement!) >=
+            const Duration(seconds: 15)) {
+      _lastAnalysisAnnouncement = now;
+      unawaited(
+        speak(
+          language.code == 'hi'
+              ? 'मैं आपके आसपास संकेत बोर्ड खोज रहा हूँ। कृपया थोड़ी देर प्रतीक्षा करें।'
+              : language.code == 'kn'
+                  ? 'ನಿಮ್ಮ ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳನ್ನು ಹುಡುಕುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ಕಾಯಿರಿ.'
+                  : language.code == 'ta'
+                      ? 'உங்களைச் சுற்றியுள்ள பலகைகளைத் தேடுகிறேன். சிறிது நேரம் காத்திருக்கவும்.'
+                      : language.code == 'te'
+                          ? 'మీ చుట్టూ ఉన్న బోర్డుల కోసం చూస్తున్నాను. దయచేసి కొద్దిసేపు వేచి ఉండండి.'
+                          : language.code == 'ml'
+                              ? 'നിങ്ങളുടെ ചുറ്റുമുള്ള ബോർഡുകൾ പരിശോധിക്കുന്നു. ദയവായി അല്പസമയം കാത്തിരിക്കുക.'
+                              : 'I’m checking for signboards around you. Please wait a moment.',
+        ).catchError((Object speechError) {
+          debugPrint('Progress announcement failed: $speechError');
+        }),
+      );
     }
 
     try {
@@ -777,6 +799,7 @@ class _LiveCameraScreenState
       if (mounted) setState(() {});
 
       if (contexts.isEmpty) {
+        if (mounted) setState(() => status = copy('noSigns'));
         final now = DateTime.now();
         final canAnnounce = _lastNoSignAnnouncement == null ||
             now.difference(_lastNoSignAnnouncement!) >=
@@ -789,6 +812,7 @@ class _LiveCameraScreenState
       }
 
       _lastNoSignAnnouncement = null;
+      if (mounted) setState(() => status = copy('resultReady'));
 
       if (sceneScanMode) {
         await speakScene(contexts);
@@ -877,6 +901,7 @@ class _LiveCameraScreenState
       await HapticFeedback.mediumImpact();
     } catch (e) {
       debugPrint('scan error: $e');
+      if (mounted) setState(() => status = copy('analysisFailed'));
 
       // A camera plugin failure can leave the controller present but unable
       // to render frames. Recover it instead of leaving the user with a
@@ -1256,8 +1281,72 @@ class _LiveCameraScreenState
     }
   }
 
+  String _busyMessage(String activity) {
+    switch (language.code) {
+      case 'kn':
+        switch (activity) {
+          case 'gallery': return 'ಗ್ಯಾಲರಿ ತೆರೆಯುತ್ತಿದೆ. ದಯವಿಟ್ಟು ಕಾಯಿರಿ.';
+          case 'image': return 'ನಿಮ್ಮ ಚಿತ್ರವನ್ನು ವಿಶ್ಲೇಷಿಸಲಾಗುತ್ತಿದೆ. ದಯವಿಟ್ಟು ಕಾಯಿರಿ.';
+          default: return 'ಲೈವ್ ಕ್ಯಾಮೆರಾ ಫಲಕಗಳನ್ನು ಪತ್ತೆಹಚ್ಚುತ್ತಿದೆ. ದಯವಿಟ್ಟು ಕಾಯಿರಿ.';
+        }
+      case 'hi':
+        switch (activity) {
+          case 'gallery': return 'गैलरी खुल रही है। कृपया प्रतीक्षा करें।';
+          case 'image': return 'आपकी तस्वीर का विश्लेषण हो रहा है। कृपया प्रतीक्षा करें।';
+          default: return 'लाइव कैमरा संकेतों का पता लगा रहा है। कृपया प्रतीक्षा करें।';
+        }
+      case 'ta':
+        switch (activity) {
+          case 'gallery': return 'படத்தொகுப்பு திறக்கப்படுகிறது. காத்திருக்கவும்.';
+          case 'image': return 'உங்கள் படம் பகுப்பாய்வு செய்யப்படுகிறது. காத்திருக்கவும்.';
+          default: return 'நேரடி கேமரா பலகைகளைக் கண்டறிகிறது. காத்திருக்கவும்.';
+        }
+      case 'te':
+        switch (activity) {
+          case 'gallery': return 'గ్యాలరీ తెరుచుకుంటోంది. దయచేసి వేచి ఉండండి.';
+          case 'image': return 'మీ చిత్రాన్ని విశ్లేషిస్తున్నాము. దయచేసి వేచి ఉండండి.';
+          default: return 'లైవ్ కెమెరా బోర్డులను గుర్తిస్తోంది. దయచేసి వేచి ఉండండి.';
+        }
+      case 'ml':
+        switch (activity) {
+          case 'gallery': return 'ഗാലറി തുറക്കുന്നു. ദയവായി കാത്തിരിക്കുക.';
+          case 'image': return 'നിങ്ങളുടെ ചിത്രം വിശകലനം ചെയ്യുന്നു. ദയവായി കാത്തിരിക്കുക.';
+          default: return 'ലൈവ് ക്യാമറ ബോർഡുകൾ കണ്ടെത്തുന്നു. ദയവായി കാത്തിരിക്കുക.';
+        }
+      default:
+        switch (activity) {
+          case 'gallery': return 'Opening your gallery. Please wait.';
+          case 'image': return 'Your picture is being analyzed. Please wait.';
+          default: return 'Live camera is detecting signboards. Please wait.';
+        }
+    }
+  }
+
   Future<void> pickDemoImage() async {
-    if (processing || pickingImage) return;
+    if (processing || pickingImage) {
+      debugPrint(
+        '[Gallery] repeated tap: processing=$processing pickingImage=$pickingImage demoMode=$demoMode',
+      );
+
+      // Never leave repeated taps feeling like the button is broken. Update
+      // the visible status immediately and throttle speech so rapid taps do
+      // not flood the announcement queue.
+      final message = pickingImage
+          ? _busyMessage('gallery')
+          : demoMode
+              ? _busyMessage('image')
+              : _busyMessage('camera');
+      if (mounted) setState(() => status = message);
+
+      final now = DateTime.now();
+      if (_lastBusyAnnouncement == null ||
+          now.difference(_lastBusyAnnouncement!) >=
+              const Duration(seconds: 3)) {
+        _lastBusyAnnouncement = now;
+        unawaited(speak(message, priority: true));
+      }
+      return;
+    }
 
     processing = true;
     pickingImage = true;
@@ -1269,17 +1358,26 @@ class _LiveCameraScreenState
     ready = false;
 
     try {
-      await oldCamera?.dispose();
-
-      if (mounted) setState(() => status = copy('upload'));
+      if (mounted) {
+        setState(() => status = copy('upload'));
+      }
+      debugPrint('[Gallery] opening Android image picker');
+      // A camera disposal failure should not prevent the user from choosing a
+      // photo. Log it and continue into the picker.
+      try {
+        await oldCamera?.dispose();
+      } catch (cameraError) {
+        debugPrint('[Gallery] camera dispose failed: $cameraError');
+      }
 
       final picked = await picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 100,
-        maxWidth: 2048,
-        maxHeight: 2048,
+        imageQuality: 90,
+        maxWidth: 1600,
+        maxHeight: 1600,
         requestFullMetadata: false,
       );
+      debugPrint('[Gallery] picker returned: ${picked?.path ?? 'cancelled'}');
 
       if (picked == null) {
         pickingImage = false;
@@ -1300,7 +1398,8 @@ class _LiveCameraScreenState
       visibleContexts = [];
 
       if (mounted) setState(() => status = copy('analyzingImage'));
-      await speak(copy('analyzingImage'));
+      // Start voice feedback without blocking image decoding and detection.
+      unawaited(speak(copy('analyzingImage')));
 
       final contexts = await _analyzeFile(file, demo: true);
       visibleContexts = contexts;
@@ -1329,6 +1428,9 @@ class _LiveCameraScreenState
       if (mounted && !onboarding && !demoMode && camera == null) {
         unawaited(_resumeCameraSafely());
       }
+      debugPrint(
+        '[Gallery] finished: demoMode=$demoMode cameraReady=${camera != null}',
+      );
     }
   }
 
@@ -1797,6 +1899,8 @@ class _LiveCameraScreenState
         'detected': 'पहचाना गया',
         'result': 'अभी का परिणाम',
         'scanningNow': 'स्कैन किया जा रहा है',
+        'analyzingNearby': 'मैं आसपास के संकेत बोर्ड देख रहा हूँ। कृपया थोड़ी देर प्रतीक्षा करें।',
+        'resultReady': 'संकेत बोर्ड मिल गया। परिणाम तैयार है।',
         'waitingForScan': 'कैमरा तैयार है। संकेत के सामने रखें।',
         'retryCamera': 'कैमरा फिर शुरू करें',
         'position': 'स्थिति',
@@ -1877,6 +1981,8 @@ class _LiveCameraScreenState
         'detected': 'ಗುರುತಿಸಲಾಗಿದೆ',
         'result': 'ಈಗಿನ ಫಲಿತಾಂಶ',
         'scanningNow': 'ಸ್ಕ್ಯಾನ್ ಮಾಡಲಾಗುತ್ತಿದೆ',
+        'analyzingNearby': 'ನಿಮ್ಮ ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳನ್ನು ಹುಡುಕುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ಕಾಯಿರಿ.',
+        'resultReady': 'ಫಲಕ ಕಂಡುಬಂದಿದೆ. ಫಲಿತಾಂಶ ಸಿದ್ಧವಾಗಿದೆ.',
         'waitingForScan': 'ಕ್ಯಾಮೆರಾ ಸಿದ್ಧವಾಗಿದೆ. ಫಲಕವನ್ನು ಮುಂದೆ ಹಿಡಿಯಿರಿ.',
         'retryCamera': 'ಕ್ಯಾಮೆರಾ ಮತ್ತೆ ಪ್ರಾರಂಭಿಸಿ',
         'position': 'ಸ್ಥಾನ',
@@ -1957,6 +2063,8 @@ class _LiveCameraScreenState
         'detected': 'கண்டறியப்பட்டது',
         'result': 'தற்போதைய முடிவு',
         'scanningNow': 'ஸ்கேன் செய்கிறது',
+        'analyzingNearby': 'உங்களைச் சுற்றியுள்ள பலகைகளைத் தேடுகிறேன். சிறிது நேரம் காத்திருக்கவும்.',
+        'resultReady': 'பலகை கண்டறியப்பட்டது. முடிவு தயாராக உள்ளது.',
         'waitingForScan': 'கேமரா தயாராக உள்ளது. பலகையை முன்புறம் காட்டுங்கள்.',
         'retryCamera': 'கேமராவை மீண்டும் தொடங்கு',
         'position': 'இடம்',
@@ -2008,6 +2116,8 @@ class _LiveCameraScreenState
         'detected': 'గుర్తించబడింది',
         'result': 'ప్రస్తుత ఫలితం',
         'scanningNow': 'స్కాన్ చేస్తోంది',
+        'analyzingNearby': 'మీ చుట్టూ ఉన్న బోర్డుల కోసం చూస్తున్నాను. దయచేసి కొద్దిసేపు వేచి ఉండండి.',
+        'resultReady': 'బోర్డు గుర్తించబడింది. ఫలితం సిద్ధంగా ఉంది.',
         'waitingForScan': 'కెమెరా సిద్ధంగా ఉంది. బోర్డును ముందుగా చూపించండి.',
         'retryCamera': 'కెమెరాను మళ్లీ ప్రారంభించండి',
         'position': 'స్థానం',
@@ -2059,6 +2169,8 @@ class _LiveCameraScreenState
         'detected': 'കണ്ടെത്തി',
         'result': 'നിലവിലെ ഫലം',
         'scanningNow': 'സ്കാൻ ചെയ്യുന്നു',
+        'analyzingNearby': 'നിങ്ങളുടെ ചുറ്റുമുള്ള ബോർഡുകൾ പരിശോധിക്കുന്നു. ദയവായി അല്പസമയം കാത്തിരിക്കുക.',
+        'resultReady': 'ബോർഡ് കണ്ടെത്തി. ഫലം തയ്യാറാണ്.',
         'waitingForScan': 'ക്യാമറ തയ്യാറാണ്. ബോർഡ് മുന്നിൽ പിടിക്കുക.',
         'retryCamera': 'ക്യാമറ വീണ്ടും ആരംഭിക്കുക',
         'position': 'സ്ഥാനം',
@@ -2115,6 +2227,8 @@ class _LiveCameraScreenState
           'Current result',
       'scanningNow':
           'Scanning',
+      'analyzingNearby': 'I’m checking for signboards around you. Please wait a moment.',
+      'resultReady': 'I found a signboard. Your result is ready.',
       'waitingForScan':
           'Camera is ready. Hold a signboard in front of it.',
       'retryCamera':
@@ -2189,47 +2303,164 @@ class _LiveCameraScreenState
   }
 
   Future<void> commands() async {
-    if (listening) {
+    // The microphone button toggles a voice-command session. Each command
+    // gets a fresh recognition turn, and listening resumes after its reply.
+    if (_voiceSessionActive) {
+      _voiceSessionActive = false;
+      listening = false;
+      await voice.stop();
+      if (mounted) setState(() {});
       return;
     }
 
-    listening = true;
+    _voiceSessionActive = true;
+    if (mounted) setState(() {});
 
     await announcements.stopAndClear();
     await tts.stop();
 
-    final microphoneAllowed = await _requestPermissionWithVoice(
-      Permission.microphone,
-      'microphone',
-    );
-    if (!microphoneAllowed) {
+    try {
+      final microphoneAllowed = await _requestPermissionWithVoice(
+        Permission.microphone,
+        'microphone',
+      );
+      if (!microphoneAllowed || !mounted) return;
+
+      _executingVoiceCommand = true;
+      await speakRaw(copy('voicePrompt'));
+      _executingVoiceCommand = false;
+
+      while (_voiceSessionActive && mounted) {
+        listening = true;
+        if (mounted) setState(() {});
+
+        final result = await voice.listen(
+          localeId: language.speechLocale,
+          timeout: const Duration(seconds: 10),
+        );
+
+        listening = false;
+        if (mounted) setState(() {});
+
+        // A button tap cancels the active listen and exits the loop.
+        if (!_voiceSessionActive || !mounted) break;
+
+        if (result == null || result.trim().isEmpty) {
+          // Keep the session active without spinning rapidly when Android
+          // returns no transcript for a listening turn.
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          continue;
+        }
+
+        // Pause new camera scans only while the command response is being
+        // handled, so speech output and live detection do not compete.
+        _executingVoiceCommand = true;
+        try {
+          await command(result);
+        } finally {
+          _executingVoiceCommand = false;
+        }
+      }
+    } catch (error) {
+      debugPrint('[VoiceCommand] session failed: $error');
+    } finally {
       listening = false;
-      return;
+      _voiceSessionActive = false;
+      _executingVoiceCommand = false;
+      if (mounted) setState(() {});
+    }
+  }
+
+  String _normalizeVoiceCommand(String raw) {
+    var value = raw.toLowerCase();
+
+    // Some Android recognizers return phonetic Chinese characters when the
+    // requested Indic language pack is missing or ignored. Normalize the
+    // common transcript seen for "Sahaya" before the normal script filter.
+    const phoneticFixes = <String, String>{
+      '萨哈亚沙哈药': 'sahaya',
+      '萨哈亚': 'sahaya',
+      '萨哈雅': 'sahaya',
+      '萨哈亚哈': 'sahaya',
+      '我在哪里': 'where am i',
+      '我在哪': 'where am i',
+      '我在哪儿': 'where am i',
+    };
+    for (final entry in phoneticFixes.entries) {
+      value = value.replaceAll(entry.key, entry.value);
     }
 
-    await speakRaw(copy('voicePrompt'));
+    return LanguageService.normalize(value);
+  }
 
-    final result =
-        await voice.listen(
-      localeId:
-          language.speechLocale,
-    );
+  bool _matchesVoiceIntent(String speech, String intent) {
+    final aliases = intent == 'help'
+        ? <String>[
+            'help', 'sahaya', 'sahaaya', 'sahayya', 'sahaiya',
+            'sahayam', 'sahaya maadi', 'sahaya madi', 'sahaya please',
+            'madad', 'madat', 'sahaaya maadi', 'ಸಹಾಯ', 'ಮદદ',
+            'मदद', 'मदद करो', 'உதவி', 'సహాయం', 'സഹായം',
+          ]
+        : <String>[
+            'where am i', 'where am', 'where', 'last seen',
+            'yelli', 'elli', 'elli iddini', 'elli iddene',
+            'nanu elli', 'naanu elli', 'nanu elli iddini',
+            'naanu elli iddini', 'nanu elli iddene', 'elli idiya',
+            'ellide', 'naan enga', 'nenu ekkada', 'njan evide',
+            'कहाँ', 'मैं कहाँ', 'நான் எங்கே', 'நான் எங்கு',
+            'నేను ఎక్కడ', 'ഞാൻ എവിടെ', 'ಎಲ್ಲಿ', 'ನಾನು ಎಲ್ಲಿದ್ದೇನೆ',
+          ];
 
-    listening = false;
-
-    if (result == null ||
-        result.trim().isEmpty) {
-      return;
+    final compactSpeech = speech.replaceAll(' ', '');
+    for (final alias in aliases) {
+      if (speech.contains(alias) ||
+          (alias.replaceAll(' ', '').length >= 5 &&
+              compactSpeech.contains(alias.replaceAll(' ', '')))) {
+        return true;
+      }
     }
 
-    await command(result);
+    // Allow small speech-to-text spelling mistakes in the key command words
+    // without requiring the whole sentence to match exactly.
+    final words = speech.split(' ').where((word) => word.isNotEmpty).toList();
+    final fuzzyTargets = intent == 'help'
+        ? <String>['help', 'sahaya', 'sahaaya', 'madad']
+        : <String>['where', 'yelli', 'elli', 'ekka', 'evide'];
+    for (final word in words) {
+      for (final target in fuzzyTargets) {
+        final maxDistance = target.length >= 6 ? 2 : 1;
+        if ((word.length - target.length).abs() <= maxDistance &&
+            _voiceEditDistance(word, target) <= maxDistance) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  int _voiceEditDistance(String a, String b) {
+    var previous = List<int>.generate(b.length + 1, (index) => index);
+    for (var i = 1; i <= a.length; i++) {
+      final current = List<int>.filled(b.length + 1, 0);
+      current[0] = i;
+      for (var j = 1; j <= b.length; j++) {
+        final cost = a[i - 1] == b[j - 1] ? 0 : 1;
+        current[j] = [
+          current[j - 1] + 1,
+          previous[j] + 1,
+          previous[j - 1] + cost,
+        ].reduce((x, y) => x < y ? x : y);
+      }
+      previous = current;
+    }
+    return previous[b.length];
   }
 
   Future<void> command(
     String raw,
   ) async {
-    final speech =
-        LanguageService.normalize(raw);
+    final speech = _normalizeVoiceCommand(raw);
+    debugPrint('[VoiceCommand] raw="$raw" normalized="$speech"');
 
     if (speech.contains('stop focus') ||
         speech.contains('release focus') ||
@@ -2282,7 +2513,17 @@ class _LiveCameraScreenState
 
     if (speech.contains('repeat') ||
         speech.contains('दोहर') ||
-        speech.contains('ಮತ್ತೆ')) {
+        speech.contains('மீண்டும்') ||
+        speech.contains('మళ్లీ') ||
+        speech.contains('വീണ്ടും') ||
+        speech.contains('ಮತ್ತೆ') ||
+        speech.contains('ಹೇಳು') ||
+        speech == 'matte' ||
+        speech == 'matte helu' ||
+        speech == 'matte heli' ||
+        speech == 'mattelu' ||
+        speech == 'mathe helu' ||
+        speech == 'matte helu matte') {
       final repeatText = last.isEmpty ? copy('nothingToRepeat') : last;
       await announcements.stopAndClear();
       await tts.stop();
@@ -2350,10 +2591,7 @@ class _LiveCameraScreenState
       return;
     }
 
-    if (speech.contains('where') ||
-        speech.contains('last seen') ||
-        speech.contains('कहाँ') ||
-        speech.contains('ಎಲ್ಲಿ')) {
+    if (_matchesVoiceIntent(speech, 'where')) {
       if (lastDetections.isEmpty) {
         await _speakCurrentLocationNow();
       } else {
@@ -2373,13 +2611,14 @@ class _LiveCameraScreenState
       return;
     }
 
-    if (speech.contains('help') ||
-        speech.contains('मदद') ||
-        speech.contains('ಸಹಾಯ')) {
-      await speak(
-        copy('help'),
-      );
-
+    // Accept regional words, Latin transliterations, and minor STT errors.
+    if (_matchesVoiceIntent(speech, 'help') ||
+        speech == 'help' ||
+        speech == 'ಸಹಾಯ' ||
+        speech == 'sahaya' ||
+        speech == 'sahaaya' ||
+        speech == 'madad') {
+      await speak(copy('help'));
       return;
     }
 
@@ -2674,9 +2913,18 @@ class _LiveCameraScreenState
       });
     }
 
+    if (priority) {
+      // Safety/location/action feedback should not wait behind an old,
+      // lengthy sign narration. Stop the active utterance and discard stale
+      // queued speech before announcing the new priority message.
+      await announcements.stopAndClear();
+      await tts.stop();
+    }
+
     await announcements.enqueue(
       localizedSpeech,
       priority: priority,
+      interrupt: priority,
     );
   }
 
@@ -2829,6 +3077,24 @@ class _LiveCameraScreenState
               fit: BoxFit.contain,
             ),
           ),
+          // One-tap help shortcut: runs the exact same help response as
+          // the voice command, so testing does not depend on microphone STT.
+          Positioned(
+            right: 18,
+            bottom: 94,
+            child: Semantics(
+              button: true,
+              label: copy('help'),
+              child: Tooltip(
+                message: copy('help'),
+                child: FloatingActionButton.small(
+                  heroTag: 'quickHelpButton',
+                  onPressed: () => command('help'),
+                  child: const Icon(Icons.help_outline_rounded),
+                ),
+              ),
+            ),
+          ),
           Positioned(
             left: 10,
             right: 10,
@@ -2848,7 +3114,7 @@ class _LiveCameraScreenState
                   children: [
                     Expanded(
                       child: FilledButton.icon(
-                        onPressed: processing ? null : pickDemoImage,
+                        onPressed: pickDemoImage,
                         icon: const Icon(Icons.image_search),
                         label: Text(copy('upload')),
                         style: FilledButton.styleFrom(
@@ -3153,13 +3419,13 @@ class _LiveCameraScreenState
                         child: FilledButton.icon(
                           onPressed: commands,
                           icon: Icon(
-                            listening
+                            _voiceSessionActive
                                 ? Icons.hearing
                                 : Icons.mic_none_rounded,
                           ),
                           label: Text(
-                            listening
-                                ? 'Listening…'
+                            _voiceSessionActive
+                                ? 'Voice commands on · tap to stop'
                                 : copy('voiceCommands'),
                           ),
                           style: FilledButton.styleFrom(
