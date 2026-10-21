@@ -3053,10 +3053,39 @@ class _LiveCameraScreenState
   Widget _languageButton(String label, String code) {
     return SizedBox(
       width: double.infinity,
-      height: 62,
-      child: ElevatedButton(
+      height: 58,
+      child: FilledButton.tonal(
         onPressed: () => _selectLanguageFromButton(code),
-        child: Text(label, style: const TextStyle(fontSize: 20)),
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFF202D43),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(17),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: const Color(0xFF59D6C8).withValues(alpha: 0.13),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: const Icon(Icons.language_rounded, size: 19, color: Color(0xFF7FE4D8)),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF9CAAC0)),
+          ],
+        ),
       ),
     );
   }
@@ -3148,25 +3177,56 @@ class _LiveCameraScreenState
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
+      backgroundColor: const Color(0xFF101A2B),
+      barrierColor: Colors.black.withValues(alpha: 0.68),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 26),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                _quickActionText('title'),
-                style: Theme.of(context).textTheme.titleLarge,
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF59D6C8).withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(Icons.grid_view_rounded, color: Color(0xFF7FE4D8)),
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _quickActionText('title'),
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white),
+                        ),
+                        const SizedBox(height: 3),
+                        const Text(
+                          'Tap an action if you prefer not to use voice.',
+                          style: TextStyle(fontSize: 12, color: Color(0xFFB8C4D8)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 children: actions.map((action) {
                   return SizedBox(
                     width: 155,
-                    child: FilledButton.icon(
+                    child: FilledButton.tonalIcon(
                       onPressed: () async {
                         Navigator.of(sheetContext).pop();
                         await command(action['command'] as String);
@@ -3175,12 +3235,17 @@ class _LiveCameraScreenState
                       label: Text(
                         action['label'] as String,
                         textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       style: FilledButton.styleFrom(
-                        minimumSize: const Size(0, 54),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
+                        backgroundColor: const Color(0xFF202D43),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(0, 58),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(color: Colors.white.withValues(alpha: 0.07)),
                         ),
                       ),
                     ),
@@ -3212,7 +3277,7 @@ class _LiveCameraScreenState
           ),
           Positioned(
             right: 18,
-            bottom: 94,
+            top: 78,
             child: Semantics(
               button: true,
               label: _quickActionText('title'),
@@ -3284,44 +3349,100 @@ class _LiveCameraScreenState
     BuildContext context,
   ) {
     if (onboarding) {
+      final colors = Theme.of(context).colorScheme;
       return Scaffold(
-        backgroundColor: Colors.black,
-        body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircleAvatar(
-                    radius: 42,
-                    child: Icon(Icons.record_voice_over_rounded, size: 42),
+        backgroundColor: const Color(0xFF0A1220),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF122B3A), Color(0xFF0A1220), Color(0xFF171B35)],
+            ),
+          ),
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(22, 28, 22, 30),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 68,
+                        height: 68,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF59D6C8).withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(color: const Color(0xFF59D6C8).withValues(alpha: 0.24)),
+                        ),
+                        child: const Icon(Icons.record_voice_over_rounded, size: 34, color: Color(0xFF7FE4D8)),
+                      ),
+                      const SizedBox(height: 26),
+                      const Text(
+                        'Welcome to\nSightToSound',
+                        style: TextStyle(
+                          fontSize: 36,
+                          height: 1.08,
+                          letterSpacing: -0.8,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Let’s start with the language you feel most comfortable hearing.',
+                        style: TextStyle(fontSize: 16, height: 1.5, color: Color(0xFFD0D9E8)),
+                      ),
+                      const SizedBox(height: 18),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.hearing_rounded, color: colors.primary, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                status,
+                                style: const TextStyle(fontSize: 13, color: Color(0xFFB8C4D8), height: 1.35),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 26),
+                      const Text(
+                        'CHOOSE YOUR LANGUAGE',
+                        style: TextStyle(fontSize: 11, letterSpacing: 1.6, fontWeight: FontWeight.w800, color: Color(0xFF8CE9DE)),
+                      ),
+                      const SizedBox(height: 14),
+                      _languageButton('English', 'en'),
+                      const SizedBox(height: 10),
+                      _languageButton('हिन्दी  •  Hindi', 'hi'),
+                      const SizedBox(height: 10),
+                      _languageButton('ಕನ್ನಡ  •  Kannada', 'kn'),
+                      const SizedBox(height: 10),
+                      _languageButton('தமிழ்  •  Tamil', 'ta'),
+                      const SizedBox(height: 10),
+                      _languageButton('తెలుగు  •  Telugu', 'te'),
+                      const SizedBox(height: 10),
+                      _languageButton('മലയാളം  •  Malayalam', 'ml'),
+                      const SizedBox(height: 18),
+                      const Center(
+                        child: Text(
+                          'You can change this later from Quick Actions.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 12, color: Color(0xFF8D9CB4), height: 1.4),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Choose your language',
-                    style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    status,
-                    style: const TextStyle(fontSize: 17, height: 1.4),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 26),
-                  _languageButton('English', 'en'),
-                  const SizedBox(height: 12),
-                  _languageButton('हिन्दी  •  Hindi', 'hi'),
-                  const SizedBox(height: 12),
-                  _languageButton('ಕನ್ನಡ  •  Kannada', 'kn'),
-                  const SizedBox(height: 12),
-                  _languageButton('தமிழ்  •  Tamil', 'ta'),
-                  const SizedBox(height: 12),
-                  _languageButton('తెలుగు  •  Telugu', 'te'),
-                  const SizedBox(height: 12),
-                  _languageButton('മലയാളം  •  Malayalam', 'ml'),
-                ],
+                ),
               ),
             ),
           ),
@@ -3385,7 +3506,7 @@ class _LiveCameraScreenState
           ),
           Positioned(
             right: 18,
-            bottom: 94,
+            top: 78,
             child: Semantics(
               button: true,
               label: _quickActionText('title'),
@@ -3402,7 +3523,7 @@ class _LiveCameraScreenState
           Positioned(
             left: 10,
             right: 10,
-            bottom: 150,
+            bottom: 200,
             child: Semantics(
               liveRegion: true,
               label: status,
@@ -3542,68 +3663,86 @@ class _LiveCameraScreenState
                   ),
                 const Spacer(),
                 Padding(
-                  padding:
-                      const EdgeInsets.all(
-                    16,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: pickDemoImage,
-                          icon: const Icon(Icons.image_search),
-                          label: Text(copy('upload')),
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size(0, 58),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
+                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 18),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D1728).withValues(alpha: 0.94),
+                      borderRadius: BorderRadius.circular(26),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.25),
+                          blurRadius: 22,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: commands,
+                            icon: Icon(
+                              _voiceSessionActive ? Icons.hearing_rounded : Icons.mic_rounded,
+                            ),
+                            label: Text(
+                              _voiceSessionActive
+                                  ? 'Voice commands on · tap to stop'
+                                  : copy('voiceCommands'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(56),
+                              backgroundColor: const Color(0xFF59D6C8),
+                              foregroundColor: const Color(0xFF062A2A),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(17),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: commands,
-                          icon: Icon(
-                            _voiceSessionActive
-                                ? Icons.hearing
-                                : Icons.mic_none_rounded,
-                          ),
-                          label: Text(
-                            _voiceSessionActive
-                                ? 'Voice commands on · tap to stop'
-                                : copy('voiceCommands'),
-                          ),
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size(0, 58),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: pickDemoImage,
+                                icon: const Icon(Icons.add_photo_alternate_rounded),
+                                label: Text(copy('upload'), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size(0, 48),
+                                  foregroundColor: Colors.white,
+                                  side: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => command(stopped ? 'scan' : 'stop'),
+                                icon: Icon(stopped ? Icons.play_arrow_rounded : Icons.pause_rounded),
+                                label: Text(
+                                  stopped ? copy('scan') : copy('paused'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size(0, 48),
+                                  foregroundColor: Colors.white,
+                                  side: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(
-                        width: 10,
-                      ),
-                      IconButton.filled(
-                        onPressed: () =>
-                            command(
-                          stopped
-                              ? 'scan'
-                              : 'stop',
-                        ),
-                        icon: Icon(
-                          stopped
-                              ? Icons.play_arrow
-                              : Icons.stop,
-                        ),
-                        iconSize: 30,
-                        padding:
-                            const EdgeInsets
-                                .all(14),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],

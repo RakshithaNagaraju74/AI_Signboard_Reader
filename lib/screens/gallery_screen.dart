@@ -266,78 +266,154 @@ class _GalleryScreenState
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Select Image',
-        ),
+        title: const Text('Choose a photo'),
       ),
-
-      body: Center(
-        child: Padding(
-          padding:
-              const EdgeInsets.all(20),
-          child: Column(
-            mainAxisAlignment:
-                MainAxisAlignment.center,
-            children: [
-              if (_isProcessing) ...[
-                const CircularProgressIndicator(),
-
-                const SizedBox(height: 20),
-
-                const Text(
-                  'Analyzing image...',
-                  style: TextStyle(
-                    fontSize: 18,
-                  ),
-                ),
-              ] else ...[
-                Icon(
-                  Icons.photo_library,
-                  size: 80,
-                  color:
-                      Colors.grey.shade400,
-                ),
-
-                const SizedBox(height: 20),
-
-                const Text(
-                  'Select an image from your gallery',
-                  style: TextStyle(
-                    fontSize: 16,
-                  ),
-                  textAlign:
-                      TextAlign.center,
-                ),
-
-                const SizedBox(height: 30),
-
-                ElevatedButton.icon(
-                  onPressed:
-                      _pickAndDetectImage,
-
-                  icon: const Icon(
-                    Icons.image,
-                  ),
-
-                  label: const Text(
-                    'Choose Image',
-                  ),
-
-                  style:
-                      ElevatedButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 16,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(22),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF173A4A), Color(0xFF17233C)],
+                      ),
+                      borderRadius: BorderRadius.circular(26),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 58,
+                          height: 58,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF59D6C8).withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: const Icon(Icons.add_photo_alternate_rounded, size: 30, color: Color(0xFF7FE4D8)),
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Bring a sign into focus',
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                color: Colors.white,
+                                fontSize: 28,
+                              ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Choose a photo and SightToSound will look for signboards and read the useful text aloud.',
+                          style: TextStyle(color: Color(0xFFD0D9E8), height: 1.45),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
-            ],
-          ),
+                  const SizedBox(height: 26),
+                  Text('For the clearest result', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 14),
+                  _GalleryTip(
+                    icon: Icons.crop_free_rounded,
+                    title: 'Keep the sign in frame',
+                    subtitle: 'Try to include the full board and its text.',
+                  ),
+                  const SizedBox(height: 10),
+                  _GalleryTip(
+                    icon: Icons.wb_sunny_outlined,
+                    title: 'Choose a well-lit photo',
+                    subtitle: 'Avoid glare, heavy shadows, and blur.',
+                  ),
+                  const SizedBox(height: 10),
+                  _GalleryTip(
+                    icon: Icons.text_fields_rounded,
+                    title: 'Make the text readable',
+                    subtitle: 'A closer, sharper image usually works best.',
+                  ),
+                  const SizedBox(height: 26),
+                  if (_isProcessing) ...[
+                    const Center(child: CircularProgressIndicator()),
+                    const SizedBox(height: 14),
+                    const Center(
+                      child: Text('Analyzing your photo…', style: TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                  ] else
+                    FilledButton.icon(
+                      onPressed: _pickAndDetectImage,
+                      icon: const Icon(Icons.photo_library_rounded),
+                      label: const Text('Choose from gallery'),
+                    ),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: Text(
+                      'Your photo is used for this analysis.',
+                      style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _GalleryTip extends StatelessWidget {
+  const _GalleryTip({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(color: colors.outline.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: colors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: colors.primary),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(subtitle, style: TextStyle(color: colors.onSurfaceVariant, height: 1.35)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
