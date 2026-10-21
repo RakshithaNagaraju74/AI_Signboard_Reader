@@ -3277,7 +3277,7 @@ class _LiveCameraScreenState
           ),
           Positioned(
             right: 18,
-            bottom: 94,
+            top: 78,
             child: Semantics(
               button: true,
               label: _quickActionText('title'),
@@ -3506,7 +3506,7 @@ class _LiveCameraScreenState
           ),
           Positioned(
             right: 18,
-            bottom: 94,
+            top: 78,
             child: Semantics(
               button: true,
               label: _quickActionText('title'),
