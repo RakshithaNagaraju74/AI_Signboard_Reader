@@ -2544,7 +2544,6 @@ class _LiveCameraScreenState
         speech.contains('क्या है') ||
         speech.contains('सिर्फ आसपास') ||
         speech.contains('சுற்றியுள்ள') ||
-        speech.contains('சுற்றியுள்ள') ||
         speech.contains('ಸುತ್ತಮುತ್ತಲಿನ') ||
         speech.contains('ಸுற்றியுள்ள பலகைகள்') ||
         speech.contains('చుట్టుపక్కల') ||
