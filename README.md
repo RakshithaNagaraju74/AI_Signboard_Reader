@@ -202,6 +202,13 @@ The source of truth for class order is `assets/models/labels.txt` and `assets/mo
                  │ TTS + accessible UI +  │
                  │ optional local history │
                  └────────────────────────┘
+
+<img width="1299" height="897" alt="image" src="https://github.com/user-attachments/assets/2f38ce8d-11db-4f24-a465-a7fda1f66f40" />
+
+<img width="1266" height="893" alt="image" src="https://github.com/user-attachments/assets/03bf6f08-bfe0-45f3-b097-a58a63acb555" />
+
+<img width="1266" height="893" alt="image" src="https://github.com/user-attachments/assets/77d03821-4595-4b7b-a7a7-27d498b91de4" />
+
 ```
 
 ### Architectural principles
