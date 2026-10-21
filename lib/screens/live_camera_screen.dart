@@ -11,7 +11,6 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../models/detection_result.dart';
 import '../services/detection_intelligence.dart';
-import '../services/history_service.dart';
 import '../services/language_service.dart';
 import '../services/location_service.dart';
 import '../services/ocr_service.dart';
@@ -77,7 +76,6 @@ class _LiveCameraScreenState
   final voice = VoiceCommandService();
   final lang = LanguageService();
   final location = LocationService();
-  final history = HistoryService();
   final ocr = OCRService();
   final intel = DetectionIntelligence();
   final picker = ImagePicker();
@@ -885,17 +883,6 @@ class _LiveCameraScreenState
       for (final context in announceable) {
         intel.markAnnounced(context);
 
-        history.add(
-          DetectionHistoryEntry(
-            label: context.detection.className,
-            text: context.detection.ocrText,
-            position: context.position.label,
-            confidence: context.detection.confidence,
-            latitude: currentLocation?.latitude,
-            longitude: currentLocation?.longitude,
-            timestamp: DateTime.now(),
-          ),
-        ).catchError((_) {});
       }
 
       await HapticFeedback.mediumImpact();
@@ -1938,21 +1925,16 @@ class _LiveCameraScreenState
             'सुरक्षा प्राथमिकता बंद है। सामान्य संकेत भी बताए जाएंगे।',
         'scanningSurroundings':
             'आसपास के संकेत स्कैन किए जा रहे हैं।',
-        'noHistory':
-            'हाल के कोई संकेत नहीं हैं।',
-        'historyHas':
-            'इतिहास में हाल की पहचानें हैं:',
         'navigationLimit':
             'GPS स्थान उपलब्ध है। सटीक दूरी और कम्पास दिशा तभी बताई जाएगी जब विश्वसनीय रूप से अनुमानित हो सके।',
         'notUnderstood':
             'मैं समझ नहीं पाया। मदद के लिए हेल्प बोलें।',
         'demoComplete':
             'डेमो विश्लेषण पूरा हुआ।',
-        'items': 'आइटम',
         'visible':
             'मुझे दिखाई दे रहे हैं',
         'help':
-            'स्कैन, रोकें, दोहराएँ, फोकस, आसपास के संकेत, इतिहास, भाषा बदलें या नेविगेट बोलें।',
+            'स्कैन, रोकें, दोहराएँ, फोकस, आसपास के संकेत, भाषा बदलें या नेविगेट बोलें।',
         'upload': 'तस्वीर चुनें',
         'backCamera':
             'कैमरा पर लौटें',
@@ -2022,21 +2004,16 @@ class _LiveCameraScreenState
             'ಸುರಕ್ಷತಾ ಆದ್ಯತೆ ಆಫ್ ಆಗಿದೆ. ಸಾಮಾನ್ಯ ಫಲಕ ಮಾಹಿತಿಯನ್ನೂ ತಿಳಿಸಲಾಗುತ್ತದೆ.',
         'scanningSurroundings':
             'ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳನ್ನು ಸ್ಕ್ಯಾನ್ ಮಾಡಲಾಗುತ್ತಿದೆ.',
-        'noHistory':
-            'ಇತ್ತೀಚಿನ ಫಲಕಗಳಿಲ್ಲ.',
-        'historyHas':
-            'ಇತಿಹಾಸದಲ್ಲಿ ಇತ್ತೀಚಿನ ಗುರುತಿಸುವಿಕೆಗಳ ಸಂಖ್ಯೆ:',
         'navigationLimit':
             'GPS ಸ್ಥಳ ಲಭ್ಯವಿದೆ. ನಿಖರ ದೂರ ಮತ್ತು ಕಂಪಾಸ್ ದಿಕ್ಕನ್ನು ವಿಶ್ವಾಸಾರ್ಹವಾಗಿ ಅಂದಾಜಿಸಲು ಸಾಧ್ಯವಾದಾಗ ಮಾತ್ರ ಹೇಳಲಾಗುತ್ತದೆ.',
         'notUnderstood':
             'ನನಗೆ ಅರ್ಥವಾಗಲಿಲ್ಲ. ಸಹಾಯಕ್ಕಾಗಿ ಹೆಲ್ಪ್ ಎಂದು ಹೇಳಿ.',
         'demoComplete':
             'ಡೆಮೊ ವಿಶ್ಲೇಷಣೆ ಪೂರ್ಣಗೊಂಡಿದೆ.',
-        'items': 'ಐಟಂಗಳು',
         'visible':
             'ನನಗೆ ಕಾಣುತ್ತಿರುವುದು',
         'help':
-            'ಸ್ಕ್ಯಾನ್, ನಿಲ್ಲಿಸು, ಮತ್ತೆ ಹೇಳು, ಫೋಕಸ್, ಫೋಕಸ್ ನಿಲ್ಲಿಸು, ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳು, ಸುರಕ್ಷತಾ ಮೋಡ್, ಇತಿಹಾಸ, ಭಾಷೆ ಬದಲಾಯಿಸು ಅಥವಾ ನ್ಯಾವಿಗೇಟ್ ಎಂದು ಹೇಳಿ.',
+            'ಸ್ಕ್ಯಾನ್, ನಿಲ್ಲಿಸು, ಮತ್ತೆ ಹೇಳು, ಫೋಕಸ್, ಫೋಕಸ್ ನಿಲ್ಲಿಸು, ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳು, ಸುರಕ್ಷತಾ ಮೋಡ್, ಭಾಷೆ ಬದಲಾಯಿಸು ಅಥವಾ ನ್ಯಾವಿಗೇಟ್ ಎಂದು ಹೇಳಿ.',
         'upload':
             'ಚಿತ್ರ ಆಯ್ಕೆಮಾಡಿ',
         'backCamera':
@@ -2088,14 +2065,11 @@ class _LiveCameraScreenState
         'safetyOn': 'பாதுகாப்பு முறை இயக்கப்பட்டுள்ளது. முக்கிய எச்சரிக்கைகள் முதலில் சொல்லப்படும்.',
         'safetyOff': 'பாதுகாப்பு முன்னுரிமை நிறுத்தப்பட்டுள்ளது.',
         'scanningSurroundings': 'சுற்றியுள்ள பலகைகளை ஸ்கேன் செய்கிறேன்.',
-        'noHistory': 'சமீபத்திய பலகைகள் இல்லை.',
-        'historyHas': 'வரலாற்றில் சமீபத்திய கண்டறிதல்கள் உள்ளன:',
         'navigationLimit': 'நம்பகமான தூரம் கிடைக்கும்போது மட்டுமே திசை கூறப்படும்.',
         'notUnderstood': 'புரியவில்லை. உதவி என்று சொல்லுங்கள்.',
         'demoComplete': 'பட ஆய்வு முடிந்தது.',
-        'items': 'உருப்படிகள்',
         'visible': 'எனக்குத் தெரிகிறது',
-        'help': 'ஸ்கேன், நிறுத்து, மீண்டும் சொல், கவனம், சுற்றியுள்ள பலகைகள், வரலாறு, மொழியை மாற்று அல்லது வழிசெலுத்து என்று சொல்லுங்கள்.',
+        'help': 'ஸ்கேன், நிறுத்து, மீண்டும் சொல், கவனம், சுற்றியுள்ள பலகைகள், மொழியை மாற்று அல்லது வழிசெலுத்து என்று சொல்லுங்கள்.',
         'upload': 'படத்தைத் தேர்ந்தெடு',
         'backCamera': 'கேமராவுக்குத் திரும்பு',
         'voiceCommands': 'குரல் கட்டளைகள்',
@@ -2141,14 +2115,11 @@ class _LiveCameraScreenState
         'safetyOn': 'భద్రతా మోడ్ ఆన్‌లో ఉంది. ముఖ్యమైన హెచ్చరికలు ముందుగా చెబుతాను.',
         'safetyOff': 'భద్రతా ప్రాధాన్యత ఆఫ్‌లో ఉంది.',
         'scanningSurroundings': 'చుట్టుపక్కల బోర్డులను స్కాన్ చేస్తున్నాను.',
-        'noHistory': 'ఇటీవలి బోర్డులు లేవు.',
-        'historyHas': 'చరిత్రలో ఇటీవలి గుర్తింపులు ఉన్నాయి:',
         'navigationLimit': 'నమ్మదగిన దూరం లభించినప్పుడు మాత్రమే దిశను చెబుతాను.',
         'notUnderstood': 'నాకు అర్థం కాలేదు. సహాయం అని చెప్పండి.',
         'demoComplete': 'చిత్ర విశ్లేషణ పూర్తయింది.',
-        'items': 'అంశాలు',
         'visible': 'నాకు కనిపిస్తున్నవి',
-        'help': 'స్కాన్, ఆపు, మళ్లీ చెప్పు, ఫోకస్, చుట్టుపక్కల బోర్డులు, చరిత్ర, భాష మార్చు లేదా నావిగేట్ అని చెప్పండి.',
+        'help': 'స్కాన్, ఆపు, మళ్లీ చెప్పు, ఫోకస్, చుట్టుపక్కల బోర్డులు, భాష మార్చు లేదా నావిగేట్ అని చెప్పండి.',
         'upload': 'చిత్రాన్ని ఎంచుకోండి',
         'backCamera': 'కెమెరాకు తిరిగి వెళ్ళండి',
         'voiceCommands': 'వాయిస్ ఆదేశాలు',
@@ -2194,14 +2165,11 @@ class _LiveCameraScreenState
         'safetyOn': 'സുരക്ഷാ മോഡ് ഓണാണ്. പ്രധാന മുന്നറിയിപ്പുകൾ ആദ്യം അറിയിക്കും.',
         'safetyOff': 'സുരക്ഷാ മുൻഗണന ഓഫാക്കി.',
         'scanningSurroundings': 'ചുറ്റുമുള്ള ബോർഡുകൾ സ്കാൻ ചെയ്യുന്നു.',
-        'noHistory': 'സമീപകാല ബോർഡുകളില്ല.',
-        'historyHas': 'ചരിത്രത്തിൽ സമീപകാല കണ്ടെത്തലുകൾ ഉണ്ട്:',
         'navigationLimit': 'വിശ്വസനീയമായ ദൂരം ലഭിക്കുമ്പോൾ മാത്രമേ ദിശ അറിയിക്കൂ.',
         'notUnderstood': 'മനസ്സിലായില്ല. സഹായം എന്ന് പറയുക.',
         'demoComplete': 'ചിത്ര പരിശോധന പൂർത്തിയായി.',
-        'items': 'ഇനങ്ങൾ',
         'visible': 'എനിക്ക് കാണുന്നത്',
-        'help': 'സ്കാൻ, നിർത്തുക, വീണ്ടും പറയുക, ഫോക്കസ്, ചുറ്റുമുള്ള ബോർഡുകൾ, ചരിത്രം, ഭാഷ മാറ്റുക അല്ലെങ്കിൽ നാവിഗേറ്റ് എന്ന് പറയുക.',
+        'help': 'സ്കാൻ, നിർത്തുക, വീണ്ടും പറയുക, ഫോക്കസ്, ചുറ്റുമുള്ള ബോർഡുകൾ, ഭാഷ മാറ്റുക അല്ലെങ്കിൽ നാവിഗേറ്റ് എന്ന് പറയുക.',
         'upload': 'ചിത്രം തിരഞ്ഞെടുക്കുക',
         'backCamera': 'ക്യാമറയിലേക്ക് മടങ്ങുക',
         'voiceCommands': 'വോയ്സ് കമാൻഡുകൾ',
@@ -2271,22 +2239,16 @@ class _LiveCameraScreenState
           'Safety priority is off. Normal sign information will be announced.',
       'scanningSurroundings':
           'Scanning the surroundings.',
-      'noHistory':
-          'No recent signs.',
-      'historyHas':
-          'There are recent detections in history:',
       'navigationLimit':
           'GPS context is available. Exact distance and compass direction will only be stated when they can be estimated reliably.',
       'notUnderstood':
           'I did not understand. Say help for available commands.',
       'demoComplete':
           'Demo analysis complete.',
-      'items':
-          'items',
       'visible':
           'I can see',
       'help':
-          'Say scan, stop, repeat, find sign, stop focus, scan surroundings, what signs, where, safety mode, normal mode, change language, history, or navigate.',
+          'Say scan, stop, repeat, find sign, stop focus, scan surroundings, what signs, where, safety mode, normal mode, change language, or navigate.',
       'upload':
           'Upload image',
       'backCamera':
@@ -2627,23 +2589,6 @@ class _LiveCameraScreenState
         speech.contains('भाषा') ||
         speech.contains('ಭಾಷೆ')) {
       await chooseLanguage(force: true);
-
-      return;
-    }
-
-    if (speech.contains('history') ||
-        speech.contains('इतिहास') ||
-        speech.contains('ಇತಿಹಾಸ')) {
-      final entries =
-          await history.read();
-
-      await speak(
-        entries.isEmpty
-            ? copy('noHistory')
-            : '${copy('historyHas')} '
-              '${entries.length} '
-              '${copy('items')}.',
-      );
 
       return;
     }
@@ -3094,7 +3039,6 @@ class _LiveCameraScreenState
     const labels = <String, Map<String, String>>{
       'en': {
         'title': 'Quick actions',
-        'history': 'History',
         'repeat': 'Repeat',
         'scan': 'Scan',
         'find': 'Find sign',
@@ -3102,7 +3046,6 @@ class _LiveCameraScreenState
       },
       'hi': {
         'title': 'त्वरित विकल्प',
-        'history': 'इतिहास',
         'repeat': 'फिर से सुनें',
         'scan': 'स्कैन करें',
         'find': 'संकेत खोजें',
@@ -3110,7 +3053,6 @@ class _LiveCameraScreenState
       },
       'kn': {
         'title': 'ತ್ವರಿತ ಆಯ್ಕೆಗಳು',
-        'history': 'ಇತಿಹಾಸ',
         'repeat': 'ಮತ್ತೆ ಹೇಳಿ',
         'scan': 'ಸ್ಕ್ಯಾನ್',
         'find': 'ಫಲಕ ಹುಡುಕಿ',
@@ -3118,7 +3060,6 @@ class _LiveCameraScreenState
       },
       'ta': {
         'title': 'விரைவு செயல்கள்',
-        'history': 'வரலாறு',
         'repeat': 'மீண்டும் சொல்லவும்',
         'scan': 'ஸ்கேன்',
         'find': 'பலகையைத் தேடு',
@@ -3126,7 +3067,6 @@ class _LiveCameraScreenState
       },
       'te': {
         'title': 'త్వరిత చర్యలు',
-        'history': 'చరిత్ర',
         'repeat': 'మళ్లీ చెప్పు',
         'scan': 'స్కాన్',
         'find': 'బోర్డును కనుగొను',
@@ -3134,7 +3074,6 @@ class _LiveCameraScreenState
       },
       'ml': {
         'title': 'ദ്രുത പ്രവർത്തനങ്ങൾ',
-        'history': 'ചരിത്രം',
         'repeat': 'വീണ്ടും പറയുക',
         'scan': 'സ്കാൻ',
         'find': 'ബോർഡ് കണ്ടെത്തുക',
@@ -3146,11 +3085,6 @@ class _LiveCameraScreenState
 
   Future<void> _showQuickActions() async {
     final actions = <Map<String, Object>>[
-      {
-        'label': _quickActionText('history'),
-        'command': 'history',
-        'icon': Icons.history_rounded,
-      },
       {
         'label': _quickActionText('repeat'),
         'command': 'repeat',
