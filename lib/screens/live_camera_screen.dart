@@ -1907,7 +1907,7 @@ class _LiveCameraScreenState
             'तस्वीर का विश्लेषण नहीं हो सका। दूसरी तस्वीर आज़माएँ।',
         'cameraError':
             'कैमरा उपलब्ध नहीं है। कैमरा और माइक्रोफ़ोन की अनुमति दें और ऐप फिर से खोलें।',
-        'voicePrompt': 'वॉइस कमांड तैयार हैं। स्कैन, संकेत खोजें, मैं कहाँ हूँ, या मदद बोलें।',
+        'voicePrompt': 'वॉइस कमांड तैयार हैं। स्कैनिंग शुरू करने के लिए स्कैन, रोकने के लिए रुको, पिछला परिणाम सुनने के लिए दोहराएँ, संकेत पर फोकस के लिए फोकस, आसपास के संकेतों के लिए सिर्फ आसपास, स्थान के लिए मैं कहाँ हूँ, भाषा बदलने के लिए भाषा बदलें, और सभी कमांड सुनने के लिए मदद बोलें।',
         'stopDone':
             'स्कैनिंग रोक दी गई है।',
         'nothingToRepeat':
@@ -1934,7 +1934,7 @@ class _LiveCameraScreenState
         'visible':
             'मुझे दिखाई दे रहे हैं',
         'help':
-            'स्कैन, रोकें, दोहराएँ, फोकस, आसपास के संकेत, भाषा बदलें या नेविगेट बोलें।',
+            'कमांड: स्कैन से स्कैनिंग शुरू करें, रुको से रोकें, दोहराएँ से पिछला परिणाम सुनें, फोकस या संकेत खोजें से संकेत पर ध्यान दें, फोकस रोकें से फोकस हटाएँ, सिर्फ आसपास से आसपास के बोर्ड सुनें, मैं कहाँ हूँ से स्थान सुनें, सुरक्षा मोड या सामान्य मोड, भाषा बदलें, नेविगेट, और मदद। Voice Commands बटन दबाएँ, माइक्रोफ़ोन की अनुमति दें और एक कमांड बोलें।',
         'upload': 'तस्वीर चुनें',
         'backCamera':
             'कैमरा पर लौटें',
@@ -1985,7 +1985,7 @@ class _LiveCameraScreenState
         'cameraError':
             'ಕ್ಯಾಮೆರಾ ಲಭ್ಯವಿಲ್ಲ. ಕ್ಯಾಮೆರಾ ಮತ್ತು ಮೈಕ್ರೋಫೋನ್ ಅನುಮತಿ ನೀಡಿ ಮತ್ತು ಆಪ್ ಅನ್ನು ಮತ್ತೆ ತೆರೆಯಿರಿ.',
         'voicePrompt':
-            'ಧ್ವನಿ ಆಜ್ಞೆಗಳು ಸಿದ್ಧವಾಗಿವೆ. ಸ್ಕ್ಯಾನ್, ಫಲಕ ಹುಡುಕಿ, ನಾನು ಎಲ್ಲಿದ್ದೇನೆ, ಅಥವಾ ಸಹಾಯ ಎಂದು ಹೇಳಿ.',
+            'ಧ್ವನಿ ಆಜ್ಞೆಗಳು ಸಿದ್ಧವಾಗಿವೆ. ಸ್ಕ್ಯಾನ್ ಆರಂಭಿಸಲು ಸ್ಕ್ಯಾನ್, ನಿಲ್ಲಿಸಲು ನಿಲ್ಲಿಸು, ಹಿಂದಿನ ಫಲಿತಾಂಶಕ್ಕೆ ಮತ್ತೆ ಹೇಳು, ಫಲಕದ ಮೇಲೆ ಫೋಕಸ್ ಮಾಡಲು ಫಲಕ ಹುಡುಕಿ, ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳಿಗೆ ಸುತ್ತಮುತ್ತ, ಸ್ಥಳಕ್ಕೆ ನಾನು ಎಲ್ಲಿದ್ದೇನೆ, ಭಾಷೆ ಬದಲಿಸಲು ಭಾಷೆ ಬದಲಾಯಿಸು, ಮತ್ತು ಎಲ್ಲಾ ಆಜ್ಞೆಗಳಿಗೆ ಸಹಾಯ ಎಂದು ಹೇಳಿ.',
         'stopDone':
             'ಸ್ಕ್ಯಾನಿಂಗ್ ನಿಲ್ಲಿಸಲಾಗಿದೆ.',
         'nothingToRepeat':
@@ -2013,7 +2013,7 @@ class _LiveCameraScreenState
         'visible':
             'ನನಗೆ ಕಾಣುತ್ತಿರುವುದು',
         'help':
-            'ಸ್ಕ್ಯಾನ್, ನಿಲ್ಲಿಸು, ಮತ್ತೆ ಹೇಳು, ಫೋಕಸ್, ಫೋಕಸ್ ನಿಲ್ಲಿಸು, ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳು, ಸುರಕ್ಷತಾ ಮೋಡ್, ಭಾಷೆ ಬದಲಾಯಿಸು ಅಥವಾ ನ್ಯಾವಿಗೇಟ್ ಎಂದು ಹೇಳಿ.',
+            'ಆಜ್ಞೆಗಳು: ಸ್ಕ್ಯಾನ್ ಆರಂಭಿಸಲು ಸ್ಕ್ಯಾನ್, ನಿಲ್ಲಿಸಲು ನಿಲ್ಲಿಸು, ಹಿಂದಿನ ಫಲಿತಾಂಶಕ್ಕೆ ಮತ್ತೆ ಹೇಳು, ಫಲಕ ಹುಡುಕಿ ಅಥವಾ ಫೋಕಸ್, ಫೋಕಸ್ ನಿಲ್ಲಿಸು, ಸುತ್ತಮುತ್ತಲಿನ ಫಲಕಗಳು, ಯಾವ ಫಲಕಗಳಿವೆ, ನಾನು ಎಲ್ಲಿದ್ದೇನೆ, ಸುರಕ್ಷತಾ ಮೋಡ್, ಸಾಮಾನ್ಯ ಮೋಡ್, ಭಾಷೆ ಬದಲಾಯಿಸು, ನ್ಯಾವಿಗೇಟ್ ಮತ್ತು ಸಹಾಯ. Voice Commands ಬಟನ್ ಒತ್ತಿ, ಮೈಕ್ರೋಫೋನ್ ಅನುಮತಿ ನೀಡಿ, ನಂತರ ಒಂದು ಆಜ್ಞೆ ಹೇಳಿ.',
         'upload':
             'ಚಿತ್ರ ಆಯ್ಕೆಮಾಡಿ',
         'backCamera':
@@ -2055,7 +2055,7 @@ class _LiveCameraScreenState
         'noSigns': 'தெளிவான பலகை எதுவும் கிடைக்கவில்லை.',
         'analysisFailed': 'படத்தை ஆய்வு செய்ய முடியவில்லை. வேறொரு படத்தைத் தேர்ந்தெடுக்கவும்.',
         'cameraError': 'கேமரா கிடைக்கவில்லை. அனுமதிகளைச் சரிபார்த்து செயலியை மீண்டும் திறக்கவும்.',
-        'voicePrompt': 'குரல் கட்டளைக்குத் தயாராக உள்ளது. ஸ்கேன், நிறுத்து, மீண்டும் சொல், உதவி அல்லது மொழியை மாற்று என்று சொல்லுங்கள்.',
+        'voicePrompt': 'குரல் கட்டளைகள் தயார். ஸ்கேன் தொடங்க ஸ்கேன், நிறுத்த நிறுத்து, கடைசி முடிவைக் கேட்க மீண்டும் சொல், பலகையில் கவனம் செலுத்த பலகையைக் கண்டுபிடி, அருகிலுள்ள பலகைகளுக்கு சுற்றியுள்ள பலகைகள், இடத்திற்கு நான் எங்கே இருக்கிறேன், மொழியை மாற்ற மொழியை மாற்று, கட்டளைகளை கேட்க உதவி என்று சொல்லுங்கள்.',
         'stopDone': 'ஸ்கேனிங் நிறுத்தப்பட்டது.',
         'nothingToRepeat': 'மீண்டும் சொல்ல எதுவும் இல்லை.',
         'noFocus': 'கவனம் செலுத்த பலகை எதுவும் கிடைக்கவில்லை.',
@@ -2069,7 +2069,7 @@ class _LiveCameraScreenState
         'notUnderstood': 'புரியவில்லை. உதவி என்று சொல்லுங்கள்.',
         'demoComplete': 'பட ஆய்வு முடிந்தது.',
         'visible': 'எனக்குத் தெரிகிறது',
-        'help': 'ஸ்கேன், நிறுத்து, மீண்டும் சொல், கவனம், சுற்றியுள்ள பலகைகள், மொழியை மாற்று அல்லது வழிசெலுத்து என்று சொல்லுங்கள்.',
+        'help': 'கட்டளைகள்: ஸ்கேன் தொடங்க ஸ்கேன், நிறுத்த நிறுத்து, கடைசி முடிவுக்கு மீண்டும் சொல், பலகையைக் கண்டுபிடி அல்லது கவனம், கவனத்தை நிறுத்து, சுற்றியுள்ள பலகைகள், என்ன பலகைகள், நான் எங்கே இருக்கிறேன், மொழியை மாற்று, வழிசெலுத்து, உதவி. Voice Commands பொத்தானை அழுத்தி, மைக்ரோஃபோன் அனுமதி அளித்து, ஒரு கட்டளையைப் பேசுங்கள்.',
         'upload': 'படத்தைத் தேர்ந்தெடு',
         'backCamera': 'கேமராவுக்குத் திரும்பு',
         'voiceCommands': 'குரல் கட்டளைகள்',
@@ -2105,7 +2105,7 @@ class _LiveCameraScreenState
         'noSigns': 'స్పష్టమైన బోర్డు కనిపించలేదు.',
         'analysisFailed': 'చిత్రాన్ని విశ్లేషించలేకపోయాను. మరో చిత్రాన్ని ప్రయత్నించండి.',
         'cameraError': 'కెమెరా అందుబాటులో లేదు. అనుమతులను తనిఖీ చేసి యాప్‌ను మళ్లీ తెరవండి.',
-        'voicePrompt': 'వాయిస్ ఆదేశాలు సిద్ధంగా ఉన్నాయి. స్కాన్, ఆపు, మళ్లీ చెప్పు, సహాయం లేదా భాష మార్చు అని చెప్పండి.',
+        'voicePrompt': 'వాయిస్ ఆదేశాలు సిద్ధంగా ఉన్నాయి. స్కాన్ ప్రారంభించడానికి స్కాన్, ఆపడానికి ఆపు, చివరి ఫలితం కోసం మళ్లీ చెప్పు, బోర్డుపై ఫోకస్ కోసం ఫోకస్, చుట్టుపక్కల బోర్డుల కోసం చుట్టుపక్కల బోర్డులు, స్థానం కోసం నేను ఎక్కడ ఉన్నాను, భాష మార్చడానికి భాష మార్చు, అన్ని ఆదేశాల కోసం సహాయం అని చెప్పండి.',
         'stopDone': 'స్కానింగ్ ఆపబడింది.',
         'nothingToRepeat': 'మళ్లీ చెప్పడానికి ఏమీ లేదు.',
         'noFocus': 'ఫోకస్ చేయడానికి బోర్డు కనిపించలేదు.',
@@ -2119,7 +2119,7 @@ class _LiveCameraScreenState
         'notUnderstood': 'నాకు అర్థం కాలేదు. సహాయం అని చెప్పండి.',
         'demoComplete': 'చిత్ర విశ్లేషణ పూర్తయింది.',
         'visible': 'నాకు కనిపిస్తున్నవి',
-        'help': 'స్కాన్, ఆపు, మళ్లీ చెప్పు, ఫోకస్, చుట్టుపక్కల బోర్డులు, భాష మార్చు లేదా నావిగేట్ అని చెప్పండి.',
+        'help': 'ఆదేశాలు: స్కాన్ ప్రారంభించడానికి స్కాన్, ఆపడానికి ఆపు, చివరి ఫలితం కోసం మళ్లీ చెప్పు, ఫోకస్ లేదా బోర్డును కనుగొను, ఫోకస్ ఆపు, చుట్టుపక్కల బోర్డులు, ఏ బోర్డులు, నేను ఎక్కడ ఉన్నాను, భాష మార్చు, నావిగేట్, సహాయం. Voice Commands బటన్ నొక్కి, మైక్రోఫోన్ అనుమతి ఇచ్చి, ఒక ఆదేశం చెప్పండి.',
         'upload': 'చిత్రాన్ని ఎంచుకోండి',
         'backCamera': 'కెమెరాకు తిరిగి వెళ్ళండి',
         'voiceCommands': 'వాయిస్ ఆదేశాలు',
@@ -2155,7 +2155,7 @@ class _LiveCameraScreenState
         'noSigns': 'വ്യക്തമായ ബോർഡ് കണ്ടെത്താനായില്ല.',
         'analysisFailed': 'ചിത്രം പരിശോധിക്കാൻ കഴിഞ്ഞില്ല. മറ്റൊരു ചിത്രം തിരഞ്ഞെടുക്കുക.',
         'cameraError': 'ക്യാമറ ലഭ്യമല്ല. അനുമതികൾ പരിശോധിച്ച് ആപ്പ് വീണ്ടും തുറക്കുക.',
-        'voicePrompt': 'വോയ്സ് കമാൻഡുകൾ തയ്യാറാണ്. സ്കാൻ, നിർത്തുക, വീണ്ടും പറയുക, സഹായം അല്ലെങ്കിൽ ഭാഷ മാറ്റുക എന്ന് പറയുക.',
+        'voicePrompt': 'വോയ്സ് കമാൻഡുകൾ തയ്യാറാണ്. സ്കാൻ തുടങ്ങാൻ സ്കാൻ, നിർത്താൻ നിർത്തുക, അവസാന ഫലം കേൾക്കാൻ വീണ്ടും പറയുക, ബോർഡിൽ ഫോക്കസ് ചെയ്യാൻ ഫോക്കസ്, ചുറ്റുമുള്ള ബോർഡുകൾക്കായി ചുറ്റുമുള്ള ബോർഡുകൾ, സ്ഥലം അറിയാൻ ഞാൻ എവിടെയാണ്, ഭാഷ മാറ്റാൻ ഭാഷ മാറ്റുക, എല്ലാ കമാൻഡുകളും കേൾക്കാൻ സഹായം എന്ന് പറയുക.',
         'stopDone': 'സ്കാനിംഗ് നിർത്തി.',
         'nothingToRepeat': 'വീണ്ടും പറയാൻ ഒന്നുമില്ല.',
         'noFocus': 'ഫോക്കസ് ചെയ്യാൻ ബോർഡ് കണ്ടെത്തിയില്ല.',
@@ -2169,7 +2169,7 @@ class _LiveCameraScreenState
         'notUnderstood': 'മനസ്സിലായില്ല. സഹായം എന്ന് പറയുക.',
         'demoComplete': 'ചിത്ര പരിശോധന പൂർത്തിയായി.',
         'visible': 'എനിക്ക് കാണുന്നത്',
-        'help': 'സ്കാൻ, നിർത്തുക, വീണ്ടും പറയുക, ഫോക്കസ്, ചുറ്റുമുള്ള ബോർഡുകൾ, ഭാഷ മാറ്റുക അല്ലെങ്കിൽ നാവിഗേറ്റ് എന്ന് പറയുക.',
+        'help': 'കമാൻഡുകൾ: സ്കാൻ തുടങ്ങാൻ സ്കാൻ, നിർത്താൻ നിർത്തുക, അവസാന ഫലം കേൾക്കാൻ വീണ്ടും പറയുക, ഫോക്കസ് അല്ലെങ്കിൽ ബോർഡ് കണ്ടെത്തുക, ഫോക്കസ് നിർത്തുക, ചുറ്റുമുള്ള ബോർഡുകൾ, ഏത് ബോർഡുകൾ, ഞാൻ എവിടെയാണ്, ഭാഷ മാറ്റുക, നാവിഗേറ്റ്, സഹായം. Voice Commands ബട്ടൺ അമർത്തി മൈക്രോഫോൺ അനുമതി നൽകി ഒരു കമാൻഡ് പറയുക.',
         'upload': 'ചിത്രം തിരഞ്ഞെടുക്കുക',
         'backCamera': 'ക്യാമറയിലേക്ക് മടങ്ങുക',
         'voiceCommands': 'വോയ്സ് കമാൻഡുകൾ',
@@ -2220,7 +2220,7 @@ class _LiveCameraScreenState
       'cameraError':
           'Camera is unavailable. Allow camera and microphone permissions and reopen the app.',
       'voicePrompt':
-          'Say a command.',
+          'Voice commands are ready. Say scan to resume, stop to pause, repeat to hear the last result, find sign to focus, stop focus to release focus, scan surroundings or what signs to describe nearby signs, where for location, safety mode or normal mode, change language, navigate, or help to hear the command list.',
       'stopDone':
           'Scanning stopped.',
       'nothingToRepeat':
@@ -2248,7 +2248,7 @@ class _LiveCameraScreenState
       'visible':
           'I can see',
       'help':
-          'Say scan, stop, repeat, find sign, stop focus, scan surroundings, what signs, where, safety mode, normal mode, change language, or navigate.',
+          'Available commands: scan (resume scanning), stop (pause scanning), repeat (hear the last result), find sign (focus on a sign), stop focus, scan surroundings, what signs (describe detected signs), where (hear location or last sign position), safety mode, normal mode, change language, and navigate (when a verified place is available). Tap Voice Commands, allow microphone access, then speak one command. Say help to hear this list again.',
       'upload':
           'Upload image',
       'backCamera':
@@ -2426,7 +2426,12 @@ class _LiveCameraScreenState
 
     if (speech.contains('stop focus') ||
         speech.contains('release focus') ||
-        speech.contains('unfocus')) {
+        speech.contains('unfocus') ||
+        speech.contains('फोकस रोकें') ||
+        speech.contains('ಫೋಕಸ್ ನಿಲ್ಲಿಸು') ||
+        speech.contains('கவனத்தை நிறுத்து') ||
+        speech.contains('ఫోకస్ ఆపు') ||
+        speech.contains('ഫോക്കസ് നിർത്തുക')) {
       focusMode = false;
       intel.clearFocus();
       await speak(copy('focusStopped'), priority: true);
@@ -2454,7 +2459,10 @@ class _LiveCameraScreenState
     if (speech.contains('stop') ||
         speech.contains('रुको') ||
         speech.contains('निल्') ||
-        speech.contains('ನಿಲ್ಲಿಸು')) {
+        speech.contains('ನಿಲ್ಲಿಸು') ||
+        speech.contains('நிறுத்து') ||
+        speech.contains('ఆపు') ||
+        speech.contains('നിർത്തുക')) {
       stopped = true;
       await announcements.stopAndClear();
       await tts.stop();
@@ -2466,7 +2474,10 @@ class _LiveCameraScreenState
         speech.contains('continue') ||
         speech.contains('स्कैन') ||
         speech.contains('ಮುಂದುವರ') ||
-        speech.contains('ಸ್ಕ್ಯಾನ್')) {
+        speech.contains('ಸ್ಕ್ಯಾನ್') ||
+        speech.contains('ஸ்கேன்') ||
+        speech.contains('స్కాన్') ||
+        speech.contains('സ്കാൻ')) {
       stopped = false;
       await announcements.stopAndClear();
       await speak(copy('scanning'), priority: true);
@@ -2497,7 +2508,14 @@ class _LiveCameraScreenState
         speech.contains('focus') ||
         speech.contains('लक्ष्य') ||
         speech.contains('फोकस') ||
-        speech.contains('ಫೋಕಸ್')) {
+        speech.contains('ಫೋಕಸ್') ||
+        speech.contains('கவனம்') ||
+        speech.contains('ఫోకస్') ||
+        speech.contains('ഫോക്കസ്') ||
+        speech.contains('பலகையைக் கண்டுபிடி') ||
+        speech.contains('బోర్డును కనుగొను') ||
+        speech.contains('ബോർഡ് കണ്ടെത്തുക') ||
+        speech.contains('ಫಲಕ ಹುಡುಕಿ')) {
       if (lastDetections.isEmpty) {
         await speak(
           copy('noFocus'),
@@ -2525,7 +2543,13 @@ class _LiveCameraScreenState
         speech.contains('what do you see') ||
         speech.contains('क्या है') ||
         speech.contains('सिर्फ आसपास') ||
-        speech.contains('सುತ್ತ')) {
+        speech.contains('சுற்றியுள்ள') ||
+        speech.contains('ಸುತ್ತಮುತ್ತಲಿನ') ||
+        speech.contains('சுற்றியுள்ள பலகைகள்') ||
+        speech.contains('చుట్టుపక్కల') ||
+        speech.contains('చుట్టుపక్కల బోర్డులు') ||
+        speech.contains('ചുറ്റുമുള്ള') ||
+        speech.contains('ചുറ്റുമുള്ള ബോർഡുകൾ')) {
       sceneScanMode = true;
 
       await speak(
@@ -2537,7 +2561,11 @@ class _LiveCameraScreenState
 
     if (speech.contains('what signs') ||
         speech.contains('nearby signs') ||
-        speech.contains('signs around')) {
+        speech.contains('signs around') ||
+        speech.contains('என்ன பலகைகள்') ||
+        speech.contains('ఏ బోర్డులు') ||
+        speech.contains('ഏത് ബോർഡുകൾ') ||
+        speech.contains('ಯಾವ ಫಲಕಗಳಿವೆ')) {
       if (lastDetections.isEmpty) {
         await speak(
           copy('noSigns'),
@@ -2587,7 +2615,10 @@ class _LiveCameraScreenState
     if (speech.contains('change language') ||
         speech.contains('language') ||
         speech.contains('भाषा') ||
-        speech.contains('ಭಾಷೆ')) {
+        speech.contains('ಭಾಷೆ') ||
+        speech.contains('மொழியை மாற்று') ||
+        speech.contains('భాష మార్చు') ||
+        speech.contains('ഭാഷ മാറ്റുക')) {
       await chooseLanguage(force: true);
 
       return;
@@ -2596,7 +2627,10 @@ class _LiveCameraScreenState
     if (speech.contains('navigate') ||
         speech.contains('direction') ||
         speech.contains('दिशा') ||
-        speech.contains('ನ್ಯಾವಿಗೇಟ್')) {
+        speech.contains('ನ್ಯಾವಿಗೇಟ್') ||
+        speech.contains('வழிசெலுத்து') ||
+        speech.contains('నావిగేట్') ||
+        speech.contains('നാവിഗേറ്റ്')) {
       await _navigateToVerifiedPlace();
       return;
     }

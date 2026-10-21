@@ -134,7 +134,16 @@ class OCRService {
       // A result that appears in several preprocessing passes is more stable.
       // If the passes disagree or the text is very weak, ask Engine 3 to
       // resolve stylized lettering; the local result remains the offline fallback.
-      if (agreeing.isEmpty || _score(best.text) < 18) {
+      // English signs can contain stylized fonts, abbreviations and mixed
+      // case lettering that local Latin OCR may confidently misread. When
+      // cloud OCR is configured, compare it against the local result for
+      // English too; retain the local result whenever the cloud candidate
+      // scores worse, so offline behavior and readable local results survive.
+      // The perceptual cache limits repeated uploads of a stationary sign.
+      final shouldCompareCloud = normalizedLanguage == 'en' ||
+          agreeing.isEmpty ||
+          _score(best.text) < 30;
+      if (shouldCompareCloud) {
         final cloudText = await _recognizeWithOcrSpace(crop);
         if (cloudText.isNotEmpty &&
             _score(cloudText) >= _score(best.text)) {
